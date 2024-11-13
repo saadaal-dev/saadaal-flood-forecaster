@@ -1,4 +1,5 @@
 import csv
+from typing import List
 
 
 class District:
@@ -12,10 +13,10 @@ class District:
         return f"District: {self.name}, Region: {self.region}, Latitude: {self.latitude}, Longitude: {self.longitude}"
 
 
-def get_districts(csv_path: str) -> list[District]:
+def get_districts(csv_path: str) -> List[District]:
     with open(csv_path, mode="r", newline="") as location_file:
         reader = csv.reader(location_file)
-        districts: list[District] = []
+        districts: List[District] = []
         next(reader, None)  # skip the headers
         for row in reader:
             district = District(

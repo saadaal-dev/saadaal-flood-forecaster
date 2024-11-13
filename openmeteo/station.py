@@ -1,4 +1,5 @@
 import csv
+from typing import List
 
 
 class Station:
@@ -12,10 +13,10 @@ class Station:
         return f"Station [{self.id}]: {self.name}, Latitude: {self.latitude}, Longitude: {self.longitude}"
 
 
-def get_stations(csv_path: str) -> list[Station]:
+def get_stations(csv_path: str) -> List[Station]:
     with open(csv_path, mode="r", newline="") as location_file:
         reader = csv.reader(location_file)
-        stations: list[Station] = []
+        stations: List[Station] = []
         next(reader, None)  # skip the headers
         for row in reader:
             station = Station(
