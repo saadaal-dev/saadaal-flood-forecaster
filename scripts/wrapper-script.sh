@@ -30,8 +30,8 @@ status=$?
 
 # Check if the job failed
 if [ ${status} -ne 0 ]; then
-    # Use the MAILTO environment variable for the email list
-    echo "[${script_to_run}] Job failed with exit code ${status}" | mail -s "Cron Job Failure Alert" "${MAILTO}"
+    # Use the MAILTO environment variable for the email list if mail utility available
+    echo "[${script_to_run}] Job failed with exit code ${status}"  # | mail -s "Cron Job Failure Alert" "${MAILTO}"
 else
     echo "[${script_to_run}] Job completed successfully."
 fi

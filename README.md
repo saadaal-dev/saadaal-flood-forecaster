@@ -47,11 +47,11 @@ bash install/install.sh
 crontab -e
 # Add the last line to the crontab
 # m h  dom mon dow   command
-0 10 * * * /usr/bin/fetch_river.sh      
+0 10 * * * /usr/bin/fetch_river.sh
 0 0 * * MON /usr/bin/generate_river.sh
 0 0 17 */1 * /usr/bin/fetch_data.sh
 0 1 17 */1 * /usr/bin/generate_reports.sh
-0 9 * * * /root/workv2/scripts/forecast_weather.sh
+0 9 * * * WORKDIR=/root/workv2/scripts; ${WORKDIR}/wrapper-script.sh ${WORKDIR}/forecast_weather.sh
 
 # Check the crontab with
 crontab -l
@@ -59,7 +59,7 @@ crontab -l
 
 # Suggested improvements
 Those improvements applies to the new scripts (openmeteo) and the existing ones (data-extractor).
-* Adding a wrapper to capture the script failure/success and send out an email for monitoring/alerting.
+* Improve the wrapper to capture the script failure/success and send out an email for monitoring/alerting.
 * The scripts can be improved by adding error handling and logging.
 * The scripts can be improved by adding unit tests.
 * The scripts can be improved by adding a CI/CD pipeline.
