@@ -5,23 +5,12 @@ import datetime
 import requests_cache
 import pandas as pd
 from retry_requests import retry
+from station import Station
 
 # Setup the Open-Meteo API client with cache and retry on error
 cache_session = requests_cache.CachedSession(".cache", expire_after=3600)
 retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
 openmeteo = openmeteo_requests.Client(session=retry_session)
-
-
-# Open the station location csv file
-class Station:
-    def __init__(self, id: int, name: str, latitude: float, longitude: float):
-        self.id = id
-        self.name = name
-        self.latitude = latitude
-        self.longitude = longitude
-
-    def __str__(self):
-        return f"Station [{self.id}]: {self.name}, Latitude: {self.latitude}, Longitude: {self.longitude}"
 
 
 # Get the weather forecast for a specific location
@@ -48,7 +37,7 @@ def get_weather_forecast(stations: list[Station]):
     return responses
 
 
-# Get the hourly data as a pandas dataframe
+# Get the hourly data as a pandas DataFrame
 def get_hourly_dataframe(response: WeatherApiResponse, station: Station):
     # Process hourly data. The order of variables needs to be the same as requested.
     hourly = response.Hourly()
@@ -80,7 +69,7 @@ def get_hourly_dataframe(response: WeatherApiResponse, station: Station):
     return df
 
 
-# Get the daily data as a pandas dataframe
+# Get the daily data as a pandas DataFrame
 def get_daily_dataframe(response: WeatherApiResponse, station: Station):
     # Process daily data. The order of variables needs to be the same as requested.
     daily = response.Daily()
