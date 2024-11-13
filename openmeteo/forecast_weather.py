@@ -7,6 +7,12 @@ from retry_requests import retry
 from station import Station, get_stations
 from district import District, get_districts
 from typing import List
+import os
+
+data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"
+if not os.path.exists(data_path):
+    os.makedirs(data_path)
+
 
 # Get the weather forecast for a specific location
 def get_weather_forecast(latitudes: List[float], longitudes: List[float]):
@@ -162,7 +168,7 @@ def get_station_data():
     hourly_combined = pd.concat(hourly_dfs, ignore_index=True)
     daily_combined = pd.concat(daily_dfs, ignore_index=True)
 
-    basename = "forecast_station_weather"
+    basename = data_path + "forecast_station_weather"
     hourly_filename = "{}_hourly_{:%Y-%m-%d}.csv".format(
         basename, datetime.datetime.now()
     )
