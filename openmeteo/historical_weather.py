@@ -6,6 +6,11 @@ import requests_cache
 import pandas as pd
 from retry_requests import retry
 from station import Station
+import os
+
+data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"
+if not os.path.exists(data_path):
+    os.makedirs(data_path)
 
 # Setup the Open-Meteo API client with cache and retry on error
 cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
@@ -100,7 +105,7 @@ with open("station-data.csv", mode="r", newline="") as location_file:
         daily_dfs.append(daily_df)
 
     daily_combined = pd.concat(daily_dfs, ignore_index=True)
-    daily_filename = "historical_weather_daily_{:%Y-%m-%d}.csv".format(
+    daily_filename = data_path + "historical_weather_daily_{:%Y-%m-%d}.csv".format(
         datetime.datetime.now()
     )
     daily_combined.to_csv(daily_filename)
