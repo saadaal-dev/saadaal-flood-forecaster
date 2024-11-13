@@ -1,4 +1,10 @@
-This repository contains scripts for using the [Open-Meteo](https://open-meteo.com/) Weather API.
+# Repository structure
+The repository is structured as follows:
+* `data-extractor`: Contains the scripts to extract the data for the initial SAADAAL system.
+* `openmeteo`: Contains the scripts to extract the weather data from the Open-Meteo API.
+* `install`: Contains the scripts to install the required python dependencies on the server.
+* `scripts`: Contains the scripts to be scheduled by crontab on the server.
+* `static-data`: Contains some data that were captured during the data epxloration phase and that are not yet processed by the scripts.
 
 # Server installation
 1. Clone the repository at the root path of the server.
