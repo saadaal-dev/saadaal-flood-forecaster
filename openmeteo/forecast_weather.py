@@ -6,10 +6,10 @@ import pandas as pd
 from retry_requests import retry
 from station import Station, get_stations
 from district import District, get_districts
-
+from typing import List
 
 # Get the weather forecast for a specific location
-def get_weather_forecast(latitudes: list[float], longitudes: list[float]):
+def get_weather_forecast(latitudes: List[float], longitudes: List[float]):
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": latitudes,

@@ -6,9 +6,10 @@ import pandas as pd
 from retry_requests import retry
 from station import Station, get_stations
 from district import District, get_districts
+from typing import List
 
 
-def get_historical_weather(latitudes: list[float], longitudes: list[float]):
+def get_historical_weather(latitudes: List[float], longitudes: List[float]):
     # Make sure all required weather variables are listed here
     # The order of variables in hourly or daily is important to assign them correctly below
     url = "https://archive-api.open-meteo.com/v1/archive"
@@ -85,7 +86,7 @@ def get_daily_district_data_frame(response: WeatherApiResponse, district: Distri
 
 def get_station_data():
     print("Reading station data...")
-    stations: list[Station] = get_stations("station-data.csv")
+    stations: List[Station] = get_stations("station-data.csv")
     latitudes = [s.latitude for s in stations]
     longitudes = [s.longitude for s in stations]
     responses = get_historical_weather(latitudes, longitudes)
