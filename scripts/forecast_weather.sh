@@ -1,9 +1,10 @@
 #!/bin/bash
 
-BASE_PATH=/root/workv2
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-cd $BASE_PATH/data-extractor-venv
-source bin/activate
+BASE_PATH="$SCRIPT_DIR/.."
+
+source $BASE_PATH/data-extractor-venv/bin/activate
 
 cd $BASE_PATH/openmeteo
 python3 forecast_weather.py

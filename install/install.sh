@@ -2,10 +2,15 @@
 
 set -e
 # This script prepares the environment for running the python scripts
+# to execute 
 
 # The base path is the root of the project
-# Set first arg as BASE_PATH if exists else default to /root/workv2
-BASE_PATH="${1:-/root/workv2}"
+# Script to be executed from the root of the project
+# with bash install/install.sh
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+BASE_PATH="$SCRIPT_DIR/.."
 
 # Check if BASE_PATH exists
 if [ ! -d "$BASE_PATH" ]; then
@@ -28,6 +33,8 @@ fi
 # Activate the virtual environment
 source $VENV_PATH/bin/activate
 
+echo "Virtual environment activated at: $VENV_PATH with $VIRTUAL_ENV"	
+
 # Install the required packages
-pip3 install -r ../openmeteo/requirements.txt
-pip3 install -r ../data-extractor/requirements.txt
+pip3 install -r $SCRIPT_DIR/../openmeteo/requirements.txt
+pip3 install -r $SCRIPT_DIR/../data-extractor/requirements.txt
