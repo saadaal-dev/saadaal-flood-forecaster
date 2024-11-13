@@ -107,7 +107,7 @@ def get_station_data():
         daily_dfs.append(daily_df)
 
     daily_combined = pd.concat(daily_dfs, ignore_index=True)
-    daily_filename = "historical_station_weather_daily_{:%Y-%m-%d}.csv".format(
+    daily_filename = data_path + "historical_station_weather_daily_{:%Y-%m-%d}.csv".format(
         datetime.datetime.now()
     )
     daily_combined.to_csv(daily_filename)
