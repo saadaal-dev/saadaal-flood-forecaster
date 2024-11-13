@@ -7,6 +7,11 @@ from retry_requests import retry
 from station import Station, get_stations
 from district import District, get_districts
 from typing import List
+import os
+
+data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"
+if not os.path.exists(data_path):
+    os.makedirs(data_path)
 
 
 def get_historical_weather(latitudes: List[float], longitudes: List[float]):
@@ -126,7 +131,7 @@ def get_district_data():
         daily_dfs.append(daily_df)
 
     daily_combined = pd.concat(daily_dfs, ignore_index=True)
-    daily_filename = "historical_district_weather_daily_{:%Y-%m-%d}.csv".format(
+    daily_filename = data_path + "historical_district_weather_daily_{:%Y-%m-%d}.csv".format(
         datetime.datetime.now()
     )
     daily_combined.to_csv(daily_filename)
