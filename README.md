@@ -53,7 +53,7 @@ crontab -l
 
 # Suggested improvements
 Those improvements applies to the new scripts (openmeteo) and the existing ones (data-extractor).
-* Add monitoring and alerting to the scripts in case of failure or data missing.
+* Adding a wrapper to capture the script failure/success and send out an email for monitoring/alerting.
 * The scripts can be improved by adding error handling and logging.
 * The scripts can be improved by adding unit tests.
 * The scripts can be improved by adding a CI/CD pipeline.
