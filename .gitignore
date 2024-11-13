@@ -1,2 +1,4 @@
 __pycache__
 .cache.sqlite
+data/
+data-extractor-venv/

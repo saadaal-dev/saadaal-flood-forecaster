@@ -1,0 +1,5 @@
+bs4
+pandas
+psycopg2-binary
+requests
+lxml
