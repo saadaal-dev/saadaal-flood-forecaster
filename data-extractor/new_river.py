@@ -2,6 +2,9 @@ import requests
 from tqdm import tqdm
 import pandas as pd
 from sqlalchemy import create_engine,text
+import os
+
+POSTGRES_PASSWORD = os.environ['POSTGRES_PASSWORD']
 
 url = 'http://frrims.faoswalim.org/rivers/graph'
 
@@ -45,7 +48,7 @@ def insert_data(data,station_id):
     # Convert dateOfReadingStr to datetime and rename to 'reading_date'
     df['reading_date'] = pd.to_datetime(df['dateOfReadingStr'],format="%d-%m-%Y").dt.date
     # Create a SQLAlchemy engine
-    engine = create_engine('postgresql://postgres:REPLACE_ME@68.183.13.232:5432/postgres')
+    engine = create_engine(f"postgresql://postgres:{POSTGRES_PASSWORD}@68.183.13.232:5432/postgres")
 
     # Write data to PostgreSQL
     df[['station_id','reading', 'reading_date']].to_sql('temp_table', engine, if_exists='replace', index=False)

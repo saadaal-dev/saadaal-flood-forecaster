@@ -6,19 +6,23 @@ import requests
 import pandas as pd
 from openai import OpenAI
 from datetime import datetime
+import os
+
+POSTGRES_PASSWORD = os.environ['POSTGRES_PASSWORD']
+OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
 
 API_URL = "https://sodma-hasura.sodma.shaqodoonst4d.com/api/rest/all_cdi_alert"
 
 conn = psycopg2.connect(
         dbname='postgres',
         user='postgres',
-        password='REPLACE_ME',
+        password=POSTGRES_PASSWORD,
         host='68.183.13.232',
         port='5432'
     )
 
 client = OpenAI(
-    api_key='REPLACE_ME'
+    api_key=OPENAI_API_KEY
 )
 
 indicator = 'cdi'
