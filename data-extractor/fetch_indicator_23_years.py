@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine,text
+import os
+
+POSTGRES_PASSWORD = os.environ['POSTGRES_PASSWORD']
 
 
 def get_last_month():
@@ -84,7 +87,7 @@ def transform_data(data,base_date):
     return melted_df
 
 def insert_data(transformed_data):
-    engine = create_engine('postgresql://postgres:REPLACE_ME@68.183.13.232:5432/postgres')
+    engine = create_engine(f"postgresql://postgres:{POSTGRES_PASSWORD}@68.183.13.232:5432/postgres)
     transformed_data.to_sql('temp_indicator_table', engine, if_exists='replace', index=False)
     with engine.begin() as connection:
         query = text("""

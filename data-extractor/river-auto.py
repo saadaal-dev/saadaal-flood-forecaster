@@ -4,17 +4,21 @@ from openai import OpenAI
 import psycopg2
 import requests
 import pandas as pd
+import os
+
+POSTGRES_PASSWORD = os.environ['POSTGRES_PASSWORD']
+OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
 
 conn = psycopg2.connect(
         dbname='postgres',
         user='postgres',
-        password='REPLACE_ME',
+        password=POSTGRES_PASSWORD,
         host='68.183.13.232',
         port='5432'
     )
 
 client = OpenAI(
-    api_key='REPLACE_ME'
+    api_key=OPENAI_API_KEY
 )
 
 indicator = 'river'
