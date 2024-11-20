@@ -1,0 +1,21 @@
+[flake8]
+max-line-length = 120
+max-doc-length = 140
+ignore =
+    W293,
+    W503,
+    E501,
+    H903,
+    E266,
+    D203,
+    H306
+exclude =
+    .git,
+    .venv
+    __pycache__,
+    docs/*,
+    old,
+    build,
+    dist,
+    spikes
+max-complexity = 10

@@ -7,7 +7,7 @@ api_secret = os.getenv("MAILJET_API_SECRET")
 
 # Ensure credentials are set
 if not api_key or not api_secret:
-    raise ValueError("MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE must be set as environment variables.")
+    raise ValueError("MAILJET_API_KEY and MAILJET_API_SECRET must be set as environment variables.")
 
 
 def get_contact_list_address(list_id):
@@ -31,6 +31,7 @@ def get_contact_list_address(list_id):
             raise Exception("No data found for the given contact list ID.")
     else:
         raise Exception(f"Failed to fetch contact list details. Status Code: {result.status_code}. Response: {result.text}")
+
 
 def send_email_to_contact_list(contact_list_address, subject, text_body, html_body):
     """
