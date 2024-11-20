@@ -51,7 +51,7 @@ def send_email_to_contact_list(contact_list_address, subject, text_body, html_bo
         "Messages": [
             {
                 "From": {
-                    "Email": "saaldaal-dev@mailjet.com",
+                    "Email": "saadaal.dev@gmail.com",
                     "Name": "Saadaal DevOps"
                 },
                 "To": [
