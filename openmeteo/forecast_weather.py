@@ -204,7 +204,7 @@ def get_district_data():
     hourly_combined = pd.concat(hourly_dfs, ignore_index=True)
     daily_combined = pd.concat(daily_dfs, ignore_index=True)
 
-    basename = "forecast_district_weather"
+    basename = data_path + "forecast_district_weather"
     hourly_filename = "{}_hourly_{:%Y-%m-%d}.csv".format(
         basename, datetime.datetime.now()
     )
