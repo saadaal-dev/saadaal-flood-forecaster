@@ -1,4 +1,5 @@
 import alerting_module
+import os
 
 if __name__ == "__main__":
     try:
@@ -11,8 +12,7 @@ if __name__ == "__main__":
         print(error_message)
 
         # Provide the contact list ID
-        list_id = 10491072
-        
+        list_id = os.getenv("CONTACT_LIST_ID")
         # Get contact list address
         contact_list_address = alerting_module.get_contact_list_address(list_id)
         print(f"Contact list address: {contact_list_address}@lists.mailjet.com")

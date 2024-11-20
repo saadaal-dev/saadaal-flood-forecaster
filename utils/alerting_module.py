@@ -2,8 +2,8 @@ from mailjet_rest import Client
 import os
 
 # Load API keys from environment variables
-api_key = os.getenv("MJ_APIKEY_PUBLIC")
-api_secret = os.getenv("MJ_APIKEY_PRIVATE")
+api_key = os.getenv("MAILJET_API_KEY")
+api_secret = os.getenv("MAILJET_API_SECRET")
 
 # Ensure credentials are set
 if not api_key or not api_secret:
