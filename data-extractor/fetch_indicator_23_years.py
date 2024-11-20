@@ -87,7 +87,7 @@ def transform_data(data,base_date):
     return melted_df
 
 def insert_data(transformed_data):
-    engine = create_engine(f"postgresql://postgres:{POSTGRES_PASSWORD}@68.183.13.232:5432/postgres)
+    engine = create_engine(f"postgresql://postgres:{POSTGRES_PASSWORD}@68.183.13.232:5432/postgres")
     transformed_data.to_sql('temp_indicator_table', engine, if_exists='replace', index=False)
     with engine.begin() as connection:
         query = text("""
@@ -105,4 +105,3 @@ for indicator in indicators:
         continue
     #insert_data(transformed_data)
     transformed_data.to_csv(f'{indicator}_data_sws.csv',index=False)
-    
