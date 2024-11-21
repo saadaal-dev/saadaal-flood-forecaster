@@ -5,6 +5,13 @@ The repository is structured as follows:
 * `install`: Contains the scripts to install the required python dependencies on the server.
 * `scripts`: Contains the scripts to be scheduled by crontab on the server.
 * `static-data`: Contains some data that were captured during the data epxloration phase and that are not yet processed by the scripts.
+* `utils`: Contains helper module to be used for sending alerts.
+
+# Linting and secrets detection
+
+* To run the Python linter flake8 on the whole repo, run the command: `tox -e linting`.
+* To detect new secrets, compared with the previously created baseline run the command: `tox -e detect-secrets`.
+* To run all validations from `tox.ini` just run `tox`
 
 # Server installation
 1. Clone the repository at the root path of the server.
@@ -72,7 +79,7 @@ crontab -l
 
 # Suggested improvements
 Those improvements applies to the new scripts (openmeteo) and the existing ones (data-extractor).
-* Improve the wrapper to capture the script failure/success and send out an email for monitoring/alerting.
+* Use alerting_module to capture the script failure/success and send out an email for monitoring/alerting.
 * The scripts can be improved by adding error handling and logging.
 * The scripts can be improved by adding unit tests.
 * The scripts can be improved by adding a CI/CD pipeline.

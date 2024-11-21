@@ -3,3 +3,4 @@ pylint-fail-under
 flake8
 black
 tox
+detect-secrets
