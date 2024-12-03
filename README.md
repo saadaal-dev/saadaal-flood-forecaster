@@ -1,11 +1,19 @@
 # Repository structure
 The repository is structured as follows:
-* `data-extractor`: Contains the scripts to extract the data for the initial SAADAAL system.
-* `openmeteo`: Contains the scripts to extract the weather data from the Open-Meteo API.
+* `src/data-extractor`: Contains the scripts to extract the data for the initial SAADAAL system.
+* `src/flood_forecaster/prediction`: Contains ML code for prediction models.
+* `src/flood_forecaster/recommendation_algorithm`: Contains code for alert recommendations.
+* `src/flood_forecaster/data_ingestion/`: Contains data ingestion modules.
+* `src/flood_forecaster/data_ingestion/openmeteo`: Contains the scripts to extract the weather data from the `Open-Meteo API`.
+* `src/flood_forecaster/utils`: Contains common helper modules, like `alerting_module` for sending alerts.
 * `install`: Contains the scripts to install the required python dependencies on the server.
 * `scripts`: Contains the scripts to be scheduled by crontab on the server.
 * `static-data`: Contains some data that were captured during the data epxloration phase and that are not yet processed by the scripts.
-* `utils`: Contains helper module to be used for sending alerts.
+[//]: # ToDO: *Reorganise* `static-data` *into* `data` *folder and adjust the content to match the models needs.*
+* `config`: Contains configuration files for model path, thresholds, ...
+* `resource`: Contains serialized models.
+* `docs`: Contains documentation on design and architecture details, API, model details and usage, ...
+
 
 # Linting and secrets detection
 
@@ -16,9 +24,9 @@ The repository is structured as follows:
 # Server installation
 1. Clone the repository at the root path of the server.
 ```bash	
-BASE_PATH="/root/workv2"
+BASE_PATH="/root/flood-forecaster"
 cd /
-git clone https://github.com/saadaal-dev/data-preparation.git $BASE_PATH
+git clone https://github.com/saadaal-dev/saadaal-flood-forecaster.git $BASE_PATH
 ```
 2. Install the required python dependencies.
 ```bash
@@ -27,7 +35,7 @@ bash install/install.sh
 ```
 3. Create a `.env` file in the `data-extractor` path of the repository and add the following environment variables.
 ```bash
-cd $BASE_PATH/data-extractor
+cd $BASE_PATH/src/data-extractor
 # Edit the file .env and add the following environment variables
 OPENAI_API_KEY=
 POSTGRES_PASSWORD=
@@ -35,8 +43,9 @@ POSTGRES_PASSWORD=
 4. Get the weather historical data from the Open-Meteo API.
 It has to be done only one time manually for initialisation
 ```bash
-source $BASE_PATH/data-extractor-venv/bin/activate
-cd $BASE_PATH/openmeteo
+source $BASE_PATH/src/data-extractor-venv/bin/activate
+OPENMETEO_PATH="${BASE_PATH}/src/flood_forecaster/data_ingestion/openmeteo"
+cd ${OPENMETEO_PATH}
 python3 historical_weather.py
 ```
 Note that the python installation is done with [virtualenv](https://docs.python.org/3/library/venv.html#creating-virtual-environments), therefore venv has to be activated whenver the python scripts are run.
@@ -44,7 +53,8 @@ Note that the python installation is done with [virtualenv](https://docs.python.
 5. Configure email alert to a contact list with Mailjet API
 * Create a .env_mailjet file in the `utils` folder including the Mailjet API credentials for your account, and the contact list_ID
 ```bash
-cd $BASE_PATH/utils
+UTILS_PATH="${BASE_PATH}/src/flood_forecaster/utils"
+cd ${UTILS_PATH}
 # Edit the file .env_apicreds and add the following environment variables
 MAILJET_API_KEY=
 MAILJET_API_SECRET=
