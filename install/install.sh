@@ -38,3 +38,6 @@ echo "Virtual environment activated at: $VENV_PATH with $VIRTUAL_ENV"
 # Install the required packages
 pip3 install -r $SCRIPT_DIR/../openmeteo/requirements.txt
 pip3 install -r $SCRIPT_DIR/../data-extractor/requirements.txt
+
+# TODO: fix paths
+# TODO: Create db if not exists
