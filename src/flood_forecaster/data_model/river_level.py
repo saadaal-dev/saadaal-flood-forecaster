@@ -14,7 +14,7 @@ class HistoricalRiverLevel(Base):
 
 
 
-class PredictedRiverStation(Base):
+class PredictedRiverLevel(Base):
     __tablename__ = 'predicted_river_level'
 
     id = Column(Integer, primary_key=True)
@@ -22,5 +22,7 @@ class PredictedRiverStation(Base):
     date = Column(DateTime)
     level_m = Column(Integer)
     station_number = Column(String(50))
+    ml_model_name = Column(String(100))
+    forecast_days = Column(Integer, comment="Number of days into the future the forecast is for")
 
 # TODO: add orm getters and setters
