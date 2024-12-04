@@ -37,7 +37,7 @@ bash install/install.sh
 ```bash
 cd $BASE_PATH/src/data-extractor
 # Edit the file .env and add the following environment variables
-OPENAI_API_KEY=
+OPENAI_API_KEY=  # TODO remove
 POSTGRES_PASSWORD=
 ```
 4. Get the weather historical data from the Open-Meteo API.
