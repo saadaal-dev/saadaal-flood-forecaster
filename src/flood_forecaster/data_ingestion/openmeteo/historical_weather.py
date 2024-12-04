@@ -9,7 +9,7 @@ from district import District, get_districts
 from typing import List
 import os
 
-data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"
+data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"  # TODO read from config
 if not os.path.exists(data_path):
     os.makedirs(data_path)
 
@@ -17,7 +17,7 @@ if not os.path.exists(data_path):
 def get_historical_weather(latitudes: List[float], longitudes: List[float]):
     # Make sure all required weather variables are listed here
     # The order of variables in hourly or daily is important to assign them correctly below
-    url = "https://archive-api.open-meteo.com/v1/archive"
+    url = "https://archive-api.open-meteo.com/v1/archive"  # TODO read from config
     end_date = datetime.datetime.now()
     start_date = end_date - datetime.timedelta(days=3 * 365)
     params = {

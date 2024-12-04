@@ -1,3 +1,0 @@
-requests_cache
-retry_requests
-mailjet_rest
