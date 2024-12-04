@@ -9,14 +9,18 @@ from district import District, get_districts
 from typing import List
 import os
 
-data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"
+# TODO: refactor with historical to delete duplicate code
+# TODO: add writing to database
+# TODO: add configurable: writing to db vs csv
+
+data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"  # TODO read from config
 if not os.path.exists(data_path):
     os.makedirs(data_path)
 
 
 # Get the weather forecast for a specific location
 def get_weather_forecast(latitudes: List[float], longitudes: List[float]):
-    url = "https://api.open-meteo.com/v1/forecast"
+    url = "https://api.open-meteo.com/v1/forecast"  # TODO read from config
     params = {
         "latitude": latitudes,
         "longitude": longitudes,
@@ -146,7 +150,7 @@ def get_daily_station_data_frame(response: WeatherApiResponse, station: Station)
 
 def get_station_data():
     print("Reading station data...")
-    stations = get_stations("station-data.csv")
+    stations = get_stations("station-data.csv")  # TODO read from config
     latitudes = [s.latitude for s in stations]
     longitudes = [s.longitude for s in stations]
     responses = get_weather_forecast(latitudes, longitudes)
@@ -182,7 +186,7 @@ def get_station_data():
 
 def get_district_data():
     print("Reading district data...")
-    districts = get_districts("district-data.csv")
+    districts = get_districts("district-data.csv")  # TODO read from config
     latitudes = [d.latitude for d in districts]
     longitudes = [d.longitude for d in districts]
     responses = get_weather_forecast(latitudes, longitudes)
