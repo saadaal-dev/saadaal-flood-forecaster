@@ -3,6 +3,7 @@ from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
+
 class HistoricalRiverLevel(Base):
     __tablename__ = 'historical_river_level'
 
@@ -11,7 +12,6 @@ class HistoricalRiverLevel(Base):
     date = Column(DateTime)
     level_m = Column(Integer)
     station_number = Column(String(50))
-
 
 
 class PredictedRiverLevel(Base):
