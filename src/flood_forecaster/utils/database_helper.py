@@ -3,6 +3,9 @@ import os
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.schema import CreateSchema
+import importlib
+import pkgutil
 
 
 class DatabaseConnection:
@@ -51,33 +54,56 @@ class DatabaseConnection:
 
     def create_schema(self, schema_name: str) -> None:
         """
-        Create a schema in the database.
-        
+        Create a schema in the database using SQLAlchemy
+
         :param schema_name: Name of the schema to create
         """
         try:
             with self.engine.connect() as connection:
-                connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema_name};"))
+                connection.execute(CreateSchema(schema_name, if_not_exists=True))
+                connection.commit()
                 print(f"Schema '{schema_name}' created (or already exists).")
         except SQLAlchemyError as e:
             print(f"Error creating schema '{schema_name}': {str(e)}")
 
-    def create_tables(self, schema_name: str, base) -> None:
+    def create_tables_from_data_model(self, schema_name: str, data_model_package: str) -> None:
         """
-        Create tables in the specified schema using ORM models.
+        Create tables in the specified schema using ORM models from the `data_model` package.
 
         :param schema_name: Name of the schema
-        :param base: SQLAlchemy Base containing ORM models
+        :param data_model_package: Name of the package containing ORM table models (e.g., 'data_model')
         """
         try:
+            # Dynamically import all models from the specified package
+            data_model = importlib.import_module(data_model_package)
+            for _, module_name, _ in pkgutil.iter_modules(data_model.__path__):
+                importlib.import_module(f"{data_model_package}.{module_name}")
+
             with self.engine.begin() as connection:
+                # Set the search path to the specified schema
                 connection.execute(text(f"SET search_path TO {schema_name};"))
-                base.metadata.create_all(bind=connection)
+                # Create all tables using metadata from imported models
+                data_model.Base.metadata.create_all(bind=connection)
                 print(f"Tables created in schema '{schema_name}'.")
         except SQLAlchemyError as e:
             print(f"Error creating tables in schema '{schema_name}': {str(e)}")
 
-    def list_db_schemas(self) -> list:
+    def list_all_schemas(self) -> list:
+        """
+        List all schemas in the connected database.
+
+        :return: List of schema names
+        """
+        try:
+            inspector = inspect(self.engine)  # Use SQLAlchemy Inspector
+            schemas = inspector.get_schema_names()
+            print(f"Available schemas: {schemas}")
+            return schemas
+        except SQLAlchemyError as e:
+            print(f"Error fetching schemas: {str(e)}")
+            return []
+
+    def list_schemas_stats(self) -> list:
         """
         List schemas in the current database with their owners, sizes, and table counts.
 
@@ -124,4 +150,3 @@ class DatabaseConnection:
         except SQLAlchemyError as e:
             print(f"Error listing tables in schema '{schema_name}': {str(e)}")
             return []
-
