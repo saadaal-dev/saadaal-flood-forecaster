@@ -1,28 +1,29 @@
 import configparser
 import os
-
-CONFIG_FILE_PATH = os.path.dirname(os.path.realpath(__file__)) + "/../../../config.ini"
-
-
-def load_database_config(config_file_path: str):
-    config = _load_config(config_file_path)
-    return dict(config.items("database"))
+from configparser import ConfigParser
 
 
-def load_openmeteo_config(config_file_path: str):
-    config = _load_config(config_file_path)
-    return dict(config.items("openmeteo"))
+class Config:
+    def __init__(self, config_file_path: str) -> None:
+        self._config: ConfigParser = self._load_config(config_file_path)
 
-def _load_config(config_file_path: str) -> configparser.ConfigParser:
-    """
-    Load configuration from the given file path.
+    def load_database_config(self):
+        return dict(self._config.items("database"))
 
-    :param config_file_path: Path to the configuration file
-    :return: ConfigParser object
-    """
-    if not os.path.exists(config_file_path):
-        raise FileNotFoundError(f"Config file '{config_file_path}' not found.")
+    def load_openmeteo_config(self):
+        return dict(self._config.items("openmeteo"))
 
-    config = configparser.ConfigParser()
-    config.read(config_file_path)
-    return config
+    @staticmethod
+    def _load_config(config_file_path: str) -> configparser.ConfigParser:
+        """
+        Load configuration from the given file path.
+
+        :param config_file_path: Path to the configuration file
+        :return: ConfigParser object
+        """
+        if not os.path.exists(config_file_path):
+            raise FileNotFoundError(f"Config file '{config_file_path}' not found.")
+
+        config = configparser.ConfigParser()
+        config.read(config_file_path)
+        return config
