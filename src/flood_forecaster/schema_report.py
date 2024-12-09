@@ -1,3 +1,4 @@
+from utils.configuration import Config
 from utils.database_helper import DatabaseConnection
 
 if __name__ == "__main__":
@@ -6,7 +7,8 @@ if __name__ == "__main__":
     # SCHEMA_NAME = "public"
 
     # Initialize database connection
-    db_conn = DatabaseConnection(CONFIG_FILE_PATH)
+    config = Config(CONFIG_FILE_PATH)
+    db_conn = DatabaseConnection(config)
 
     schemas = db_conn.list_all_schemas()
 

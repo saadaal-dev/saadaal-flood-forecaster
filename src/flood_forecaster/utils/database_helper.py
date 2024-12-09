@@ -1,28 +1,28 @@
-import configparser
+import importlib
 import os
+import pkgutil
+
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
-import importlib
-import pkgutil
 
-from src.flood_forecaster.utils.configuration import load_database_config
+from src.flood_forecaster.utils.configuration import Config
 
 
 class DatabaseConnection:
-    def __init__(self, config_file_path: str) -> None:
+    def __init__(self, config: Config, db_password: str = None) -> None:
         """
         Initialize the database connection using parameters from a config file.
 
-        :param config_file_path: Path to the configuration file
+        :param config: Config object
         """
-        self.config = self._load_config(config_file_path)
-        self.dbname = self.config.get("dbname")
-        self.user = self.config.get("user")
-        self.host = self.config.get("host")
-        self.port = int(self.config.get("port"))
-        self.password = os.environ.get("POSTGRES_PASSWORD")
+        config = config.load_database_config()
+        self.dbname = config.get("dbname")
+        self.user = config.get("user")
+        self.host = config.get("host")
+        self.port = int(config.get("port"))
+        self.password = self._get_env_pwd() if db_password is None else db_password
 
         try:
             url = URL.create(
@@ -40,8 +40,10 @@ class DatabaseConnection:
             raise
 
     @staticmethod
-    def _load_config(config_file_path: str) -> dict[str, str]:
-        return load_database_config(config_file_path)
+    def _get_env_pwd():
+        pwd = os.environ.get("POSTGRES_PASSWORD")
+        if not pwd:
+            raise ValueError("POSTGRES_PASSWORD environment variable not set.")
 
     def create_schema(self, schema_name: str) -> None:
         """
