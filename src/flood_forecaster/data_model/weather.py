@@ -1,8 +1,7 @@
 from sqlalchemy import Column, Float, String, DateTime, Integer
-from sqlalchemy.orm import declarative_base
-
-
-Base = declarative_base()
+from . import Base
+# from sqlalchemy.orm import declarative_base
+# Base = declarative_base()
 
 
 class HistoricalWeather(Base):
