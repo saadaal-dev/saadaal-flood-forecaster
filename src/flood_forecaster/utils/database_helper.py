@@ -7,6 +7,8 @@ from sqlalchemy.schema import CreateSchema
 import importlib
 import pkgutil
 
+from src.flood_forecaster.utils.configuration import load_database_config
+
 
 class DatabaseConnection:
     def __init__(self, config_file_path: str) -> None:
@@ -16,10 +18,10 @@ class DatabaseConnection:
         :param config_file_path: Path to the configuration file
         """
         self.config = self._load_config(config_file_path)
-        self.dbname = self.config.get("database", "dbname")
-        self.user = self.config.get("database", "user")
-        self.host = self.config.get("database", "host")
-        self.port = self.config.get("database", "port")
+        self.dbname = self.config.get("dbname")
+        self.user = self.config.get("user")
+        self.host = self.config.get("host")
+        self.port = int(self.config.get("port"))
         self.password = os.environ.get("POSTGRES_PASSWORD")
 
         try:
@@ -38,19 +40,8 @@ class DatabaseConnection:
             raise
 
     @staticmethod
-    def _load_config(config_file_path: str) -> configparser.ConfigParser:
-        """
-        Load configuration from the given file path.
-
-        :param config_file_path: Path to the configuration file
-        :return: ConfigParser object
-        """
-        if not os.path.exists(config_file_path):
-            raise FileNotFoundError(f"Config file '{config_file_path}' not found.")
-        
-        config = configparser.ConfigParser()
-        config.read(config_file_path)
-        return config
+    def _load_config(config_file_path: str) -> dict[str, str]:
+        return load_database_config(config_file_path)
 
     def create_schema(self, schema_name: str) -> None:
         """
