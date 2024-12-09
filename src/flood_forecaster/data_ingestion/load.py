@@ -1,12 +1,50 @@
-
 # Methods to load the data from the database
+from datetime import datetime
 
-# Load the history weather data from the database and returns it as a pandas dataframe
-def load_history_weather_db(settings, date_begin = "", date_end = ""):
-    pass
+import pandas as pd
+from sqlalchemy import select
 
-def load_forecast_weather_db(settings, date_begin = "", date_end = ""):
-    pass
+from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel
+from src.flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather
+from src.flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.utils.database_helper import DatabaseConnection
 
-def load_river_level_db(settings, date_begin = "", date_end = ""):
+
+def load_history_weather_db(config: Config, location: str, date_begin: datetime, date_end: datetime):
+    """
+    Loads the history weather data from the database and returns it as a pandas dataframe
+    :param config:
+    :param location:
+    :param date_begin:
+    :param date_end:
+    :return: pandas dataframe
+    """
+    stmt = (select(HistoricalWeather)
+            .where(HistoricalWeather.location_name == location)
+            .where(HistoricalWeather.date > date_begin)
+            .where(HistoricalWeather.date < date_end))
+    database = DatabaseConnection(config)
+    return pd.read_sql(stmt, database.engine)
+
+
+def load_forecast_weather_db(config: Config, location: str, date_begin: datetime, date_end: datetime):
+    stmt = (select(ForecastWeather)
+            .where(HistoricalWeather.location_name == location)
+            .where(ForecastWeather.date > date_begin)
+            .where(ForecastWeather.date < date_end))
+    database = DatabaseConnection(config)
+    return pd.read_sql(stmt, database.engine)
+
+
+def load_river_level_db(config: Config, location: str, date_begin: datetime, date_end: datetime):
+    stmt = (select(HistoricalRiverLevel)
+            .where(HistoricalWeather.location_name == location)
+            .where(HistoricalRiverLevel.date > date_begin)
+            .where(HistoricalRiverLevel.date < date_end))
+    database = DatabaseConnection(config)
+    return pd.read_sql(stmt, database.engine)
+
+
+def insert_predicted_river_level_db(df):
+    # TODO: Implement this function
     pass
