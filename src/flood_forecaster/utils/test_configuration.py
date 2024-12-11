@@ -9,9 +9,9 @@ class Test(TestCase):
     config = Config(CONFIG_FILE_PATH)
 
     def test_load_database_config(self):
-        conf = self.config.load_database_config()
+        conf = self.config.get_database_config()
         self.assertEqual(conf.get("dbname"), "postgres")
 
     def test_load_openmeteo_config(self):
-        conf = self.config.load_openmeteo_config()
+        conf = self.config.get_openmeteo_config()
         self.assertEqual(conf["api_url"], "https://api.open-meteo.com/v1/forecast")

@@ -1,11 +1,12 @@
+from dataclasses import dataclass
+
 from sqlalchemy import Column, Integer, String, DateTime
-from . import Base
 
-# from sqlalchemy.orm import declarative_base
-
-# Base = declarative_base()
+from . import Base, mapper_registry
 
 
+@mapper_registry.mapped
+@dataclass
 class HistoricalRiverLevel(Base):
     __tablename__ = 'historical_river_level'
     __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
@@ -17,6 +18,8 @@ class HistoricalRiverLevel(Base):
     station_number = Column(String(50))
 
 
+@mapper_registry.mapped
+@dataclass
 class PredictedRiverLevel(Base):
     __tablename__ = 'predicted_river_level'
 

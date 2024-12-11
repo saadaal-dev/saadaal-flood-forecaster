@@ -1,9 +1,12 @@
+from dataclasses import dataclass
+
 from sqlalchemy import Column, Float, String, DateTime, Integer
-from . import Base
-# from sqlalchemy.orm import declarative_base
-# Base = declarative_base()
+
+from . import Base, mapper_registry
 
 
+@mapper_registry.mapped
+@dataclass
 class HistoricalWeather(Base):
     __tablename__ = 'historical_weather'
 
@@ -17,6 +20,8 @@ class HistoricalWeather(Base):
     precipitation_hours = Column(Float)
 
 
+@mapper_registry.mapped
+@dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'
 
@@ -30,5 +35,3 @@ class ForecastWeather(Base):
     precipitation_hours = Column(Float)
     precipitation_probability_max = Column(Float)
     wind_speed_10m_max = Column(Float)
-
-# TODO: add orm getters and setters
