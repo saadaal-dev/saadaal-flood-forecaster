@@ -1,12 +1,13 @@
+from dataclasses import dataclass
+
 from sqlalchemy import Column, Float, String, DateTime, Integer
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from src.flood_forecaster.data_model import Base
-# from sqlalchemy.orm import declarative_base
-# Base = declarative_base()
 
+from . import Base
 
+@dataclass
 class HistoricalWeather(Base):
     __tablename__ = 'historical_weather'
 
@@ -20,6 +21,7 @@ class HistoricalWeather(Base):
     precipitation_hours = Column(Float)
 
 
+@dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'
 

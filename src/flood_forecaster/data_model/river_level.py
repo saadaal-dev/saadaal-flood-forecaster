@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from sqlalchemy import Column, Integer, String, DateTime
 import pandas as pd
 import pandera.pandas as pa
@@ -8,7 +10,7 @@ from . import Base
 
 # Base = declarative_base()
 
-
+@dataclass
 class HistoricalRiverLevel(Base):
     __tablename__ = 'historical_river_level'
     __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
@@ -20,6 +22,7 @@ class HistoricalRiverLevel(Base):
     station_number = Column(String(50))
 
 
+@dataclass
 class PredictedRiverLevel(Base):
     __tablename__ = 'predicted_river_level'
     __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
