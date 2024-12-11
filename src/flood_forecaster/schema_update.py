@@ -1,3 +1,4 @@
+from utils.configuration import Config
 from utils.database_helper import DatabaseConnection
 # from data_model import Base
 
@@ -6,7 +7,8 @@ if __name__ == "__main__":
     SCHEMA_NAME = "flood_forecaster"
 
     # Initialize database connection
-    db_conn = DatabaseConnection(CONFIG_FILE_PATH)
+    config = Config(CONFIG_FILE_PATH)
+    db_conn = DatabaseConnection(config)
 
     # Create schema if not exists
     db_conn.create_schema(SCHEMA_NAME)
