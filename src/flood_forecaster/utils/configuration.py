@@ -43,7 +43,7 @@ class Config:
 
     def load_data_config(self):
         return dict(self._config.items("data"))
-    
+
     def load_data_csv_config(self):
         return dict(self._config.items("data.csv"))
 
@@ -52,21 +52,29 @@ class Config:
 
     def load_openmeteo_config(self):
         return dict(self._config.items("openmeteo"))
-    
+
     def load_static_data_config(self):
         return dict(self._config.items("data.static"))
-    
+
     def load_model_config(self):
         return dict(self._config.items("model"))
+
     def load_mailjet_config(self):
         return dict(self._config.items("mailjet_config"))
 
     def load_station_mapping(self):
         data_path = self.load_data_config()["data_path"]
         return load_station_mapping(data_path + self._config.get("data.static", "river_stations_mapping_path"))
-    
+
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
+
+    def get_swalim_config(self):  # FIXME
+        return dict(self._config.items("swalim"))
+
+    def get_station_metadata_path(self):  # TODO REVIEW
+        return (self._config.get("csv", "data_path") +
+                self._config.get("csv", "station_metadata_path"))
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
