@@ -29,7 +29,7 @@ def load_history_weather_db(config: Config, location: str, date_begin: datetime,
 
 def load_forecast_weather_db(config: Config, location: str, date_begin: datetime, date_end: datetime):
     stmt = (select(ForecastWeather)
-            .where(HistoricalWeather.location_name == location)
+            .where(ForecastWeather.location_name == location)
             .where(ForecastWeather.date > date_begin)
             .where(ForecastWeather.date < date_end))
     database = DatabaseConnection(config)
@@ -38,7 +38,7 @@ def load_forecast_weather_db(config: Config, location: str, date_begin: datetime
 
 def load_river_level_db(config: Config, location: str, date_begin: datetime, date_end: datetime):
     stmt = (select(HistoricalRiverLevel)
-            .where(HistoricalWeather.location_name == location)
+            .where(HistoricalRiverLevel.location_name == location)
             .where(HistoricalRiverLevel.date > date_begin)
             .where(HistoricalRiverLevel.date < date_end))
     database = DatabaseConnection(config)
@@ -46,5 +46,9 @@ def load_river_level_db(config: Config, location: str, date_begin: datetime, dat
 
 
 def insert_predicted_river_level_db(df):
-    # TODO: Implement this function
+    # TODO: Implement this function and move
     pass
+
+# TODO unify function already done that loads from csv (preprocess.py)
+#  fn that returns a df from date_begin to date_end. priority to historical data,
+#  filling with forecast data for the days that are not in the historical table (future days)
