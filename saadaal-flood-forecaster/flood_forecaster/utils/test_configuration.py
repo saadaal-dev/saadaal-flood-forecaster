@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.flood_forecaster.utils.configuration import Config
+from .configuration import Config
 
 CONFIG_FILE_PATH = "../../../config/config.ini"
 
