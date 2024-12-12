@@ -1,17 +1,14 @@
 import importlib
 import os
-<<<<<<< HEAD
 import pkgutil
 
-=======
 import pandas as pd
->>>>>>> Add fetch_table_to_csv method
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.configuration import Config
 
 
 class DatabaseConnection:
@@ -26,7 +23,7 @@ class DatabaseConnection:
         self.user = config.get("user")
         self.host = config.get("host")
         self.port = int(config.get("port"))
-        self.password = self._get_env_pwd() if db_password is None else db_password
+        self.password = os.environ.get("POSTGRES_PASSWORD") if db_password is None else db_password
 
         try:
             url = URL.create(
