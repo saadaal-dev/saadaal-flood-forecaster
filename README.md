@@ -68,7 +68,7 @@ CONTACT_LIST_ID=
 ```bash
 cd $BASE_PATH
 git pull
-bash install/install.sh
+pip install -e .
 ```
 
 # Setup of periodic tasks
@@ -77,11 +77,7 @@ bash install/install.sh
 crontab -e
 # Add the last line to the crontab
 # m h  dom mon dow   command
-0 10 * * * /usr/bin/fetch_river.sh
-0 0 * * MON /usr/bin/generate_river.sh
-0 0 17 */1 * /usr/bin/fetch_data.sh
-0 1 17 */1 * /usr/bin/generate_reports.sh
-0 9 * * * WORKDIR=/root/workv2/scripts; ${WORKDIR}/wrapper-script.sh ${WORKDIR}/forecast_weather.sh
+#TODO: Schedule flood_forecaster jobs
 
 # Check the crontab with
 crontab -l
