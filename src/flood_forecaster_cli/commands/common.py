@@ -16,7 +16,7 @@ def common_options(function):
         "--configfile",
         "-c",
         required=False,
-        default="../../config/config.ini",
+        default="./config/config.ini",
         help="File with configuration",
     )
     def updated_func(*args, **kwargs):

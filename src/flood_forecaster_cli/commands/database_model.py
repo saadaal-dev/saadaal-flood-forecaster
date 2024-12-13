@@ -20,7 +20,7 @@ def database_model():
 @database_model.command("list-db-schemas", help="List all schemas from given database")
 @common_options
 def list_db_schemas(
-    configuration: Config, schema_name: str
+    configuration: Config
 ):
     # Initialize database connection
     db_conn = DatabaseConnection(configuration)
