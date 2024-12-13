@@ -72,9 +72,8 @@ class Config:
     def get_swalim_config(self):  # FIXME
         return dict(self._config.items("swalim"))
 
-    def get_station_metadata_path(self):  # TODO REVIEW
-        return (self._config.get("csv", "data_path") +
-                self._config.get("csv", "station_metadata_path"))
+    def get_station_metadata_path(self):
+        return self._config.get("data", "station_metadata_file")
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
