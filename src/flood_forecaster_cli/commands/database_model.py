@@ -22,16 +22,12 @@ def database_model():
 def list_db_schemas(
     configuration: Config, schema_name: str
 ):
-
-    CONFIG_FILE_PATH = "../../config/config.ini"
-
     # Initialize database connection
-    config = Config(CONFIG_FILE_PATH)
-    db_conn = DatabaseConnection(config)
+    db_conn = DatabaseConnection(configuration)
 
     schemas = db_conn.list_all_schemas()
 
-    # Print schemas
+    # Print list of schemas
     print("Schemas in the database:")
     for schema in schemas:
         print(f"- {schema}")
@@ -43,12 +39,8 @@ def list_db_schemas(
 def list_tables_from_schema(
     configuration: Config, schema_name: str
 ):
-
-    CONFIG_FILE_PATH = "../../config/config.ini"
-
     # Initialize database connection
-    config = Config(CONFIG_FILE_PATH)
-    db_conn = DatabaseConnection(config)
+    db_conn = DatabaseConnection(configuration)
     # List all tables from a given schema
     tables = db_conn.list_tables(schema_name)
     print(f"Tables in schema {schema_name}:")
