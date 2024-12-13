@@ -1,10 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from dataclasses import dataclass
+import enum
+from sqlalchemy import Column, Enum, Integer, String, DateTime
 from . import Base
 
 # from sqlalchemy.orm import declarative_base
 
 # Base = declarative_base()
 
+class AlertType(enum.Enum):
+    normal = "normal"
+    moderate = "moderate"
+    high = "high"
+    full = "full"
 
 class HistoricalRiverLevel(Base):
     __tablename__ = 'historical_river_level'
@@ -17,15 +24,17 @@ class HistoricalRiverLevel(Base):
     station_number = Column(String(50))
 
 
+@dataclass
 class PredictedRiverLevel(Base):
     __tablename__ = 'predicted_river_level'
 
     id = Column(Integer, primary_key=True)
+    station_number = Column(String(50))
     location_name = Column(String(100))
     date = Column(DateTime)
+    forecasted_date = Column(DateTime)
     level_m = Column(Integer)
-    station_number = Column(String(50))
     ml_model_name = Column(String(100))
-    forecast_days = Column(Integer, comment="Number of days into the future the forecast is for")
+    alert_type = Column(Enum(AlertType))
 
 # TODO: add orm getters and setters

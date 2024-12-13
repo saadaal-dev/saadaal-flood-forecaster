@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 from sqlalchemy import select
 
-from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel
+from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel, PredictedRiverLevel
 from src.flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather
 from src.flood_forecaster.utils.configuration import Config
 from src.flood_forecaster.utils.database_helper import DatabaseConnection
@@ -45,7 +45,7 @@ def load_river_level_db(config: Config, location: str, date_begin: datetime, dat
     return pd.read_sql(stmt, database.engine)
 
 
-def insert_predicted_river_level_db(df):
+def insert_predicted_river_level_db(config: Config, predicted_river_level: PredictedRiverLevel):
     # TODO: Implement this function and move
     pass
 

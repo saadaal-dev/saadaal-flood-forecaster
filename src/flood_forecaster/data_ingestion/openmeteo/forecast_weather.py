@@ -4,7 +4,7 @@ import datetime
 import requests_cache
 import pandas as pd
 from retry_requests import retry
-from station import Station, get_stations
+from flood_forecaster.utils.station import Station, get_stations
 from district import District, get_districts
 from typing import List
 import os
