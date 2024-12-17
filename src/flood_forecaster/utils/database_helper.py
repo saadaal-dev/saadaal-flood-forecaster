@@ -23,7 +23,7 @@ class DatabaseConnection:
         self.user = config.get("user")
         self.host = config.get("host")
         self.port = int(config.get("port"))
-        self.password = os.environ.get("POSTGRES_PASSWORD") if db_password is None else db_password
+        self.password = self._get_env_pwd() if db_password is None else db_password
 
         try:
             url = URL.create(
@@ -45,6 +45,7 @@ class DatabaseConnection:
         pwd = os.environ.get("POSTGRES_PASSWORD")
         if not pwd:
             raise ValueError("POSTGRES_PASSWORD environment variable not set.")
+        return pwd
 
     def create_schema(self, schema_name: str) -> None:
         """
