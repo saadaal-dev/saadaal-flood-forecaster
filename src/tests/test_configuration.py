@@ -1,6 +1,5 @@
 import unittest
 from unittest.mock import patch, mock_open
-# import os
 from flood_forecaster.utils.configuration import Config
 
 
@@ -38,6 +37,7 @@ class TestConfig(unittest.TestCase):
     @patch("configparser.ConfigParser.read")
     def test_load_config_success(self, mock_read, mock_exists):
         config = Config(self.mock_file_path)
+        self.assertIsNotNone(config)
         mock_read.assert_called_once_with(self.mock_file_path)
 
     @patch("os.path.exists", return_value=False)
