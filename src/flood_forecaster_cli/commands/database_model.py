@@ -5,7 +5,6 @@ Data modelling Commands
 import click
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.database_helper import DatabaseConnection
-# from flood_forecaster.utils.logging import logger
 
 from .common import common_options
 
