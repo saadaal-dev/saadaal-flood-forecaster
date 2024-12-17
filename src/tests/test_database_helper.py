@@ -1,10 +1,6 @@
-import sys
-import os
-
 import unittest
 from unittest.mock import patch, MagicMock
 from flood_forecaster.utils.database_helper import DatabaseConnection
-# from flood_forecaster.utils.configuration import Config
 # from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -46,9 +42,6 @@ class TestDatabaseHelper(unittest.TestCase):
         self.assertEqual(connection.password, "testpassword")
 
         # Verify create_engine was called - fails due to password obfuscation by SQLAlchemy
-        # mock_create_engine.assert_called_once_with(
-        #     "postgresql://testuser:testpassword@localhost:5432/testdb"
-        # )
         # Extract the actual call argument
         args, _ = mock_create_engine.call_args
 
