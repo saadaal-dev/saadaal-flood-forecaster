@@ -25,5 +25,5 @@ def data_ingestion():
 @common_options
 def load_csv(configuration: Config, file_path: str, schema_name: str, table_name: str):
     """Load a CSV file into the database."""
-    click.echo(f"Loading CSV file '{file_path}' into table '{table_name}'...")
+    click.echo(f"Place holder for sample data ingestion cmd - not yet implemented.")
     # ToDO: Implement CSV loading logic

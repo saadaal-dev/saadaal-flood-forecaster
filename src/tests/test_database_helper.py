@@ -7,8 +7,6 @@ from flood_forecaster.utils.database_helper import DatabaseConnection
 # from flood_forecaster.utils.configuration import Config
 # from sqlalchemy.exc import SQLAlchemyError
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-
 
 class TestDatabaseHelper(unittest.TestCase):
     def setUp(self):
