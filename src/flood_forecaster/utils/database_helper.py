@@ -2,12 +2,13 @@ import importlib
 import os
 import pkgutil
 
+import pandas as pd
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.configuration import Config
 
 
 class DatabaseConnection:
@@ -44,6 +45,7 @@ class DatabaseConnection:
         pwd = os.environ.get("POSTGRES_PASSWORD")
         if not pwd:
             raise ValueError("POSTGRES_PASSWORD environment variable not set.")
+        return pwd
 
     def create_schema(self, schema_name: str) -> None:
         """
@@ -113,7 +115,7 @@ class DatabaseConnection:
                 LEFT JOIN pg_catalog.pg_tables t ON t.schemaname = n.nspname
                 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
                 GROUP BY n.nspname, n.nspowner, c.oid
-                ORDER BY n.nspname;
+                ORDER BY n.nspname
             """
             with self.engine.connect() as connection:
                 result = connection.execute(text(query))
@@ -139,7 +141,93 @@ class DatabaseConnection:
                     for col in inspector.get_columns(table, schema=schema_name)
                 ]
                 result.append((table, columns))
+            for table, columns in result:
+                print(f"Table: {table}")
+                for column in columns:
+                    print(f"  Column: {column['name']} | Type: {column['type']}")
             return result
         except SQLAlchemyError as e:
             print(f"Error listing tables in schema '{schema_name}': {str(e)}")
             return []
+
+    def list_catalog_info(self) -> list:
+        """
+        List schemas in the current database with their owners, sizes, and table counts.
+
+        :return: List of tuples (schema_name, schema_owner, schema_size, table_count)
+        """
+        try:
+            query = """
+            SELECT
+            n.nspname AS schema_name,
+            pg_catalog.PG_GET_USERBYID(n.nspowner) AS schema_owner,
+            (
+                SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = n.nspname
+            ) AS table_count,
+            (
+                SELECT count(*) FROM pg_catalog.pg_views WHERE schemaname = n.nspname
+            ) AS view_count,
+            (
+                SELECT count(*) FROM pg_catalog.pg_proc WHERE pronamespace = n.oid
+            ) AS function_count
+            FROM pg_catalog.pg_namespace n
+            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY schema_name
+            """
+            with self.engine.connect() as connection:
+                result = connection.execute(text(query))
+                return [row for row in result]
+        except SQLAlchemyError as e:
+            print(f"Error listing schemas: {str(e)}")
+            return []
+
+    def fetch_table_to_csv(
+        self,
+        schema_name: str,
+        table_name: str,
+        data_download_path: str,
+        force_overwrite: bool = False,
+    ) -> None:
+        """
+        Fetch data from a table and download it as a CSV file to the specified folder.
+
+        :param schema_name: Name of the schema
+        :param table_name: Name of the table
+        :param data_download_path: Directory to save the CSV file
+        :param force_overwrite: If True, overwrite the file if it already exists. Default is False.
+        """
+        try:
+            # Ensure the download path exists
+            if not os.path.exists(data_download_path):
+                print(f"Directory '{data_download_path}' does not exist. Creating it...")
+                os.makedirs(data_download_path)
+
+            # Build the output file path
+            output_file_path = os.path.join(data_download_path, f"{schema_name}_{table_name}.csv")
+
+            # Check if the file already exists
+            if os.path.exists(output_file_path) and not force_overwrite:
+                print(
+                    f"File '{output_file_path}' already exists. Use force_overwrite=True to overwrite it."
+                )
+                return
+
+            # Construct SQL query
+            query = text(f'SELECT * FROM "{schema_name}"."{table_name}"')
+            print(f"Executing query: {query.text}")
+
+            with self.engine.connect() as connection:
+                # Fetch data using Pandas
+                df = pd.read_sql(query, con=connection)
+
+                # Save the DataFrame to a CSV file
+                df.to_csv(output_file_path, index=False)
+                print(
+                    f"Data from '{schema_name}.{table_name}' downloaded to '{output_file_path}'"
+                )
+        except SQLAlchemyError as e:
+            print(
+                f"Error fetching data from table '{schema_name}.{table_name}': {str(e)}"
+            )
+        except Exception as e:
+            print(f"An unexpected error occurred: {str(e)}")

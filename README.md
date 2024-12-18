@@ -68,7 +68,7 @@ CONTACT_LIST_ID=
 ```bash
 cd $BASE_PATH
 git pull
-bash install/install.sh
+pip install -e .
 ```
 
 # Setup of periodic tasks
@@ -77,11 +77,7 @@ bash install/install.sh
 crontab -e
 # Add the last line to the crontab
 # m h  dom mon dow   command
-0 10 * * * /usr/bin/fetch_river.sh
-0 0 * * MON /usr/bin/generate_river.sh
-0 0 17 */1 * /usr/bin/fetch_data.sh
-0 1 17 */1 * /usr/bin/generate_reports.sh
-0 9 * * * WORKDIR=/root/workv2/scripts; ${WORKDIR}/wrapper-script.sh ${WORKDIR}/forecast_weather.sh
+#TODO: Schedule flood_forecaster jobs
 
 # Check the crontab with
 crontab -l
@@ -95,3 +91,54 @@ Those improvements applies to the new scripts (openmeteo) and the existing ones 
 * The scripts can be improved by adding a CI/CD pipeline.
 * The scripts can be improved by adding more documentation.
 
+## Install the CLI
+
+To install the CLI tool, simply run the following command:
+
+```bash
+pip install <PATH_TO_CLI_FOLDER>
+
+# or from the repo root path
+pip install -e .
+
+```
+
+After installation, you can use the CLI with the `flood_forecaster_cli` command. Example: `flood_forecaster_cli --help`
+
+To uninstall, simply run: `python -m pip uninstall flood_forecaster_cli`
+
+# Run the CLI
+
+To run commands with the cli, execute one of the following commands, with appropriate args. 
+
+```bash
+flood_forecaster_cli --help
+Usage: flood_forecaster_cli [OPTIONS] COMMAND [ARGS]...
+
+  flood_forecaster client tool
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  data-ingestion  Commands for data ingestion
+  database-model  Manage Database Schema Operations
+
+flood_forecaster_cli database-model list-db-schemas
+Connected to database 'postgres'
+Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
+Schemas in the database:
+- flood_forecaster
+- hdb_catalog
+- information_schema
+- public
+
+python -m flood_forecaster_cli.main database-model list-db-schemas
+Connected to database 'postgres'
+Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
+Schemas in the database:
+- flood_forecaster
+- hdb_catalog
+- information_schema
+- public
+```

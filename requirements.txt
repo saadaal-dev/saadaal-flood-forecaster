@@ -13,4 +13,5 @@ pandas~=2.2.3
 requests-cache~=1.2.1
 psycopg2~=2.9.10
 psycopg2-binary~=2.9.10
+
 click~=8.1.7
