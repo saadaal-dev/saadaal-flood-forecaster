@@ -1,45 +1,44 @@
-import os
-
 import pandas as pd
-import psycopg2
+# import psycopg2
 import requests
 from bs4 import BeautifulSoup
 
-POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
 
-conn_string = f"postgresql://postgres:{POSTGRES_PASSWORD}@68.183.13.232:5432/postgres"
-
-conn = psycopg2.connect(conn_string)
-cursor = conn.cursor()
-
-
-def fetch_station_id(station_name):
-    cursor.execute(f"SELECT id FROM station WHERE name = '{station_name}'")
-    result = cursor.fetchone()
-    if result is not None:
-        return result[0]
-    else:
-        return None
+# POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+#
+# conn_string = f"postgresql://postgres:{POSTGRES_PASSWORD}@68.183.13.232:5432/postgres"
+#
+# conn = psycopg2.connect(conn_string)
+# cursor = conn.cursor()
 
 
-def insert_data(df):
-    for index, row in df.iterrows():
-        station = row["station"]
-        reading = row["reading"]
-        reading_date = row["reading_date"]
+# def fetch_station_id(station_name):
+#     cursor.execute(f"SELECT id FROM station WHERE name = '{station_name}'")
+#     result = cursor.fetchone()
+#     if result is not None:
+#         return result[0]
+#     else:
+#         return None
 
-        station_id = fetch_station_id(station)
-        if station_id is None:
-            print(f"No station found with name {station}")
-            continue
-        sql_query = """
-        INSERT INTO station_river_data (station_id, reading, reading_date)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (station_id,reading_date) DO NOTHING
-        """
-        sql = cursor.mogrify(sql_query, (station_id, reading, reading_date))
-        cursor.execute(sql)
-    conn.commit()
+
+# def insert_data(df):
+#     for index, row in df.iterrows():
+#         station = row["station"]
+#         reading = row["reading"]
+#         reading_date = row["reading_date"]
+#
+#         station_id = fetch_station_id(station)
+#         if station_id is None:
+#             print(f"No station found with name {station}")
+#             continue
+#         sql_query = """
+#         INSERT INTO station_river_data (station_id, reading, reading_date)
+#         VALUES (%s, %s, %s)
+#         ON CONFLICT (station_id,reading_date) DO NOTHING
+#         """
+#         sql = cursor.mogrify(sql_query, (station_id, reading, reading_date))
+#         cursor.execute(sql)
+#     conn.commit()
 
 
 def scrape_data():
@@ -58,6 +57,9 @@ def scrape_data():
     return df
 
 
-data = scrape_data()
-print(data)
-insert_data(data)
+# data = scrape_data()
+# print(data)
+# insert_data(data)
+
+if __name__ == '__main__':
+    print(scrape_data())
