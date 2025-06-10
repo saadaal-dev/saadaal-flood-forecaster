@@ -4,7 +4,6 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from src.flood_forecaster.data_ingestion.openmeteo.station import get_stations
 from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel
 from src.flood_forecaster.utils.configuration import Config
 
@@ -39,10 +38,9 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
     return []
 
 
-def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
-    stations = get_stations(config.get_station_metadata_path())
+def _get_new_river_levels(river_stations, df) -> List[HistoricalRiverLevel]:
     new_level_data = []
-    for station in stations:
+    for station in river_stations:
         # find in df the only row where station name is equal to station.name
         row_df = df[df["Station"].astype(str) == station.name].head()
 
@@ -51,6 +49,7 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
             date=pd.to_datetime(row_df["Date"], format="%d-%m-%Y").dt.date,
             level_m=pd.to_numeric(row_df["Observed River Level (m)"], errors="coerce"),
             station_number=station.name  # TODO: add station number to station class and metadata csv file
+            # TODO delete station_number from HistoricalRiverLevel????
         )
         new_level_data.append(station_level)
     return new_level_data

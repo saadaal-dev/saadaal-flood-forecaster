@@ -1,13 +1,15 @@
-import openmeteo_requests
-from openmeteo_sdk import WeatherApiResponse
 import datetime
-import requests_cache
-import pandas as pd
-from retry_requests import retry
-from station import Station, get_stations
-from district import District, get_districts
-from typing import List
 import os
+from typing import List
+
+import openmeteo_requests
+import pandas as pd
+import requests_cache
+from openmeteo_sdk import WeatherApiResponse
+from retry_requests import retry
+
+from district import District, get_districts
+from src.flood_forecaster.data_model.station import Station, get_stations
 
 # TODO: refactor with historical to delete duplicate code
 # TODO: add writing to database
