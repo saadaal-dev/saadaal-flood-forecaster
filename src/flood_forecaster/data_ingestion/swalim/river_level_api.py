@@ -38,7 +38,9 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
     return []
 
 
-def _get_new_river_levels(river_stations, df) -> List[HistoricalRiverLevel]:
+def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
+    river_stations = get_river_stations(config)  # TODO check if already in Thierry's code
+
     new_level_data = []
     for station in river_stations:
         # find in df the only row where station name is equal to station.name
@@ -53,6 +55,14 @@ def _get_new_river_levels(river_stations, df) -> List[HistoricalRiverLevel]:
         )
         new_level_data.append(station_level)
     return new_level_data
+
+
+def get_river_stations(config):
+    # Get the station metadata from the config
+    station_metadata_path = config.get_station_metadata_path()
+    # Read the station metadata csv file
+    river_stations = pd.read_csv(station_metadata_path, usecols=["station_name"])
+    return river_stations
 
 
 # Insert river data into database
