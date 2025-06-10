@@ -1,13 +1,10 @@
-from datetime import datetime, timedelta
-import json
-from typing import Dict, List
+from typing import Dict
 import numpy as np
 import pandas as pd
-import pandera as pa
-from pandera.typing import Series
+import pandera.pandas as pa
 
-from ..utils.configuration import StationMapping
-from ..data_ingestion.load import StationDataFrameSchema, WeatherDataFrameSchema
+from src.flood_forecaster.utils.configuration import StationMapping
+from src.flood_forecaster.data_ingestion.load import StationDataFrameSchema, WeatherDataFrameSchema
 
 
 DEFAULT_STATION_LAG_DAYS = [1, 3, 7, 14]
@@ -19,11 +16,11 @@ ModellingDataFrameSchema = pa.DataFrameSchema({
     "location": pa.Column(str),
     "date": pa.Column(pa.DateTime),
     "level__m": pa.Column(float),
-    "[a-zA-Z0-9_]+__lag\d+__level__m": pa.Column(pa.Float, regex=True),
-    "[a-zA-Z0-9_]+__lag\d+__precipitation_sum": pa.Column(pa.Float, regex=True),
-    "[a-zA-Z0-9_]+__lag\d+__precipitation_hours": pa.Column(pa.Float, regex=True),
-    "[a-zA-Z0-9_]+__forecast\d+__precipitation_sum": pa.Column(pa.Float, regex=True),
-    "[a-zA-Z0-9_]+__forecast\d+__precipitation_hours": pa.Column(pa.Float, regex=True),
+    r"[a-zA-Z0-9_]+__lag\d+__level__m": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lag\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lag\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__forecast\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__forecast\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
     "month_sin": pa.Column(float),
     "month_cos": pa.Column(float),
     "dayofyear_sin": pa.Column(float),
@@ -200,10 +197,10 @@ def preprocess_diff(
     df['dayofyear'] = df['date'].dt.dayofyear
 
     # apply circular encoding to date features
-    df['month_sin'] = df['month'].apply(lambda x: np.sin(2*np.pi*x/12))
-    df['month_cos'] = df['month'].apply(lambda x: np.cos(2*np.pi*x/12))
-    df['dayofyear_sin'] = df['dayofyear'].apply(lambda x: np.sin(2*np.pi*x/365))
-    df['dayofyear_cos'] = df['dayofyear'].apply(lambda x: np.cos(2*np.pi*x/365))
+    df['month_sin'] = df['month'].apply(lambda x: np.sin(2*np.pi*(x-1)/12))
+    df['month_cos'] = df['month'].apply(lambda x: np.cos(2*np.pi*(x-1)/12))
+    df['dayofyear_sin'] = df['dayofyear'].apply(lambda x: np.sin(2*np.pi*(x-1)/365))
+    df['dayofyear_cos'] = df['dayofyear'].apply(lambda x: np.cos(2*np.pi*(x-1)/365))
 
     # # drop redundant date features
     # df = df.drop(columns=['month', 'dayofyear'])

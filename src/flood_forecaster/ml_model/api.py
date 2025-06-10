@@ -6,13 +6,12 @@ import pandas as pd
 
 from .inference import infer_from_raw_data
 
-from ..utils import configuration
-from ..utils.configuration import Config
-from ..data_ingestion.load import load_inference_river_levels, load_inference_weather
-from .preprocess import preprocess_diff
-from .modelling import corr_chart, eval_chart
-from .registry import MODEL_MANAGER_REGISTRY
-from ..data_ingestion.openmeteo.station import get_stations
+from src.flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.data_ingestion.load import load_inference_river_levels, load_inference_weather, load_modelling_river_levels, load_modelling_weather
+from src.flood_forecaster.ml_model.preprocess import preprocess_diff
+from src.flood_forecaster.ml_model.modelling import corr_chart, eval_chart
+from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
+from src.flood_forecaster.data_ingestion.openmeteo.station import get_stations
 
 
 """
@@ -81,17 +80,14 @@ def preprocess(station, config: Config, forecast_days=None):
     if forecast_days is None:
         forecast_days = int(model_config["forecast_days"])
 
-    # TODO: add support for other input formats
-    stations_df = pd.read_csv(csv_config["river_stations_data_path"])
-    stations_df['date'] = pd.to_datetime(stations_df['date'], utc=False, format="%d/%m/%Y").dt.tz_localize(None).dt.date.astype("datetime64[ns]")
-    weather_history_df = pd.read_csv(csv_config["weather_history_data_path"])    
-    weather_history_df['date'] = pd.to_datetime(weather_history_df['date'], utc=False, format="%Y-%m-%d %H:%M:%S%z").dt.tz_localize(None).dt.date.astype("datetime64[ns]")
+    stations_df = load_modelling_river_levels(config, station_metadata.upstream_stations)
+    weather_df = load_modelling_weather(config, station_metadata.weather_locations)
 
     station_lag_days = json.loads(model_config["river_station_lag_days"])
     weather_lag_days = json.loads(model_config["weather_lag_days"])
 
     # TODO: add support for other preprocessors
-    df = preprocess_diff(station_metadata, stations_df, weather_history_df, station_lag_days=station_lag_days, weather_lag_days=weather_lag_days, forecast_days=forecast_days)
+    df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days=station_lag_days, weather_lag_days=weather_lag_days, forecast_days=forecast_days)
 
     output_data_path = __get_preprocessed_data_path(config, station, forecast_days, suffix=".csv")
     print(f"Preprocessing data complete, storing {len(df):,.0f} entries in {output_data_path}.")
@@ -192,11 +188,12 @@ def train(station, config, forecast_days=None, model_type=None):
     print(f"Model training complete, stored in {model_full_path}.")
 
 
-def eval(station, config, forecast_days=None, model_type=None):
+def eval(station, config: Config, forecast_days=None, model_type=None):
     print("Evaluating model...")
+    data_path = config.load_data_config()["data_path"]
     static_data_config = config.load_static_data_config()
     model_config = config.load_model_config()
-    river_stations_metadata_path = static_data_config["river_stations_metadata_path"]
+    river_stations_metadata_path = data_path + static_data_config["river_stations_metadata_path"]
 
     # load station metadata file
     for s in get_stations(river_stations_metadata_path):
@@ -265,6 +262,7 @@ def eval(station, config, forecast_days=None, model_type=None):
 
     # Baseline RMSE:
     # replicate previous day's river level as prediction
+    # TODO: should it be forecast_days instead of 1?
     baseline_pred_y = eval_df["y"].shift(1).dropna()
     print("Baseline RMSE: {:.2f}".format(((baseline_pred_y - eval_df["y"].dropna())**2).mean()**0.5))
 
@@ -287,6 +285,19 @@ def build_model(station, config, forecast_days=None, model_type=None):
 
 
 def infer(station, config: Config, forecast_days=None, date=datetime.now().date(), model_type=None):
+    """
+    Run inference for a given station, look ahead <forecast_days> days and return the predicted river level at the given date + (forecast_days-1).
+    This function will load the preprocessed data for the given station, apply the model and return the predicted river level.
+
+    Parameters:
+    :station (str): The station name to run inference for.
+    :config (Config): The configuration object containing the model and data paths.
+    :forecast_days (int, optional): The number of days to look ahead for the prediction. Defaults to None, which will use the value from the model config.
+    :date (datetime.date, optional): The date to run inference for. Defaults to today.
+    :model_type (str, optional): The type of model to use for inference. Defaults to None, which will use the value from the model config.
+    Returns:
+    :float: The predicted river level at the given date + (forecast_days-1).
+    """
     model_config = config.load_model_config()
 
     print("Running inference...")
@@ -310,8 +321,32 @@ def infer(station, config: Config, forecast_days=None, date=datetime.now().date(
 
     model_path = model_config["model_path"]
     model_name = __get_model_name(config, station, forecast_days, model_type)
-    print(infer_from_raw_data(
+    inference_df = infer_from_raw_data(
         model_manager, model_path, model_name, 
         station_metadata, stations_df, weather_df, 
         station_lag_days, weather_lag_days, forecast_days
-    ))
+    )
+    print(inference_df)
+
+    # print first entry of inference_df as a JSON
+    print("Inference DataFrame:")
+    # Convert Timestamp objects to strings to avoid serialization errors
+    inference_record = inference_df.head(1).to_dict(orient='records')[0]
+    for key, value in inference_record.items():
+        if isinstance(value, pd.Timestamp) or isinstance(value, datetime):
+            inference_record[key] = value.isoformat()
+    print(json.dumps(inference_record, indent=2))
+    print()
+
+    if inference_df.empty:
+        raise RuntimeError("Inference DataFrame is empty. Please check the input data and preprocessing steps.")
+    
+    y_diff = inference_df['y'].values[0]
+    y = inference_df['lag01__level__m'].values[0] + y_diff
+    if pd.isna(y):
+        raise RuntimeError("Predicted river level is NaN. Please check the input data and preprocessing steps.")
+
+    date_str = date.strftime("%Y-%m-%d")
+    y_diff_str = "river level going " + (f"up by {y_diff:.2f} m" if y_diff > 0 else f"down by {y_diff:.2f} m" if y_diff < 0 else "unchanged")
+    print(f"Predicted river level for {station} on {date_str} is {y:.2f} m ({y_diff_str}).")
+    return y

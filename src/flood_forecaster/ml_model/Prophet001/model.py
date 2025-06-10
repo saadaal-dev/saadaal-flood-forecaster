@@ -2,7 +2,7 @@ from prophet import Prophet
 from prophet.serialize import model_to_json, model_from_json
 
 
-EXCLUDED_COLUMNS = ["location", "y", "date", "level__m", "sin_month", "cos_month", "sin_dayofyear", "cos_dayofyear"]
+EXCLUDED_COLUMNS = ["location", "y", "date", "level__m"]
 
 
 def train(train_df):
@@ -52,16 +52,18 @@ def infer(model, infer_df):
     infer_X = infer_df[[c for c in infer_df.columns if c not in EXCLUDED_COLUMNS]]
     infer_y = model.predict(infer_X)["yhat"]
 
-    # add prediction uncertainty (assume model is RandomForestRegressor, extract output variance)
-    # sum(i, N): (infer_y - model.estimator(i).predict(infer_X))**2 / N
-    def add_columns_to_est(est):
-        # QUICKFIX: individual estimators do not have feature_names_in_ attribute
-        #           warning is raised otherwise at predict time
-        est.feature_names_in_ = infer_X.columns
-        return est
-    infer_y_var = sum((infer_y - add_columns_to_est(est).predict(infer_X))**2 for est in model.estimators_) / len(model.estimators_)
+    # TODO: add prediction uncertainty
+    # # add prediction uncertainty (assume model is RandomForestRegressor, extract output variance)
+    # # sum(i, N): (infer_y - model.estimator(i).predict(infer_X))**2 / N
+    # def add_columns_to_est(est):
+    #     # QUICKFIX: individual estimators do not have feature_names_in_ attribute
+    #     #           warning is raised otherwise at predict time
+    #     est.feature_names_in_ = infer_X.columns
+    #     return est
+    # infer_y_var = sum((infer_y - add_columns_to_est(est).predict(infer_X))**2 for est in model.estimators_) / len(model.estimators_)
 
-    return infer_df.assign(y=infer_y, y_var=infer_y_var)
+    # Remove the 'ds' column after prediction (redundant with 'date')
+    return infer_df.assign(y=infer_y).drop(columns=["ds"])
 
 
 def load(model_path, model_name):

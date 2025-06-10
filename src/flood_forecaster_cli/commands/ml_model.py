@@ -2,10 +2,10 @@ from datetime import datetime
 
 import click
 
-from flood_forecaster.utils.configuration import Config
-from flood_forecaster.utils import configuration
-from flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
-from flood_forecaster.ml_model import api
+from src.flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.utils import configuration
+from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
+from src.flood_forecaster.ml_model import api
 
 """
 Supports the following commands:
@@ -41,6 +41,9 @@ def validate_station(ctx):
 
 @click.group()
 def cli():
+    """
+    Commands for modelling and forecasting
+    """
     pass
 
 
@@ -49,7 +52,7 @@ def cli():
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 def preprocess(station, config_path, forecast_days):
-    config = configuration.read_config(config_path)
+    config = Config(config_path)
     api.preprocess(station, config, forecast_days)
 
 

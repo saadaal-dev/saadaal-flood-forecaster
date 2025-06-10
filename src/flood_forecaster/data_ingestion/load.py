@@ -4,41 +4,14 @@ import json
 from typing import Iterable
 
 import pandas as pd
-import pandera as pa
-from pandera.typing import Series
+import pandera.pandas as pa
+
 from sqlalchemy import select
 
-from flood_forecaster.data_model.river_level import HistoricalRiverLevel
-from flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather
-from flood_forecaster.utils.configuration import Config, DataSourceType
-from flood_forecaster.utils.database_helper import DatabaseConnection
-
-
-class StationDataFrameSchema(pa.DataFrameModel):
-    """
-    Schema for station data.
-    """
-    location: Series[str]
-    date: Series[pd.Timestamp]
-    level__m: Series[float]
-
-    class Config:
-        strict = True
-        coerce = True
-
-
-class WeatherDataFrameSchema(pa.DataFrameModel):
-    """
-    Schema for weather data.
-    """
-    location: Series[str]
-    date: Series[pd.Timestamp]
-    precipitation_sum: Series[float]
-    precipitation_hours: Series[float]
-
-    class Config:
-        strict = True
-        coerce = True
+from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
+from src.flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather, WeatherDataFrameSchema
+from src.flood_forecaster.utils.configuration import Config, DataSourceType
+from src.flood_forecaster.utils.database_helper import DatabaseConnection
 
 
 @pa.check_types
@@ -112,7 +85,12 @@ def load_weather_csv(path, start_date=None, end_date=None) -> WeatherDataFrameSc
         - precipitation_sum: float
         - precipitation_hours: float
     """
-    return __load_csv(path, start_date, end_date, datefmt="%Y-%m-%d %H:%M:%S%z")
+    csv = __load_csv(path, start_date, end_date, datefmt="%Y-%m-%d %H:%M:%S%z")
+
+    # Keep only date part of the datetime and without timezone information
+    csv["date"] = pd.to_datetime(csv["date"]).dt.floor("D").dt.tz_localize(None)
+
+    return csv
     
 
 @pa.check_types
@@ -126,13 +104,13 @@ def load_history_weather_csv(config: Config, locations: Iterable[str], start_dat
         - precipitation_sum: float
         - precipitation_hours: float
     """
-    path = config.load_data_csv_config()["weather_history_data_path"]
+    path = config.load_data_config()["data_path"] + config.load_data_csv_config()["weather_history_data_path"]
     return load_weather_csv(path, start_date, end_date).loc[lambda df: df["location"].isin(locations)]
 
 
 @pa.check_types
 def load_forecast_weather_csv(config: Config, locations: Iterable[str], start_date=None, end_date=None) -> WeatherDataFrameSchema:
-    path = config.load_data_csv_config()["weather_forecast_data_path"]
+    path = config.load_data_config()["data_path"] + config.load_data_csv_config()["weather_forecast_data_path"]
     return load_weather_csv(path, start_date, end_date).loc[lambda df: df["location"].isin(locations)]
 
 
@@ -146,7 +124,7 @@ def load_river_level_csv(config: Config, locations: Iterable[str], start_date=No
         - date: datetime
         - level__m: float
     """
-    path = config.load_data_csv_config()["river_stations_data_path"]
+    path = config.load_data_config()["data_path"] + config.load_data_csv_config()["river_stations_data_path"]
     return __load_csv(path, start_date, end_date, datefmt="%d/%m/%Y").loc[lambda df: df["location"].isin(locations)]
 
 
@@ -189,10 +167,42 @@ def load_river_level(config: Config, location: str, date_begin: datetime, date_e
     return __load(__RIVER_LEVEL_LOAD_FNS, config, location, date_begin, date_end)
 
 
+def load_modelling_weather(config: Config, locations=None) -> WeatherDataFrameSchema:
+    """
+    Load weather data for modelling.
+    For simplicity this includes only historical data.
+
+    Dataframe columns:
+        - location: str
+        - date: datetime
+        - precipitation_sum: float
+        - precipitation_hours: float
+    """
+    # QUICKFIX: load historical data for the last 5 years
+    min_date = datetime.now() - timedelta(days=5*365)
+
+    return load_history_weather(config, locations, min_date, datetime.now())
+
+
+def load_modelling_river_levels(config: Config, locations=None) -> StationDataFrameSchema:
+    """
+    Load station data for modelling
+
+    Dataframe columns:
+        - location: str
+        - date: datetime
+        - level__m: float
+    """
+    # QUICKFIX: load historical data for the last 5 years
+    min_date = datetime.now() - timedelta(days=5*365)
+
+    return load_river_level(config, locations, min_date, datetime.now())
+
+
 #  fn that returns a df from date_begin to date_end. priority to historical data,
 #  filling with forecast data for the days that are not in the historical table (future days)
 @pa.check_types
-def load_inference_weather(config, locations=None, date=datetime.now()) -> WeatherDataFrameSchema:
+def load_inference_weather(config: Config, locations=None, date=datetime.now()) -> WeatherDataFrameSchema:
     """
     Load weather data for inference
 
@@ -223,21 +233,23 @@ def load_inference_weather(config, locations=None, date=datetime.now()) -> Weath
     else:
         history_max_date = max_date
 
-    print("Loading historical data from", min_date, "to", history_max_date)
-    history_df = load_history_weather(config, locations, min_date, history_max_date)
-    if locations is not None:
-        history_df = history_df[history_df["location"].isin(locations)]
-
+    acc = []
+    if min_date < today:
+        print("Loading inference data (history) from", min_date, "to", history_max_date)
+        history_df = load_history_weather(config, locations, min_date, history_max_date)
+        if locations is not None:
+            acc.append(history_df[history_df["location"].isin(locations)])
+    
     # load forecast weather data for the next min(WEATHER_LAG) days (forecast are negative lag) if necessary
-    if max_date > today:
-        print("Loading forecast data")
+    if max_date >= today:
+        print("Loading inference data (forecast) from", date, "to", max_date)
         forecast_df = load_forecast_weather(config, locations, date, max_date)
 
         # filter locations
         if locations is not None:
-            forecast_df = forecast_df[forecast_df["location"].isin(locations)]
+            acc.append(forecast_df[forecast_df["location"].isin(locations)])
 
-        return pd.concat([history_df, forecast_df], axis=0)
+        return pd.concat(acc, axis=0, ignore_index=True)
     else:
         return history_df
 

@@ -1,0 +1,21 @@
+label,region,district,latitude,longitude,remarks
+bakool__ceel_barde,Bakool,Ceel Barde,4.6947431,43.2434254,
+bakool__rab_dhuure,Bakool,Rab Dhuure,4.3457412,43.1512379,
+bakool__tayeeglow,Bakool,Tayeeglow,3.78,44.5375004,
+bakool__waajid,Bakool,Waajid,3.80925,43.247089,
+bakool__xudur,Bakool,Xudur,4.1237042,43.8915563,
+bay__baydhaba,Bay,Baydhaba,3.26636,43.63929,
+bay__buur_hakaba,Bay,Buur Hakaba,2.794785,44.0784549,
+bay__diinsoor,Bay,Diinsoor,1.995,42.8089931,
+bay__qansax_dheere,Bay,Qansax Dheere,2.87123,43.004341,
+lower_shabelle__afgooye,Lower Shabelle,Afgooye,2.2354874,44.9969419,
+lower_shabelle__baraawe,Lower Shabelle,Baraawe,1.112777,44.031005,
+lower_shabelle__kurtunwaarey,Lower Shabelle,Kurtunwaarey,1.65,44.135455,
+lower_shabelle__marka,Lower Shabelle,Marka,1.7148358,44.7699326,
+lower_shabelle__qoryooley,Lower Shabelle,Qoryooley,1.789663,44.530629,
+lower_shabelle__sablaale,Lower Shabelle,Sablaale,1.2423281,43.4794898,
+lower_shabelle__wanla_weyn,Lower Shabelle,Wanla Weyn,2.6192699,44.8936393,
+ethiopia__tullu_dimtu,Ethiopia,Bale,6.827034321069692,39.81910923515696,Mount Tullu Dimtu (river source)
+ethiopia__fafen_haren,Ethiopia,Harari,9.312932684554212,42.12141724519376,Harar city - Fafen river source (East Ethiopia), merging into Chabelle river
+ethiopia__fafen_gebredarre,Ethiopia,Korahe,6.855563401551738,44.267146985550426,Gabredarre city (a.k.a. Kebri Dehar) - Fafen river midpoint (East Ethiopia), before merging
+ethiopia__shabelle_gode,Ethiopia,Gode,5.956563275108595,43.55199121659339,Gode city - Chabelle before merging with Fafen

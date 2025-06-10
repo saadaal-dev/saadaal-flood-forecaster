@@ -8,12 +8,14 @@ def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, sta
     
     Args:
         model_manager: The model manager (responsible of providing a trained model and an inference function).
+        model_path: The path to the directory containing the model files.
+        model_name: The name of the model (used to identify a model in the model files).
         station_metadata: The metadata for the station.
         stations_df: The DataFrame with the station data.
         weather_df: The DataFrame with the weather data.
         station_lag_days: The number of lag days for the station data.
         weather_lag_days: The number of lag days for the weather data.
-        forecast_days: The number of forecast days.
+        forecast_days: The number of forecast days (used to identify a model in the model files).
     """
     df = preprocess_diff(
         station_metadata,

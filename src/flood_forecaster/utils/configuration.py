@@ -40,13 +40,14 @@ class Config:
         return dict(self._config.items("openmeteo"))
     
     def load_static_data_config(self):
-        return dict(self._config.items("static-data"))
+        return dict(self._config.items("data.static"))
     
     def load_model_config(self):
         return dict(self._config.items("model"))
     
     def load_station_mapping(self):
-        return load_station_mapping(self._config.get("static-data", "river_stations_mapping_path"))
+        data_path = self.load_data_config()["data_path"]
+        return load_station_mapping(data_path + self._config.get("data.static", "river_stations_mapping_path"))
     
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
