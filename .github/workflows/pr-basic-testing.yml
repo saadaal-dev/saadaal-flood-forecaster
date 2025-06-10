@@ -26,10 +26,10 @@ jobs:
       - name: Check if there are any secrets in repo
         run: |
           tox -e detect-secrets
-      - name: Upload pytest test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-results
-          path: src/**/junit/test-results-*.xml
-        # Use always() to always publish test results
-        if: ${{ always() }}
+      # - name: Upload pytest test results when activated
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: pytest-results
+      #     path: src/**/junit/test-results-*.xml
+      #   # Use always() to always publish test results
+      #   if: ${{ always() }}
