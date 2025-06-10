@@ -20,6 +20,7 @@ For reporting a bug, you can open an issue in our [backlog](https://github.com/o
 ## Contact
 ### Amadeus Team
 
+- [Amadeus internal](https://amadeus.atlassian.net/wiki/spaces/D4A/pages/2506407514/Shaqodoon)
 ### Shaqodoon Team
 
 ## Useful Links
