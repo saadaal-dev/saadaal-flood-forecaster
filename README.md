@@ -28,19 +28,25 @@ BASE_PATH="/root/flood-forecaster"
 cd /
 git clone https://github.com/saadaal-dev/saadaal-flood-forecaster.git $BASE_PATH
 ```
-2. Install the required python dependencies.
+2. Create a `.env` file in the `install` path of the repository and add the following environment variables.
+```bash
+cd $BASE_PATH/install
+# Edit the file .env and add the following environment variables
+POSTGRES_PASSWORD=
+```
+3. Install the required python dependencies.
 ```bash
 cd $BASE_PATH
 bash install/install.sh
 ```
-3. Create a `.env` file in the `data-extractor` path of the repository and add the following environment variables.
+4. Create a `.env` file in the `data-extractor` path of the repository and add the following environment variables.
 ```bash
 cd $BASE_PATH/src/data-extractor
 # Edit the file .env and add the following environment variables
 OPENAI_API_KEY=  # TODO remove
 POSTGRES_PASSWORD=
 ```
-4. Get the weather historical data from the Open-Meteo API.
+5. Get the weather historical data from the Open-Meteo API.
 It has to be done only one time manually for initialisation
 ```bash
 source $BASE_PATH/src/data-extractor-venv/bin/activate
@@ -50,7 +56,7 @@ python3 historical_weather.py
 ```
 Note that the python installation is done with [virtualenv](https://docs.python.org/3/library/venv.html#creating-virtual-environments), therefore venv has to be activated whenver the python scripts are run.
 
-5. Configure email alert to a contact list with Mailjet API
+6. Configure email alert to a contact list with Mailjet API
 * Create a .env_mailjet file in the `utils` folder including the Mailjet API credentials for your account, and the contact list_ID
 ```bash
 UTILS_PATH="${BASE_PATH}/src/flood_forecaster/utils"
