@@ -5,10 +5,8 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
 from . import Base
+from sqlalchemy import Column, Integer, String, DateTime, Float, Date
 
-# from sqlalchemy.orm import declarative_base
-
-# Base = declarative_base()
 
 @dataclass
 class HistoricalRiverLevel(Base):
@@ -17,8 +15,8 @@ class HistoricalRiverLevel(Base):
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
-    date = Column(DateTime)
-    level_m = Column(Integer)
+    date = Column(Date)
+    level_m = Column(Float)
     station_number = Column(String(50))
 
 
