@@ -1,13 +1,14 @@
 import csv
+from dataclasses import dataclass
 from typing import List
 
 
+@dataclass
 class Station:
-    def __init__(self, id: int, name: str, latitude: float, longitude: float):
-        self.id = id
-        self.name = name
-        self.latitude = latitude
-        self.longitude = longitude
+    id: int
+    name: str
+    latitude: float
+    longitude: float
 
     def __str__(self):
         return f"Station [{self.id}]: {self.name}, Latitude: {self.latitude}, Longitude: {self.longitude}"

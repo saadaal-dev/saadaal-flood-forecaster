@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Float, Date
 
 from . import Base, mapper_registry
 
@@ -13,8 +13,8 @@ class HistoricalRiverLevel(Base):
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
-    date = Column(DateTime)
-    level_m = Column(Integer)
+    date = Column(Date)
+    level_m = Column(Float)
     station_number = Column(String(50))
 
 
