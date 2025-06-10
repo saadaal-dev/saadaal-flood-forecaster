@@ -8,7 +8,7 @@ from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
-from flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.utils.configuration import Config
 
 
 class DatabaseConnection:
