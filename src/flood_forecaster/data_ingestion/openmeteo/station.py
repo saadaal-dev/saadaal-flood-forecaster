@@ -9,11 +9,7 @@ class Station:
     name: str
     latitude: float
     longitude: float
-    region: str
-    district: str
-    moderate: float
-    high: float
-    full: float
+
 
     def __str__(self):
         return f"Station [{self.id}]: {self.name}, Latitude: {self.latitude}, Longitude: {self.longitude}"
@@ -32,9 +28,6 @@ def get_stations(csv_path: str) -> List[Station]:
                 longitude=float(row[4]),
                 region=row[5],
                 district=row[6],
-                moderate=float(row[7]),
-                high=float(row[8]),
-                full=float(row[9]),
             )
             stations.append(station)
         return stations
