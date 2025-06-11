@@ -39,21 +39,22 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
 
 
 def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
-    river_stations = get_river_stations(config)  # TODO check if already in Thierry's code
+    river_station_names = get_river_stations(config)  # TODO check if already in Thierry's code
 
     new_level_data = []
-    for station in river_stations:
+    for station in river_station_names:
         # find in df the only row where station name is equal to station
-        row_df = df[df["Station"].astype(str) == station].head()
-
-        station_level = HistoricalRiverLevel(
-            location_name=station,
-            date=pd.to_datetime(row_df["Date"], format="%d-%m-%Y").dt.date,
-            level_m=pd.to_numeric(row_df["Observed River Level (m)"], errors="coerce"),
-            station_number=station  # TODO: add station number to station class and metadata csv file
-            # TODO delete station_number from HistoricalRiverLevel????
-        )
-        new_level_data.append(station_level)
+        row_list = df[df["Station"].astype(str) == station].head(1).to_dict(orient="records")
+        if row_list:
+            data_dict = row_list[0]
+            station_level = HistoricalRiverLevel(
+                location_name=station,
+                date=pd.to_datetime(data_dict["Date"], format="%d-%m-%Y"),
+                level_m=pd.to_numeric(data_dict["Observed River Level (m)"], errors="coerce"),
+                station_number=station  # TODO: add station number to station class and metadata csv file
+                # TODO delete station_number from HistoricalRiverLevel????
+            )
+            new_level_data.append(station_level)
     return new_level_data
 
 
@@ -62,7 +63,8 @@ def get_river_stations(config):
     station_metadata_path = config.get_station_metadata_path()
     # Read the station metadata csv file
     river_stations = pd.read_csv(station_metadata_path, usecols=["station_name"])
-    return river_stations
+    # Convert the station names to a list of names
+    return river_stations["station_name"].tolist()
 
 
 # Insert river data into database

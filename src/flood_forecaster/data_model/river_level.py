@@ -7,6 +7,8 @@ from pandera.typing import Series
 from . import Base
 from sqlalchemy import Column, Integer, String, DateTime, Float, Date
 
+from . import Base
+
 
 @dataclass
 class HistoricalRiverLevel(Base):

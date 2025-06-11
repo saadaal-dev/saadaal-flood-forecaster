@@ -8,6 +8,7 @@ from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
+from src.flood_forecaster.data_model import Base
 from src.flood_forecaster.utils.configuration import Config
 
 
@@ -80,6 +81,8 @@ class DatabaseConnection:
                 # Create all tables using metadata from imported models
                 data_model.Base.metadata.create_all(bind=connection)
                 print(f"Tables created in schema '{schema_name}'.")
+                Base.metadata.drop_all(bind=connection)
+
         except SQLAlchemyError as e:
             print(f"Error creating tables in schema '{schema_name}': {str(e)}")
 
