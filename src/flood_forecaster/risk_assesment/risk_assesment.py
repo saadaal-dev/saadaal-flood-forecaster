@@ -58,9 +58,10 @@ def execute_sql_update(river_station: RiverStation, risk_level: str, database_co
 
 
 config = Config(config_file_path="config/config.ini")
-data_config = config.load_csv_config()
+data_config = config.load_data_config()
+data_static_config = config.load_static_data_config()
 database_connection = DatabaseConnection(config)
-river_stations = get_river_stations(f"{data_config["data_path"]}{data_config["river_stations_metadata_file_name"]}")
+river_stations = get_river_stations(f"{data_config["data_path"]}{data_static_config["river_stations_metadata_path"]}")
 thresholds = ["low", "moderate", "high", "full"]
 
 for river_station in river_stations:
