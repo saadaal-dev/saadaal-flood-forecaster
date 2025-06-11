@@ -48,7 +48,7 @@ def __get_analysis_output_path(config, station, forecast_days, suffix):
     return analysis_data_path + preprocessor_type + f"_f{forecast_days}_{station}_analysis{suffix}"
 
 
-def __get_training_data_path(config, station, forecast_days):    
+def __get_training_data_path(config, station, forecast_days):
     model_config = config.load_model_config()
     training_data_path = model_config["training_data_path"]
     preprocessor_type = model_config["preprocessor_type"]
@@ -72,7 +72,6 @@ def __get_eval_output_path(config, station, forecast_days, model_type, suffix):
 def preprocess(station, config: Config, forecast_days=None):
     print("Preprocessing data...")
     model_config = config.load_model_config()
-    csv_config = config.load_data_csv_config()
 
     station_metadata = config.load_station_mapping()[station]
     print(f"Station mapping:\n{json.dumps(station_metadata.__dict__, indent=2)}")
@@ -322,8 +321,8 @@ def infer(station, config: Config, forecast_days=None, date=datetime.now().date(
     model_path = model_config["model_path"]
     model_name = __get_model_name(config, station, forecast_days, model_type)
     inference_df = infer_from_raw_data(
-        model_manager, model_path, model_name, 
-        station_metadata, stations_df, weather_df, 
+        model_manager, model_path, model_name,
+        station_metadata, stations_df, weather_df,
         station_lag_days, weather_lag_days, forecast_days
     )
     print(inference_df)

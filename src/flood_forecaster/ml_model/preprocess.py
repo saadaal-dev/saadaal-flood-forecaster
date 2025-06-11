@@ -31,12 +31,12 @@ ModellingDataFrameSchema = pa.DataFrameSchema({
 Defining a pandera dynamic schema for the ML data.
 This is the output of the preprocessing pipeline suitable for the ML model training/evaluation/inference.
 
-Summary: 
- - location: str, 
- - date: datetime, 
- - level__m: float, 
+Summary:
+ - location: str,
+ - date: datetime,
+ - level__m: float,
  - {location}__lag{day}__level__m: float,
- - {location}__lag{day}__precipitation_sum: float, 
+ - {location}__lag{day}__precipitation_sum: float,
  - {location}__lag{day}__precipitation_hours: float,
  - {location}__forecast{day}__precipitation_sum: float,
  - {location}__forecast{day}__precipitation_hours: float
@@ -104,13 +104,13 @@ def preprocess_weather(weather_df: WeatherDataFrameSchema, lag_days=DEFAULT_WEAT
     # df = weather_df[["precipitation_sum", "precipitation_hours"]]
     df = weather_df[[]]  # keep only lag values in the final dataframe
 
-    for l in lag_days:
-        shift_df = weather_df[["precipitation_sum", "precipitation_hours"]].shift(l)
-        if l <= 0:
+    for lag in lag_days:
+        shift_df = weather_df[["precipitation_sum", "precipitation_hours"]].shift(lag)
+        if lag <= 0:
             # NOTE: forecast values are negative or 0, 0 is today's forecast, -1 is tomorrow's forecast, etc.
-            shift_df = shift_df.add_prefix(f"forecast{-l+1:02d}__")
+            shift_df = shift_df.add_prefix(f"forecast{-lag + 1:02d}__")
         else:
-            shift_df = shift_df.add_prefix(f"lag{l:02d}__")
+            shift_df = shift_df.add_prefix(f"lag{lag:02d}__")
         df = df.merge(shift_df, left_index=True, right_index=True)
     
     # QUICKFIX: make all columns float
@@ -135,8 +135,8 @@ def preprocess_all_weather(weather_dfs: Dict[str, WeatherDataFrameSchema], lag_d
 
 
 def preprocess_diff(
-    station_metadata: StationMapping, 
-    stations_df: StationDataFrameSchema, weather_df: WeatherDataFrameSchema, 
+    station_metadata: StationMapping,
+    stations_df: StationDataFrameSchema, weather_df: WeatherDataFrameSchema,
     station_lag_days=DEFAULT_STATION_LAG_DAYS, weather_lag_days=DEFAULT_WEATHER_LAG_DAYS,
     forecast_days=DEFAULT_FORECAST_DAYS,
     infer=False,
@@ -179,7 +179,7 @@ def preprocess_diff(
     if not infer:
         if forecast_days > 1:
             # shift for output data of <forecast_days>-1 (-1 since y contains the next day prediction by default)
-            shift = -forecast_days+1
+            shift = -forecast_days + 1
             df['level__m'] = df['level__m'].shift(shift)
 
             # data usable for a forecast (without output label, only input data):
@@ -197,10 +197,10 @@ def preprocess_diff(
     df['dayofyear'] = df['date'].dt.dayofyear
 
     # apply circular encoding to date features
-    df['month_sin'] = df['month'].apply(lambda x: np.sin(2*np.pi*(x-1)/12))
-    df['month_cos'] = df['month'].apply(lambda x: np.cos(2*np.pi*(x-1)/12))
-    df['dayofyear_sin'] = df['dayofyear'].apply(lambda x: np.sin(2*np.pi*(x-1)/365))
-    df['dayofyear_cos'] = df['dayofyear'].apply(lambda x: np.cos(2*np.pi*(x-1)/365))
+    df['month_sin'] = df['month'].apply(lambda x: np.sin(2 * np.pi * (x - 1) / 12))
+    df['month_cos'] = df['month'].apply(lambda x: np.cos(2 * np.pi * (x - 1) / 12))
+    df['dayofyear_sin'] = df['dayofyear'].apply(lambda x: np.sin(2 * np.pi * (x - 1) / 365))
+    df['dayofyear_cos'] = df['dayofyear'].apply(lambda x: np.cos(2 * np.pi * (x - 1) / 365))
 
     # # drop redundant date features
     # df = df.drop(columns=['month', 'dayofyear'])

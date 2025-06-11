@@ -1,4 +1,3 @@
-import itertools
 import unittest
 from unittest.mock import MagicMock
 import pandas as pd
@@ -27,7 +26,7 @@ class TestInference(unittest.TestCase):
         self.stations_df = StationDataFrameSchema(pd.DataFrame({
             "location": sum([[f"S{i}"] * 4 for i in range(3)], []),
             "date": [self.now + timedelta(days=i) for i in range(-3, 1)] * 3,
-            "level__m": [0.0 if j == 3 else i + (j/10) for i in range(3) for j in range(4)]
+            "level__m": [0.0 if j == 3 else i + (j / 10) for i in range(3) for j in range(4)]
         }))
         self.weather_df = WeatherDataFrameSchema(pd.DataFrame({
             "location": ["W1", "W1", "W1", "W1", "W1", "W2", "W2", "W2", "W2", "W2"],
@@ -45,7 +44,7 @@ class TestInference(unittest.TestCase):
         # WARNING: a reference for the prediction day is needed to run infer_from_raw_data
         # (in this case it is today)
 
-        station_metadata = StationMapping(**{ 
+        station_metadata = StationMapping(**{
             "location": "S1",
             "river": "R",
             "upstream_stations": ["S1"],

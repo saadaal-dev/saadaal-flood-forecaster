@@ -52,7 +52,6 @@ class Config:
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
 
-
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
         """

@@ -91,8 +91,7 @@ class TestPreprocessDiff(unittest.TestCase):
             print(actual_df)
             pd.set_option('display.max_columns', max_columns)
             raise e
-        
-        
+    
     def test_simple_2(self):
         """
         Test a simple case with one relevant station and one weather location.
@@ -218,5 +217,5 @@ class TestPreprocessDiff(unittest.TestCase):
             raise e
 
 
-    if __name__ == '__main__':
-        unittest.main()
+if __name__ == '__main__':
+    unittest.main()

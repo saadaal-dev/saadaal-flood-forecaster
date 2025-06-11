@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-
 def make_eval_df(test_df, test_y, pred_y):
     return pd.DataFrame({
         "date": test_df["date"],
@@ -22,13 +21,13 @@ def __default_predict_fn(model, X):
     return model.predict(X)
 
 
-def eval(model, test_df, predict_fn = __default_predict_fn):
+def eval(model, test_df, predict_fn=__default_predict_fn):
     count_test_df_raw = len(test_df.index)
     test_df = test_df.dropna()
     count_test_df_no_na = len(test_df.index)
 
     if count_test_df_no_na < count_test_df_raw:
-        print(f"WARNING: drop NA rows effect: {count_test_df_no_na}/{count_test_df_raw} ({count_test_df_no_na/count_test_df_raw:.2%})")
+        print(f"WARNING: drop NA rows effect: {count_test_df_no_na}/{count_test_df_raw} ({count_test_df_no_na / count_test_df_raw:.2%})")
 
     test_X = test_df[[c for c in test_df.columns if c not in ["y", "date", "level__m"]]]
     test_y = test_df["y"]
@@ -51,7 +50,7 @@ def corr_chart(df, store_path=None, show=False):
     corr_df = pd.concat(dfs, axis=0)
     
     # plot heatmap (with correlation values) for each station, y is implicit.
-    fig, ax = plt.subplots(1, 1, figsize=(24,40))
+    fig, ax = plt.subplots(1, 1, figsize=(24, 40))
     ax.set_title("Correlation between river level variations and input features per each station")
     sns.heatmap(corr_df.pivot(columns="station", values="corr"), ax=ax, vmin=-1, vmax=1)
 
@@ -74,7 +73,7 @@ def eval_chart(eval_df, level_moderate, level_high, level_full, store_path=None,
         test_y_col = "test_y"
 
     eval_df = eval_df.reset_index()
-    fig, ax = plt.subplots(1, 1, figsize=(15,7))
+    fig, ax = plt.subplots(1, 1, figsize=(15, 7))
     ax.set_title("Validation data (green) vs Forecasted (blue)")
     eval_df.plot(x="date", y=pred_y_col, ax=ax)
     eval_df.plot(x="date", y=test_y_col, ax=ax, color='green', alpha=0.3, marker='o')

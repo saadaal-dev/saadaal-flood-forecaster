@@ -179,7 +179,7 @@ def load_modelling_weather(config: Config, locations=None) -> WeatherDataFrameSc
         - precipitation_hours: float
     """
     # QUICKFIX: load historical data for the last 5 years
-    min_date = datetime.now() - timedelta(days=5*365)
+    min_date = datetime.now() - timedelta(days=5 * 365)
 
     return load_history_weather(config, locations, min_date, datetime.now())
 
@@ -194,7 +194,7 @@ def load_modelling_river_levels(config: Config, locations=None) -> StationDataFr
         - level__m: float
     """
     # QUICKFIX: load historical data for the last 5 years
-    min_date = datetime.now() - timedelta(days=5*365)
+    min_date = datetime.now() - timedelta(days=5 * 365)
 
     return load_river_level(config, locations, min_date, datetime.now())
 
