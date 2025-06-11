@@ -11,7 +11,7 @@ from src.flood_forecaster.data_ingestion.load import load_inference_river_levels
 from src.flood_forecaster.ml_model.preprocess import preprocess_diff
 from src.flood_forecaster.ml_model.modelling import corr_chart, eval_chart
 from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
-from src.flood_forecaster.data_ingestion.openmeteo.station import get_stations
+from src.flood_forecaster.data_ingestion.swalim.river_station import get_river_stations
 
 
 """
@@ -195,7 +195,7 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
     river_stations_metadata_path = data_path + static_data_config["river_stations_metadata_path"]
 
     # load station metadata file
-    for s in get_stations(river_stations_metadata_path):
+    for s in get_river_stations(river_stations_metadata_path):
         if s.name == station:
             station_metadata = s
             break
