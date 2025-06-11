@@ -43,14 +43,14 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
 
     new_level_data = []
     for station in river_stations:
-        # find in df the only row where station name is equal to station.name
-        row_df = df[df["Station"].astype(str) == station.name].head()
+        # find in df the only row where station name is equal to station
+        row_df = df[df["Station"].astype(str) == station].head()
 
         station_level = HistoricalRiverLevel(
-            location_name=station.name,
+            location_name=station,
             date=pd.to_datetime(row_df["Date"], format="%d-%m-%Y").dt.date,
             level_m=pd.to_numeric(row_df["Observed River Level (m)"], errors="coerce"),
-            station_number=station.name  # TODO: add station number to station class and metadata csv file
+            station_number=station  # TODO: add station number to station class and metadata csv file
             # TODO delete station_number from HistoricalRiverLevel????
         )
         new_level_data.append(station_level)
