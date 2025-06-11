@@ -28,3 +28,6 @@ The `ml_model` package consists of the following files:
   If `forecast_days` is set to 1, the target date is the same as the prediction date (we predict the same day).
   This is not intuitive, considering how the weather forcast date is set (0 = today, 1 = tomorrow, etc.).
 - logging is not implemented in the ML pipeline, only print statements are used.
+- river_stations_metadata used in the eval function to load the threshold values.
+  It is not used in the training or inference. 
+  Will be removed in the future as it is handled by the data module.
