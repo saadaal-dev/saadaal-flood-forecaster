@@ -15,9 +15,23 @@ class Config:
 
     def get_swalim_config(self):
         return dict(self._config.items("swalim"))
-
+    
+    def get_store_base_path(self):
+        return self._config.get("openmeteo", "store_base_path")
+    
+    def get_openmeteo_api_url(self):
+        return self._config.get("openmeteo", "api_url")
+    def get_openmeteo_api_archive_url(self):
+        return self._config.get("openmeteo", "api_archive_url")
+    
     def get_station_metadata_path(self):
         return self._config.get("data", "station_metadata_file")
+    
+    def get_district_data_path(self):
+        return self._config.get("data", "district_data_file")
+    
+    def get_station_data__path(self):
+        return self._config.get("data", "station_data_file")
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
