@@ -5,7 +5,6 @@ from sqlalchemy import Column, Integer, String, DateTime, Float, Date
 from . import Base, mapper_registry
 
 
-@mapper_registry.mapped
 @dataclass
 class HistoricalRiverLevel(Base):
     __tablename__ = 'historical_river_level'
@@ -18,7 +17,6 @@ class HistoricalRiverLevel(Base):
     station_number = Column(String(50))
 
 
-@mapper_registry.mapped
 @dataclass
 class PredictedRiverLevel(Base):
     __tablename__ = 'predicted_river_level'
