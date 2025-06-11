@@ -17,28 +17,28 @@ def create_update_statement(river_station: RiverStation, risk_level: str) -> upd
         case "low":
             return update(PredictedRiverLevel)\
                         .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == river_station.id)\
-                        .where(PredictedRiverLevel.risk_level == None)\
+                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
+                        .where(PredictedRiverLevel.risk_level is None)\
                         .where(PredictedRiverLevel.level_m < river_station.moderate_threshold)
         case "moderate":
             return update(PredictedRiverLevel)\
                         .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == river_station.id)\
-                        .where(PredictedRiverLevel.risk_level == None)\
+                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
+                        .where(PredictedRiverLevel.risk_level is None)\
                         .where(PredictedRiverLevel.level_m >= river_station.moderate_threshold)\
                         .where(PredictedRiverLevel.level_m < river_station.high_threshold)
         case "high":
             return update(PredictedRiverLevel)\
                         .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == river_station.id)\
-                        .where(PredictedRiverLevel.risk_level == None)\
+                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
+                        .where(PredictedRiverLevel.risk_level is None)\
                         .where(PredictedRiverLevel.level_m >= river_station.high_threshold)\
                         .where(PredictedRiverLevel.level_m < river_station.full_threshold)
         case "full":
             return update(PredictedRiverLevel)\
                         .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == river_station.id)\
-                        .where(PredictedRiverLevel.risk_level == None)\
+                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
+                        .where(PredictedRiverLevel.risk_level is None)\
                         .where(PredictedRiverLevel.level_m >= river_station.full_threshold)
         
 
