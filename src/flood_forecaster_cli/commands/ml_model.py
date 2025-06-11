@@ -43,6 +43,10 @@ def validate_station(ctx):
 def cli():
     """
     Commands for modelling and forecasting
+
+    NOTE: forecast_days is the number of days to look ahead for the forecast.
+          A different forecast_days value requires a different model.
+          forecast_days=1 means the model will predict today's river level.
     """
     pass
 
@@ -124,6 +128,11 @@ def build_model(station, config_path, forecast_days, model_type):
 @click.option('-d', '--date', type=click.DateTime(formats=["%Y-%m-%d"]), default=datetime.now().date())
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
 def infer(station, config_path, forecast_days, date, model_type):
+    """
+    Predict the river level on a specific date+forcast_days-1 using the specified model type.
+    The date is the reference date for the forecast is executed.
+    The forecast_days parameter indicates how many days ahead the model should predict (1=today).
+    """
     # QUICKFIX: access the ConfigParser object directly
     config = configuration.Config(config_path)
     api.infer(station, config, forecast_days, date, model_type)
