@@ -10,6 +10,7 @@ from . import Base
 @dataclass
 class HistoricalWeather(Base):
     __tablename__ = 'historical_weather'
+    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
@@ -24,6 +25,7 @@ class HistoricalWeather(Base):
 @dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'
+    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
