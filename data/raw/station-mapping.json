@@ -1,0 +1,14 @@
+{
+    "Belet Weyne": {
+        "location": "Belet Weyne", 
+        "river": "Shabelle",
+        "upstream_stations": ["Belet Weyne"],
+        "weather_locations": ["ethiopia__tullu_dimtu", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+    },
+    "Bulo Burti": {
+        "location": "Bulo Burti",
+        "river": "Shabelle",
+        "upstream_stations": ["Bulo Burti", "Belet Weyne"],
+        "weather_locations": ["ethiopia__tullu_dimtu", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+    }
+}

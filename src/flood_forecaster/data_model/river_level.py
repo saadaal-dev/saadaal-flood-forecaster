@@ -1,4 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime
+import pandas as pd
+import pandera.pandas as pa
+from pandera.typing import Series
 from . import Base
 
 # from sqlalchemy.orm import declarative_base
@@ -29,3 +32,16 @@ class PredictedRiverLevel(Base):
     forecast_days = Column(Integer, comment="Number of days into the future the forecast is for")
 
 # TODO: add orm getters and setters
+
+
+class StationDataFrameSchema(pa.DataFrameModel):
+    """
+    Schema for station data in ETL.
+    """
+    location: Series[str]
+    date: Series[pd.Timestamp]
+    level__m: Series[float]
+
+    class Config:
+        strict = True
+        coerce = True
