@@ -8,7 +8,7 @@ The project is organized as follows:
 
 | Path | Description |
 |------|-------------|
-| `src/data-extractor/` | Scripts to extract raw environmental/hydrological data. |
+| `src/data-extractor/` |[Obsolete] Scripts to extract raw environmental/hydrological data. |
 | `src/flood_forecaster/data_model/` | Utility functions (e.g., alert dispatch, time helpers). |
 | `src/flood_forecaster/data_ingestion/` | Ingestion modules for external APIs. |
 | `src/flood_forecaster/data_ingestion/openmeteo/` | API integration for weather data from `Open-Meteo`. |
@@ -20,7 +20,7 @@ The project is organized as follows:
 | `src/tests` | Unit and integration tests.|
 | `install/` | Environment setup scripts (Python dependencies). |
 | `scripts/` | Cron-scheduled automation jobs for running models. |
-| `static-data/` | Sample environmental data from exploration phase.<br/>*🔧 To be reorganized into `data/` folder.* |
+| `data/` | Sample environmental data from exploration phase.<br/>*🔧 To be reorganized into `data/` folder.* |
 | `config/` | Configuration files: model paths, thresholds, env vars. |
 | `resource/` | Serialized trained models and artifacts. |
 | `docs/` | Architecture and design details, API docs, data model details and data flows. |
