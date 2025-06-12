@@ -3,7 +3,10 @@ from typing import List
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from sqlalchemy.orm import Session
 
+from src.flood_forecaster import DatabaseConnection
+from src.flood_forecaster.data_ingestion.swalim.river_station import get_river_station_names
 from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel
 from src.flood_forecaster.utils.configuration import Config
 
@@ -14,7 +17,7 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
     :param config:
     :return: list of HistoricalRiverLevel objects with the latest river data
     """
-    url = config.get_swalim_config().get("river_level_api_url")
+    url = config.get_river_data_config().get("swalim_api_url")
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -39,7 +42,7 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
 
 
 def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
-    river_station_names = get_river_stations(config)  # TODO check if already in Thierry's code
+    river_station_names = get_river_station_names(config)
 
     new_level_data = []
     for station in river_station_names:
@@ -58,18 +61,15 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
     return new_level_data
 
 
-def get_river_stations(config):
-    # Get the station metadata from the config
-    station_metadata_path = config.get_station_metadata_path()
-    # Read the station metadata csv file
-    river_stations = pd.read_csv(station_metadata_path, usecols=["station_name"])
-    # Convert the station names to a list of names
-    return river_stations["station_name"].tolist()
-
-
 # Insert river data into database
-def insert_river_data():
-    # TODO: Implement this function
-    pass
+def insert_river_data(river_levels: List[HistoricalRiverLevel], config: Config):
+    database_connection = DatabaseConnection(config)
+
+    with database_connection.engine.connect() as conn:
+        with Session(bind=conn) as session:
+            session.add_all(river_levels)
+            session.commit()
+            print(f"Inserted {len(river_levels)} river levels into the database.")
+
 
 # Gets river data from database to pandas df -> in load.py
