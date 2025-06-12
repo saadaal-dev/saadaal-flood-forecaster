@@ -3,6 +3,7 @@ import os
 import pkgutil
 
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
@@ -43,7 +44,8 @@ class DatabaseConnection:
 
     @staticmethod
     def _get_env_pwd():
-        pwd = os.environ.get("POSTGRES_PASSWORD")
+        load_dotenv()
+        pwd = os.getenv("POSTGRES_PASSWORD")
         if not pwd:
             raise ValueError("POSTGRES_PASSWORD environment variable not set.")
         return pwd
