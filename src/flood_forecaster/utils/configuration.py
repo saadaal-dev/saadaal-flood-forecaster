@@ -23,6 +23,20 @@ class DataSourceType(Enum):
         raise ValueError(f"Unsupported data source type: {source_type}")
 
 
+# Output type
+class DataOutputType(Enum):
+    STDOUT = "stdout"
+    DATABASE = "database"
+
+    @classmethod
+    def from_string(cls, source_type: str):
+        source_type = source_type.strip().lower()
+        for item in cls:
+            if item.value == source_type:
+                return item
+        raise ValueError(f"Unsupported data source type: {source_type}")
+
+
 class Config:
     def __init__(self, config_file_path: str) -> None:
         self._config: ConfigParser = self._load_config(config_file_path)

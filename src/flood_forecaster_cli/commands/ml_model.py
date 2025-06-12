@@ -2,7 +2,7 @@ from datetime import datetime
 
 import click
 
-from src.flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.utils.configuration import Config, DataOutputType
 from src.flood_forecaster.utils import configuration
 from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
 from src.flood_forecaster.ml_model import api
@@ -125,17 +125,30 @@ def build_model(station, config_path, forecast_days, model_type):
 @click.argument('station')
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
-@click.option('-d', '--date', type=click.DateTime(formats=["%Y-%m-%d"]), default=datetime.now().date())
+@click.option('-d', '--date', type=click.DateTime(formats=["%Y-%m-%d"]), default=None)
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
-def infer(station, config_path, forecast_days, date, model_type):
+@click.option('-o', '--output_type', type=click.Choice(['stdout', 'database']), default='stdout')
+def infer(station, config_path, forecast_days, date, model_type, output_type):
     """
     Predict the river level on a specific date+forcast_days-1 using the specified model type.
     The date is the reference date for the forecast is executed.
     The forecast_days parameter indicates how many days ahead the model should predict (1=today).
     """
+    # DATABASE mode is supported only if the date is not provided
+    # Reasoning: the date stored in the DB is a timestamp associated to the moment the prediction is made.
+    #            If the date is provided, it is assumed to be the date for which the prediction is made.
+    output_type = DataOutputType.from_string(output_type)
+    if output_type == DataOutputType.DATABASE and date is not None:
+        raise ValueError("DATABASE output type is supported only when date is not provided. Please use STDOUT or other output types.")
+
+    # If date is not provided, use the current datetime
+    # Will be used as the reference date for the forecast
+    if date is None:
+        date = datetime.now()
+
     # QUICKFIX: access the ConfigParser object directly
     config = configuration.Config(config_path)
-    api.infer(station, config, forecast_days, date, model_type)
+    api.infer(station, config, forecast_days, date, model_type, output_type)
 
 
 @cli.command()

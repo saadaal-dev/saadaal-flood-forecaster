@@ -4,12 +4,13 @@ from typing import Optional
 
 import pandas as pd
 
-from .inference import infer_from_raw_data
+from src.flood_forecaster.utils.database_helper import DatabaseConnection
 
-from src.flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.utils.configuration import Config, DataOutputType
 from src.flood_forecaster.data_ingestion.load import load_inference_river_levels, load_inference_weather, load_modelling_river_levels, load_modelling_weather
 from src.flood_forecaster.ml_model.preprocess import preprocess_diff
 from src.flood_forecaster.ml_model.modelling import corr_chart, eval_chart
+from src.flood_forecaster.ml_model.inference import infer_from_raw_data, store_inference_result
 from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
 from src.flood_forecaster.data_ingestion.swalim.river_station import get_river_stations
 
@@ -295,10 +296,19 @@ def build_model(station, config, forecast_days=None, model_type=None):
     eval(station, config, forecast_days, model_type)
 
 
-def infer(station, config: Config, forecast_days=None, date=datetime.now().date(), model_type=None):
+def infer(
+        station,
+        config: Config,
+        forecast_days: Optional[int] = None,
+        date: Optional[datetime] = datetime.now(),
+        model_type: Optional[str] = None,
+        output_type: DataOutputType = DataOutputType.STDOUT,
+):
     """
-    Run inference for a given station, look ahead <forecast_days> days and return the predicted river level at the given date + (forecast_days-1).
-    This function will load the preprocessed data for the given station, apply the model and return the predicted river level.
+    Run inference for a given station, look ahead <forecast_days> days and
+    return the predicted river level at the given date + (forecast_days-1).
+    This function will load the preprocessed data for the given station,
+    apply the model and return the predicted river level.
 
     Parameters:
     :station (str): The station name to run inference for.
@@ -306,6 +316,7 @@ def infer(station, config: Config, forecast_days=None, date=datetime.now().date(
     :forecast_days (int, optional): The number of days to look ahead for the prediction. Defaults to None, which will use the value from the model config.
     :date (datetime.date, optional): The date to run inference for. Defaults to today.
     :model_type (str, optional): The type of model to use for inference. Defaults to None, which will use the value from the model config.
+    :output_type (DataOutputType): The type of output behaviour. Defaults to DataOutputType.STDOUT.
     Returns:
     :float: The predicted river level at the given date + (forecast_days-1).
     """
@@ -337,27 +348,49 @@ def infer(station, config: Config, forecast_days=None, date=datetime.now().date(
         station_metadata, stations_df, weather_df,
         station_lag_days, weather_lag_days, forecast_days
     )
-    print(inference_df)
-
-    # print first entry of inference_df as a JSON
-    print("Inference DataFrame:")
-    # Convert Timestamp objects to strings to avoid serialization errors
-    inference_record = inference_df.head(1).to_dict(orient='records')[0]
-    for key, value in inference_record.items():
-        if isinstance(value, pd.Timestamp) or isinstance(value, datetime):
-            inference_record[key] = value.isoformat()
-    print(json.dumps(inference_record, indent=2))
-    print()
+    # print(inference_df)
 
     if inference_df.empty:
         raise RuntimeError("Inference DataFrame is empty. Please check the input data and preprocessing steps.")
     
+    if output_type == DataOutputType.STDOUT:
+        # print first entry of inference_df as a JSON
+        print("Inference DataFrame:")
+        # Convert Timestamp objects to strings to avoid serialization errors
+        inference_record = inference_df.head(1).to_dict(orient='records')[0]
+        for key, value in inference_record.items():
+            if isinstance(value, pd.Timestamp) or isinstance(value, datetime):
+                inference_record[key] = value.isoformat()
+        print(json.dumps(inference_record, indent=2))
+        print()
+
     y_diff = inference_df['y'].values[0]
     y = inference_df['lag01__level__m'].values[0] + y_diff
     if pd.isna(y):
         raise RuntimeError("Predicted river level is NaN. Please check the input data and preprocessing steps.")
 
-    date_str = date.strftime("%Y-%m-%d")
-    y_diff_str = "river level going " + (f"up by {y_diff:.2f} m" if y_diff > 0 else f"down by {y_diff:.2f} m" if y_diff < 0 else "unchanged")
-    print(f"Predicted river level for {station} on {date_str} is {y:.2f} m ({y_diff_str}).")
+    if output_type == DataOutputType.STDOUT:
+        date_str = date.strftime("%Y-%m-%d")
+        y_diff_str = "river level going " + (f"up by {y_diff:.2f} m" if y_diff > 0 else f"down by {y_diff:.2f} m" if y_diff < 0 else "unchanged")
+        print(f"Predicted river level for {station} on {date_str} is {y:.2f} m ({y_diff_str}).")
+    
+    if output_type == DataOutputType.DATABASE:
+        # store the prediction in the database using:
+        # location_name,
+        # date,
+        # ml_model_name,
+        # forecast_days,
+        # level_m,
+        # prediction_date = date + pd.Timedelta(days=forecast_days - 1)  # TODO: not yet implemented in DB
+        db_connection = DatabaseConnection(config)
+
+        store_inference_result(
+            db_connection=db_connection,
+            location=station_metadata.location,
+            model_name=model_name,
+            forecast_days=forecast_days,
+            date=date,
+            level_m=y
+        )
+
     return y
