@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 
-from sqlalchemy import Column, Integer, String, DateTime
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from . import Base
 from sqlalchemy import Column, Integer, String, DateTime, Float, Date
 
 from . import Base

@@ -1,11 +1,10 @@
 import configparser
-from dataclasses import dataclass
 import json
 import os
-from typing import List
 from configparser import ConfigParser
+from dataclasses import dataclass
 from enum import Enum
-
+from typing import List
 
 DEFAULT_CONFIG_FILE_PATH = os.path.dirname(os.path.realpath(__file__)) + "/../../../config/config.ini"
 
@@ -69,8 +68,8 @@ class Config:
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
 
-    def get_swalim_config(self):  # FIXME
-        return dict(self._config.items("swalim"))
+    def get_river_data_config(self):
+        return dict(self._config.items("river_data"))
 
     def get_station_metadata_path(self):
         return self._config.get("data", "station_metadata_file")
@@ -91,6 +90,7 @@ class Config:
         return config
 
 
+# TODO move to data_model or weather module
 @dataclass
 class StationMapping:
     """
