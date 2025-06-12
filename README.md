@@ -1,28 +1,109 @@
-# Repository structure
-The repository is structured as follows:
-* `src/data-extractor`: Contains the scripts to extract the data for the initial SAADAAL system.
-* `src/flood_forecaster/prediction`: Contains ML code for prediction models.
-* `src/flood_forecaster/recommendation_algorithm`: Contains code for alert recommendations.
-* `src/flood_forecaster/data_ingestion/`: Contains data ingestion modules.
-* `src/flood_forecaster/data_ingestion/openmeteo`: Contains the scripts to extract the weather data from the `Open-Meteo API`.
-* `src/flood_forecaster/utils`: Contains common helper modules, like `alerting_module` for sending alerts.
-* `install`: Contains the scripts to install the required python dependencies on the server.
-* `scripts`: Contains the scripts to be scheduled by crontab on the server.
-* `static-data`: Contains some data that were captured during the data epxloration phase and that are not yet processed by the scripts.
-[//]: # ToDO: *Reorganise* `static-data` *into* `data` *folder and adjust the content to match the models needs.*
-* `config`: Contains configuration files for model path, thresholds, ...
-* `resource`: Contains serialized models.
-* `docs`: Contains documentation on design and architecture details, API, model details and usage, ...
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![Linting: flake8](https://img.shields.io/badge/linting-flake8-yellow.svg)](https://flake8.pycqa.org/)
 
+## 📁 Repository Structure
 
-# Linting and secrets detection
+The project is organized as follows:
+
+| Path | Description |
+|------|-------------|
+| `src/data-extractor/` |[Obsolete] Scripts to extract raw environmental/hydrological data. |
+| `src/flood_forecaster/data_model/` | Utility functions (e.g., alert dispatch, time helpers). |
+| `src/flood_forecaster/data_ingestion/` | Ingestion modules for external APIs. |
+| `src/flood_forecaster/data_ingestion/openmeteo/` | API integration for weather data from `Open-Meteo`. |
+| `src/flood_forecaster/data_ingestion/swalim/` | API integration for weather data from `Open-Meteo`. |
+| `src/flood_forecaster/utils/` | Common helper modules (e.g., alert dispatch). |
+| `src/flood_forecaster/prediction/` | ML models and training logic for flood prediction. |
+| `src/flood_forecaster/recommendation_algorithm/` | Generates actionable alerts based on predictions. |
+| `src/flood_forecaster_cli/` | Command-line client for flood_forecaster. |
+| `src/tests` | Unit and integration tests.|
+| `install/` | Environment setup scripts (Python dependencies). |
+| `scripts/` | Cron-scheduled automation jobs for running models. |
+| `data/` | Sample environmental data from exploration phase.<br/>*🔧 To be reorganized into `data/` folder.* |
+| `config/` | Configuration files: model paths, thresholds, env vars. |
+| `resource/` | Serialized trained models and artifacts. |
+| `docs/` | Architecture and design details, API docs, data model details and data flows. |
+
+---
+
+## 🧪 Code Guidelines & Validation
+
+- Follow [PEP8](https://peps.python.org/pep-0008/) for Python code.
+- Write clean, readable code and comment where appropriate.
+- Use descriptive commit messages.
+- Ensure that your code passes all linting and unit tests before submitting.
+
+### ✅ Pull Request Checklist
+
+Before submitting a PR, please ensure:
+- [ ] The code runs correctly locally.
+- [ ] All tests pass and the code is linted.
+- [ ] Documentation is updated if needed.
+- [ ] You’ve added meaningful comments where applicable.
+
+### 🔹 Linting and secrets detection
 
 * To run the Python linter flake8 on the whole repo, run the command: `tox -e linting`.
 * To detect new secrets, compared with the previously created baseline run the command: `tox -e detect-secrets`.
 * To run all validations from `tox.ini` just run `tox`
 
-# Server installation
-1. Clone the repository at the root path of the server.
+### 🔹 Install the CLI
+
+To install the CLI tool, simply run the following command:
+
+```bash
+pip install <PATH_TO_CLI_FOLDER>
+
+# or from the repo root path
+pip install -e .
+
+```
+
+After installation, you can use the CLI with the `flood_forecaster_cli` command. Example: `flood_forecaster_cli --help`
+
+To uninstall, simply run: `python -m pip uninstall flood_forecaster_cli`
+
+### 🔹 Run the CLI
+
+To run commands with the cli, execute one of the following commands, with appropriate args. 
+
+```bash
+flood_forecaster_cli --help
+Usage: flood_forecaster_cli [OPTIONS] COMMAND [ARGS]...
+
+  flood_forecaster client tool
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  data-ingestion  Commands for data ingestion
+  database-model  Manage Database Schema Operations
+
+flood_forecaster_cli database-model list-db-schemas
+Connected to database 'postgres'
+Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
+Schemas in the database:
+- flood_forecaster
+- hdb_catalog
+- information_schema
+- public
+
+python -m flood_forecaster_cli.main database-model list-db-schemas
+Connected to database 'postgres'
+Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
+Schemas in the database:
+- flood_forecaster
+- hdb_catalog
+- information_schema
+- public
+```
+---
+
+## 🚀 Deployment [🔧 to be reviewed]
+### Server installation
+1. Clone the repository at the root path of the target server.
 ```bash	
 BASE_PATH="/root/flood-forecaster"
 cd /
@@ -63,7 +144,7 @@ CONTACT_LIST_ID=
 * `from utils import alerting_module` to your python script and call `alerting_module.send_email_to_contact_list()` to send an alert in case of failure, or when specific alerting criteria are being reached
 
 
-# Refresh of the server scripts
+### Refresh of the server scripts
 * To refresh the server scripts, pull the repository and install the required python dependencies.
 ```bash
 cd $BASE_PATH
@@ -71,7 +152,7 @@ git pull
 pip install -e .
 ```
 
-# Setup of periodic tasks
+### Setup of periodic tasks
 * Create a cron job to get the weather data every day.
 ```bash
 crontab -e
@@ -82,63 +163,10 @@ crontab -e
 # Check the crontab with
 crontab -l
 ```
+---
 
-# Suggested improvements
-Those improvements applies to the new scripts (openmeteo) and the existing ones (data-extractor).
-* Use alerting_module to capture the script failure/success and send out an email for monitoring/alerting.
-* The scripts can be improved by adding error handling and logging.
-* The scripts can be improved by adding unit tests.
-* The scripts can be improved by adding a CI/CD pipeline.
-* The scripts can be improved by adding more documentation.
+## 🤝 Suggest improvements, contribute
 
-## Install the CLI
-
-To install the CLI tool, simply run the following command:
-
-```bash
-pip install <PATH_TO_CLI_FOLDER>
-
-# or from the repo root path
-pip install -e .
-
-```
-
-After installation, you can use the CLI with the `flood_forecaster_cli` command. Example: `flood_forecaster_cli --help`
-
-To uninstall, simply run: `python -m pip uninstall flood_forecaster_cli`
-
-# Run the CLI
-
-To run commands with the cli, execute one of the following commands, with appropriate args. 
-
-```bash
-flood_forecaster_cli --help
-Usage: flood_forecaster_cli [OPTIONS] COMMAND [ARGS]...
-
-  flood_forecaster client tool
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  data-ingestion  Commands for data ingestion
-  database-model  Manage Database Schema Operations
-
-flood_forecaster_cli database-model list-db-schemas
-Connected to database 'postgres'
-Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
-Schemas in the database:
-- flood_forecaster
-- hdb_catalog
-- information_schema
-- public
-
-python -m flood_forecaster_cli.main database-model list-db-schemas
-Connected to database 'postgres'
-Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
-Schemas in the database:
-- flood_forecaster
-- hdb_catalog
-- information_schema
-- public
-```
+* Report **Issues**: Use the GitHub [issues](https://github.com/saadaal-dev/saadaal-flood-forecaster/issues) tab to report bugs or request features.
+* Propose **Enhancements**: To suggest new ideas or improvements please check the [project backlog](https://github.com/orgs/saadaal-dev/projects/1).
+* **Contribute**: If you're ready to contribute code, feel free to fork the repo and open a Pull Request against the main branch.
