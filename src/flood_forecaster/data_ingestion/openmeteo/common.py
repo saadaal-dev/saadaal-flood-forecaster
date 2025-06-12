@@ -3,6 +3,7 @@
 import datetime
 import pandas as pd
 from flood_forecaster.data_ingestion.swalim.river_station import get_river_stations
+from flood_forecaster.utils.database_helper import DatabaseConnection
 from src.flood_forecaster.data_ingestion.openmeteo.district import District
 from src.flood_forecaster.data_ingestion.openmeteo.historical_weather import get_daily_data_historical, get_historical_weather
 from src.flood_forecaster.data_model.station import get_stations
@@ -84,7 +85,7 @@ def manage_historical_forecast(config, stations, responses):
     else:
         type = "distinct"
 
-    daily_filename = data_path + f"{type}_" + "historical__weather_daily_{:%Y-%m-%d}.csv".format(
+    daily_filename = data_path + "historical__" + f"{type}_" +"weather_daily_{:%Y-%m-%d}.csv".format(
         datetime.datetime.now()
     )
     daily_combined.to_csv(daily_filename)
@@ -129,7 +130,9 @@ def get_hourly_data_frame(response: WeatherApiResponse, station):
 
 
 
-config = Config("config/config.ini")
+
+config = Config(config_file_path="config/config.ini")
+database_connection = DatabaseConnection(config)
 
 get_station_function = partial(get_river_stations, config.get_station_data__path())
 get_distinct_function = partial(get_districts, config.get_district_data_path())
