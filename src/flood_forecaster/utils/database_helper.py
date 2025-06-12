@@ -18,7 +18,7 @@ class DatabaseConnection:
 
         :param config: Config object
         """
-        config = config.get_database_config()
+        config = config.load_data_database_config()
         self.dbname = config.get("dbname")
         self.user = config.get("user")
         self.host = config.get("host")

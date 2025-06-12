@@ -25,7 +25,8 @@ def get_stations(csv_path: str) -> List[Station]:
                 name=row[1],
                 latitude=float(row[3]),
                 longitude=float(row[4]),
+                region=row[5],
+                district=row[6],
             )
-            print(station)
             stations.append(station)
         return stations

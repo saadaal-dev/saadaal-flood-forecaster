@@ -3,6 +3,12 @@ from dataclasses import dataclass
 from sqlalchemy import Column, Float, String, DateTime, Integer
 
 from . import Base, mapper_registry
+import pandas as pd
+import pandera.pandas as pa
+from pandera.typing import Series
+from src.flood_forecaster.data_model import Base
+# from sqlalchemy.orm import declarative_base
+# Base = declarative_base()
 
 
 @mapper_registry.mapped
@@ -35,3 +41,19 @@ class ForecastWeather(Base):
     precipitation_hours = Column(Float)
     precipitation_probability_max = Column(Float)
     wind_speed_10m_max = Column(Float)
+
+# TODO: add orm getters and setters
+
+
+class WeatherDataFrameSchema(pa.DataFrameModel):
+    """
+    Schema for weather data in ETL.
+    """
+    location: Series[str]
+    date: Series[pd.Timestamp]
+    precipitation_sum: Series[float]
+    precipitation_hours: Series[float]
+
+    class Config:
+        strict = True
+        coerce = True
