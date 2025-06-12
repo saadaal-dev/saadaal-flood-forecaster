@@ -22,7 +22,7 @@ def get_station_data(config: Config, get_data_function , get_forecast_function, 
     longitudes = [s.longitude for s in data]
 
     
-    responses = get_forecast_function(latitudes, longitudes)
+    responses = get_forecast_function(latitudes, longitudes, config)
     manage_function(config, data, responses)
     
 
@@ -83,7 +83,7 @@ def manage_historical_forecast(config, stations, responses):
     else:
         type = "distinct"
 
-    daily_filename = data_path + f"_{type}_" + "historical__weather_daily_{:%Y-%m-%d}.csv".format(
+    daily_filename = data_path + f"{type}_" + "historical__weather_daily_{:%Y-%m-%d}.csv".format(
         datetime.datetime.now()
     )
     daily_combined.to_csv(daily_filename)

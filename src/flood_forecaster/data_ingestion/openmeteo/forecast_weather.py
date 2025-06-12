@@ -9,8 +9,6 @@ from openmeteo_sdk import WeatherApiResponse
 from retry_requests import retry
 
 from flood_forecaster.utils.configuration import Config
-from src.flood_forecaster.data_ingestion.openmeteo.district import District, get_districts
-from src.flood_forecaster.data_model.station import Station, get_stations
 
 # TODO: refactor with historical to delete duplicate code
 # TODO: add writing to database
@@ -18,7 +16,7 @@ from src.flood_forecaster.data_model.station import Station, get_stations
 
 # Get the weather forecast for a specific location
 def get_weather_forecast(latitudes: List[float], longitudes: List[float], config: Config):
-    url = config.get_openmeteo_api_url_path()
+    url = config.get_openmeteo_api_url()
     params = {
         "latitude": latitudes,
         "longitude": longitudes,

@@ -21,6 +21,7 @@ class Config:
     
     def get_openmeteo_api_url(self):
         return self._config.get("openmeteo", "api_url")
+    
     def get_openmeteo_api_archive_url(self):
         return self._config.get("openmeteo", "api_archive_url")
     

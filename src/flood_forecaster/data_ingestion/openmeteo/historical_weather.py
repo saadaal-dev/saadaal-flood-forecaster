@@ -9,8 +9,6 @@ from openmeteo_sdk import WeatherApiResponse
 from retry_requests import retry
 
 from flood_forecaster.utils.configuration import Config
-from src.flood_forecaster.data_ingestion.openmeteo.district import District, get_districts
-from src.flood_forecaster.data_model.station import Station, get_stations
 
 def get_historical_weather(latitudes: List[float], longitudes: List[float], config: Config):
     # Make sure all required weather variables are listed here
