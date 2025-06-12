@@ -2,6 +2,7 @@
 
 import datetime
 import pandas as pd
+from flood_forecaster.data_ingestion.swalim.river_station import get_river_stations
 from src.flood_forecaster.data_ingestion.openmeteo.district import District
 from src.flood_forecaster.data_ingestion.openmeteo.historical_weather import get_daily_data_historical, get_historical_weather
 from src.flood_forecaster.data_model.station import get_stations
@@ -130,7 +131,7 @@ def get_hourly_data_frame(response: WeatherApiResponse, station):
 
 config = Config("config/config.ini")
 
-get_station_function = partial(get_stations, config.get_station_data__path())
+get_station_function = partial(get_river_stations, config.get_station_data__path())
 get_distinct_function = partial(get_districts, config.get_district_data_path())
 
 # Get DataForActualForecast

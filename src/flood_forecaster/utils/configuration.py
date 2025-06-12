@@ -29,6 +29,7 @@ class Config:
 
     def get_database_config(self):
         return dict(self._config.items("database"))
+    
     def load_data_config(self):
         return dict(self._config.items("data"))
     
@@ -67,13 +68,13 @@ class Config:
         return self._config.get("openmeteo", "api_archive_url")
     
     def get_station_metadata_path(self):
-        return self._config.get("data", "station_metadata_file")
+        return self._config.get("data.ingestion", "river_stations_metadata_path")
     
     def get_district_data_path(self):
-        return self._config.get("data", "district_data_file")
+        return self._config.get("data.ingestion", "district_data_file")
     
     def get_station_data__path(self):
-        return self._config.get("data", "station_data_file")
+        return self._config.get("data.ingestion", "station_data_file")
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:

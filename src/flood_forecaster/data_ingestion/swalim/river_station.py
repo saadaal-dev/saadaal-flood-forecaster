@@ -1,7 +1,8 @@
 import csv
 from typing import List
 
-from src.flood_forecaster.data_ingestion.openmeteo.station import Station
+from src.flood_forecaster.data_model.station import Station
+
 
 class RiverStation(Station):
     def __init__(self, id: int, name: str, latitude: float, longitude: float, region: str, district: str, moderate_threshold: float, high_threshold: float, full_threshold: float = 0.0):

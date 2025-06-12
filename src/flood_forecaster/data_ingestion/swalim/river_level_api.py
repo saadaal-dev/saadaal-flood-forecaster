@@ -64,7 +64,6 @@ def get_river_stations(config):
     river_stations = pd.read_csv(station_metadata_path, usecols=["station_name"])
     return river_stations
 
-
 # Insert river data into database
 def insert_river_data():
     # TODO: Implement this function

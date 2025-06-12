@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from sqlalchemy import Column, Integer, String, DateTime
 import pandas as pd
 import pandera.pandas as pa
