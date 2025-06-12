@@ -4,7 +4,7 @@ Thank you for contributing to Saadaal Flood Forecaster.
 
 To follow the project, please take a look at our [backlog](https://github.com/orgs/saadaal-dev/projects/1). You can take tasks from there or propose more ideas while tracking them.
 
-For reporting a bug, you can open an issue in our [backlog](https://github.com/orgs/saadaal-dev/projects/1).
+For reporting a bug, you can [open an issue]( https://github.com/saadaal-dev/saadaal-flood-forecaster/issues).
 
 ### How to contribute
 - Contact the team
@@ -13,6 +13,9 @@ For reporting a bug, you can open an issue in our [backlog](https://github.com/o
 - Create a [Pull Request](https://github.com/saadaal-dev/saadaal-flood-forecaster/compare)
 
 #### Style guides
+
+In the [README.md](https://github.com/saadaal-dev/saadaal-flood-forecaster/README.md#-code-guidelines--validation)
+
 ##### Commit messages
 - Refer to issues or tasks
 - Mention the main module affected
@@ -20,7 +23,6 @@ For reporting a bug, you can open an issue in our [backlog](https://github.com/o
 ## Contact
 ### Amadeus Team
 
-- [Amadeus internal](https://amadeus.atlassian.net/wiki/spaces/D4A/pages/2506407514/Shaqodoon)
 ### Shaqodoon Team
 
 ## Useful Links
