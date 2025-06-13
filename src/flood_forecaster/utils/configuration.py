@@ -1,11 +1,10 @@
 import configparser
-from dataclasses import dataclass
 import json
 import os
-from typing import List
 from configparser import ConfigParser
+from dataclasses import dataclass
 from enum import Enum
-
+from typing import List
 
 DEFAULT_CONFIG_FILE_PATH = os.path.dirname(os.path.realpath(__file__)) + "/../../../config/config.ini"
 
@@ -32,7 +31,7 @@ class Config:
     
     def load_data_config(self):
         return dict(self._config.items("data"))
-    
+
     def load_data_csv_config(self):
         return dict(self._config.items("data.csv"))
 
@@ -41,17 +40,17 @@ class Config:
 
     def get_openmeteo_config(self):
         return dict(self._config.items("openmeteo"))
-    
+
     def load_static_data_config(self):
         return dict(self._config.items("data.static"))
-    
+
     def load_model_config(self):
         return dict(self._config.items("model"))
-    
+
     def load_station_mapping(self):
         data_path = self.load_data_config()["data_path"]
         return load_station_mapping(data_path + self._config.get("data.static", "river_stations_mapping_path"))
-    
+
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
 
@@ -78,6 +77,9 @@ class Config:
     
     def get_use_database(self):
         return self._config.get("data.ingestion", "use_database")
+    def get_river_data_config(self):
+        return dict(self._config.items("river_data"))
+
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
@@ -95,6 +97,7 @@ class Config:
         return config
 
 
+# TODO move to data_model or weather module
 @dataclass
 class StationMapping:
     """

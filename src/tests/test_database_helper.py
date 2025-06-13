@@ -4,9 +4,6 @@ from unittest.mock import patch, MagicMock
 from src.flood_forecaster.utils.database_helper import DatabaseConnection
 
 
-# from sqlalchemy.exc import SQLAlchemyError
-
-
 class TestDatabaseHelper(unittest.TestCase):
     def setUp(self):
         self.mock_config_data = {

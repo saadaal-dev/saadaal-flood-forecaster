@@ -6,14 +6,13 @@ from . import Base, mapper_registry
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from src.flood_forecaster.data_model import Base
-# from sqlalchemy.orm import declarative_base
-# Base = declarative_base()
 
+from . import Base
 
 @dataclass
 class HistoricalWeather(Base):
     __tablename__ = 'historical_weather'
+    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
@@ -35,6 +34,7 @@ class HistoricalWeather(Base):
 @dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'
+    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
