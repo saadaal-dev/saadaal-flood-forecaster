@@ -31,3 +31,4 @@ The `ml_model` package consists of the following files:
 - river_stations_metadata used in the eval function to load the threshold values.
   It is not used in the training or inference. 
   Will be removed in the future as it is handled by the data module.
+- @Adina: Might be useful to add a _Const(object) class to keep all const definitions in one place, like STDOUT, DB, ENVFILE, but also other static params used like PREDICTION_LEVEL, .. see [PR#59](https://github.com/saadaal-dev/saadaal-flood-forecaster/pull/59#discussion_r2143111696)
