@@ -67,7 +67,22 @@ class Config:
 
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
-
+    
+    def get_store_base_path(self):
+        return self._config.get("openmeteo", "store_base_path")
+    
+    def get_openmeteo_api_url(self):
+        return self._config.get("openmeteo", "api_url")
+    
+    def get_openmeteo_api_archive_url(self):
+        return self._config.get("openmeteo", "api_archive_url")
+    
+    def get_station_data__path(self):
+        return self._config.get("data.ingestion", "station_data_file")
+        
+    def use_database_weather(self):
+        return self._config.get("data.ingestion", "use_database")
+    
     def get_river_data_config(self):
         return dict(self._config.items("river_data"))
 
