@@ -15,11 +15,15 @@ def get_historical_weather(latitudes: List[float], longitudes: List[float], conf
     # The order of variables in hourly or daily is important to assign them correctly below
     url = config.get_openmeteo_api_archive_url()
     end_date = datetime.datetime.now()
-    print("max_date:", max_date)
     if max_date is not None:
         start_date = max_date + datetime.timedelta(days=1)  # max date in table +1
     else: 
         start_date = end_date - datetime.timedelta(days=3 * 365)
+
+    if start_date > end_date:
+        print("You have the most updated data in the forecast :)")
+        return None
+
     print("Using max_date for historical weather data:", start_date)
     params = {
         "latitude": latitudes,

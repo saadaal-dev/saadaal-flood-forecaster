@@ -25,7 +25,8 @@ def get_station_data(config: Config, get_data_function , get_forecast_function, 
 
     
     responses = get_forecast_function(latitudes, longitudes, config)
-    manage_function(config, data, responses)
+    if responses is not None:
+        manage_function(config, data, responses)
     
 
 def manage_weather_forecast(config, stations, responses):
