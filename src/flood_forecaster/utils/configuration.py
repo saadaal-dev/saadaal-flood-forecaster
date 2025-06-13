@@ -44,7 +44,9 @@ class Config:
     
     def load_model_config(self):
         return dict(self._config.items("model"))
-    
+    def load_mailjet_config(self):
+        return dict(self._config.items("mailjet_config"))
+
     def load_station_mapping(self):
         data_path = self.load_data_config()["data_path"]
         return load_station_mapping(data_path + self._config.get("data.static", "river_stations_mapping_path"))

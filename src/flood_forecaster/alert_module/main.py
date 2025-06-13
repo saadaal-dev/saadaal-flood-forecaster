@@ -1,3 +1,5 @@
+import pandas as pd
+from bs4 import BeautifulSoup
 import os
 import mailjet_rest
 from src.flood_forecaster.data_model.river_level import PredictedRiverLevel
@@ -5,32 +7,130 @@ from src.flood_forecaster.utils.database_helper import DatabaseConnection
 from src.flood_forecaster.utils.configuration import Config
 from sqlalchemy import select
 from datetime import datetime, timedelta
-import pandas as pd
-from src.flood_forecaster.alert_module.flood_status import get_risk_level
+from src.flood_forecaster.alert_module.flood_status import get_latest_date, get_df_by_date
+import logging
+ 
+logger = logging.getLogger(__name__)
+config = Config("config/config.ini")
 
-def send_alert(mailjet, data):
-    # api_key = '99e978fb5666506d248d4609e449382d'
-    # api_secret = '8145434250a5e261a31ffeed9cdaaf6d'
+ 
+def deploy_alert(mailjet_client, html_template_path:str, alert_status_table:pd.DataFrame = None):
+    """
+    Prepares the alert HTML content by injecting the alert status table into the template.
+    Args:
+        html_template (str): The HTML template as a string.
+        alert_status_table (pd.DataFrame): The DataFrame containing flood risk details.
+    Returns:
+        str: The final HTML content with the alert status table injected.
+    """
+    # Convert DataFrame to HTML table with custom styling
+    table_html = alert_status_table.to_html(
+        index=False,
+        border=1,
+        classes="alert-table",
+        escape=False
+    )
+    # Add custom CSS styling for the table
+    custom_style = """
+    <style>
+    .alert-table {
+        border-collapse: collapse;
+        width: 100%;
+        font-family: Arial, sans-serif;
+        margin: 20px 0;
+    }
+    .alert-table th, .alert-table td {
+        border: 1px solid #dddddd;
+        text-align: center;
+        padding: 8px;
+    }
+    .alert-table th {
+        background-color: #f2a900;
+        color: #222;
+        font-weight: bold;
+    }
+    .alert-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .alert-table tr:hover {
+        background-color: #ffe6b3;
+    }
+    </style>
+    """
+    # Load the HTML template
+    with open(html_template_path, "r", encoding="utf-8") as file:
+        soup = BeautifulSoup(file, "html.parser")
+ 
+    # Inject the table into the content section
+    table_soup = BeautifulSoup(table_html, "html.parser")
+    content_div = soup.find("div", class_="content")
+    content_div.append(table_soup)
+ 
+    # Inject the custom style into the <head> of the HTML
+    if soup.head:
+        soup.head.append(BeautifulSoup(custom_style, "html.parser"))
+    else:
+        soup.insert(0, BeautifulSoup(custom_style, "html.parser"))
+ 
+    # Save or send the modified HTML
+    final_html = str(soup)
+ 
+    # # Optional: Save to file
+    # with open("alert_with_dynamic_table.html", "w", encoding="utf-8") as file:
+    #      file.write(final_html)
+ 
+    data = {
+        'Messages': [
+            {
+                'From': {
+                    'Email': f"{config.load_mailjet_config()['sender_email']}",
+                    'Name': f"{config.load_mailjet_config()['sender_name']}",
+                },
+                'To': [
+                    {
+                        'Email': f"{config.load_mailjet_config()['reciever_email']}",
+                        'Name': f"{config.load_mailjet_config()['reciever_name']}",
+                    }
+                ],
+                'Subject': '⚠️ Flood Risk Alert – Please Stay Vigilant',
+                'TextPart': 'This is a test email from Mailjet.',
+                'HTMLPart': final_html
+            }
+        ]
+    }
+    if send_alert(mailjet_client, data):
+        print("Alert sent successfully.")
+       
+def send_alert(mailjet_client, data):
+    """
+    Sends an alert email using the Mailjet API.
+    Args:
+        mailjet_client (mailjet_rest.Client): The Mailjet client instance.
+        data (dict): The data to be sent in the email, including 'From', 'To', 'Subject', and 'HTMLPart'.
+    Returns:
+        bool: True if the email was sent successfully, False otherwise.
+    """
+    if not mailjet_client:
+        logger.error("Mailjet client is not initialized.")
+        return False
     try:
-        response = mailjet.send.create(data=data)
-        print( response.text)
+        response = mailjet_client.send.create(data=data)
         if response.status_code != 200:
             raise Exception(f"Mailjet send API returned status code {response}")
-           
+        logger.info("Mailjet email sent successfully.")
         return True
     except Exception as e:
-        print(f"Mailjet connection failed: {e}")
+        logger.error(f"Mailjet connection failed: {e}")
         return False
-           
-
-if __name__ == "__main__":
+   
+def main():
     """
     This script is part of the flood forecasting and alerting system. It performs the following tasks:
     1. Connects to the database to retrieve predicted river levels and flood risk data.
     2. Analyzes the data to determine flood risk levels for specific dates.
     3. Generates an HTML alert using a predefined template and dynamically inserts flood risk details.
     4. Sends the alert via email using the Mailjet API to notify stakeholders about potential flood risks.
-    
+   
     prerequisites:
     - Ensure the following environment variables are set:
         export MAILJET_API_KEY="mailjet_key": The Mailjet API key for sending emails.
@@ -40,126 +140,33 @@ if __name__ == "__main__":
     # Mailing module
     api_key = os.getenv('MAILJET_API_KEY')
     api_secret = os.getenv('MAILJET_API_SECRET')
-    
+    db_password = os.getenv('POSTGRES_PASSWORD')
+   
     if not api_key or not api_secret:
         raise EnvironmentError("MAILJET_API_KEY and MAILJET_API_SECRET must be set as environment variables.")
-    mailjet = mailjet_rest.Client(auth=(api_key, api_secret), version='v3.1')
-    # mailjet.session.verify = False # Disable SSL verification (insecure)
-    
-    # Flood analyzing module
-    config = Config("config/config.ini")
-
-    target_date = datetime.now() - timedelta(days=13)  # Temporary added timedelta for testing
-    print(f"Target date for river_id : {target_date}")
-    alert_status_table = get_risk_level(config, date_begin=target_date + timedelta(days=7))
-    
-    if alert_status_table.empty:
-        print("No flood risk observed.")
-    else:
-        import pandas as pd
-        from bs4 import BeautifulSoup
-
-        # Step 1: Your dynamic DataFrame (replace this with your actual script output)
-        df = alert_status_table  # This should be the DataFrame you generate dynamically
-
-        # Step 2: Convert DataFrame to HTML table
-        table_html = df.to_html(index=False, border=1, classes="alert-table")
-
-        # Step 3: Load the HTML template
-        with open("src/flood_forecaster/alert_module/alert_template.html", "r", encoding="utf-8") as file:
-            soup = BeautifulSoup(file, "html.parser")
-
-        # Step 4: Inject the table into the content section
-        table_soup = BeautifulSoup(table_html, "html.parser")
-        content_div = soup.find("div", class_="content")
-        content_div.append(table_soup)
-
-        # Step 5: Save or send the modified HTML
-        final_html = str(soup)
-        print(final_html) 
-        # # Optional: Save to file
-        # with open("alert_with_dynamic_table.html", "w", encoding="utf-8") as file:
-        #      file.write(final_html)
-
-
-        data = {
-            'Messages': [
-                {
-                    'From': {
-                        'Email': 'shaqodoon-test@proton.me',
-                        'Name': 'Hastati',
-                    },
-                    'To': [
-                        {
-                            'Email': 'tm0poa5ar@lists.mailjet.com',
-                            'Name': 'Hastati',
-                        }
-                    ],
-                    'Subject': '⚠️ Flood Risk Alert – Please Stay Vigilant',
-                    'TextPart': 'This is a test email from Mailjet.',
-                    'HTMLPart': final_html
-                }
-            ]
-        }
-        if send_alert(mailjet, data):
-            print("Alert sent successfully.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ######################################
-        # print(f"Flood risk observed. Details:\n{alert_status_table}\nSending alert...")
-        
-        # # Read the HTML template
-        # with open("src/flood_forecaster/alert_module/alert_template.html", "r", encoding="utf-8") as f:
-        #     html_template = f.read()
-
-        # # Convert alert_status_table to HTML
-        # table_html = alert_status_table.to_html(index=False, border=0, classes="alert-table", justify="center")
-
-        # # Insert the table into the template (replace a placeholder or add after a paragraph)
-        # final_html = html_template.replace(
-        #     '<!-- ALERT_STATUS_TABLE_PLACEHOLDER -->',
-        #     f'<h3>Flood Risk Details</h3>{table_html}'
-        # )
-        # print(final_html)  # Display the final HTML content
-        # import pdb; pdb.set_trace()
-        # # Use final_html as the HTMLPart of the email
-        # data = {
-        #     'Messages': [
-        #         {
-        #             'From': {
-        #                 'Email': 'shaqodoon-test@proton.me',
-        #                 'Name': 'Hastati',
-        #             },
-        #             'To': [
-        #                 {
-        #                     'Email': 'tm0poa5ar@lists.mailjet.com',
-        #                     'Name': 'Hastati',
-        #                 }
-        #             ],
-        #             'Subject': '⚠️ Flood Risk Alert – Please Stay Vigilant',
-        #             'TextPart': 'This is a test email from Mailjet.',
-        #             'HTMLPart': final_html
-        #         }
-        #     ]
-        # }
-        # if send_alert(mailjet, data):
-        #     print("Alert sent successfully.")
-    
-
-
-
-
-    
+   
+    # Set up clients
+    db_client = DatabaseConnection(config, db_password)
+    mailjet_client = mailjet_rest.Client(auth=(api_key, api_secret), version='v3.1')
+    logger.debug("Postgres and Mailjet client ready")
+ 
+    # Check if the DB was updated within the last 2 days
+    today = datetime.now().date()
+    today = today.replace(day=10,month=6,year=2025)  # Normalize to midnight
+    latest_db_date = get_latest_date(db_client)
+    if latest_db_date.date() < today - timedelta(days=2):
+        logger.warning("### Exiting process: predicted_river_level has not been updated in the last 2 days")
+        exit(1)
+   
+    # Check if the predicted risk level is full in the forecast day
+    flood_status_df = get_df_by_date(db_client, latest_db_date, risk_level='full')
+    if flood_status_df.empty:
+        logger.info("### Exiting process: No flood risks forecated for the next coming days")
+        exit(0)
+ 
+    deploy_alert(mailjet_client,
+                 html_template_path="src/flood_forecaster/alert_module/alert_template.html",
+                 alert_status_table=flood_status_df)
+ 
+if __name__ == "__main__":
+    main()
