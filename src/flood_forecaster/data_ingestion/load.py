@@ -52,11 +52,6 @@ def load_river_level_db(config: Config, locations: Iterable[str], date_begin: da
     return pd.read_sql(stmt, database.engine)
 
 
-def insert_predicted_river_level_db(df):
-    # TODO: Implement this function and move
-    pass
-
-
 def __load_csv(path, start_date=None, end_date=None, datefmt="%Y-%m-%d"):
     df = pd.read_csv(path)
     # convert date column to datetime and drop time information
@@ -213,6 +208,9 @@ def load_inference_weather(config: Config, locations=None, date=datetime.now()) 
         - precipitation_hours: float
     """
 
+    # ignore time information in date
+    date = date.date()
+
     model_config = config.load_model_config()
 
     # load historical weather data for the last max(WEATHER_LAG) days
@@ -223,7 +221,7 @@ def load_inference_weather(config: Config, locations=None, date=datetime.now()) 
     # LAG=0 is the current day, so it is part of the forecast
     max_date = date - timedelta(days=min(json.loads(model_config["weather_lag_days"])))
 
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now().date()
 
     # if max_date is in the future, we will need to load forecast data
     # exclude today from historical data
@@ -264,6 +262,9 @@ def load_inference_river_levels(config: Config, locations=None, date=datetime.no
         - date: datetime
         - level__m: float
     """
+    # ignore time information in date
+    date = date.date()
+
     model_config = config.load_model_config()
     min_date = date - timedelta(days=max(json.loads(model_config["river_station_lag_days"])))
     max_date = date - timedelta(days=1)
