@@ -50,21 +50,8 @@ def get_latest_date(db_client, last_x_days = 1) -> datetime:
         return result[0]
     else:
         raise ValueError("No dates found in the river level table.")
- 
- 
- 
-   
-    ### TO be removed
-    # # Add river_station_name to the table
-    # river_station_metadata = config.load_static_data_config()["river_stations_metadata_path"]
-    # alert_table['river_station_name'] = alert_table['station_id'].apply(
-    #     lambda station_id: get_station_name_from_csv(river_station_metadata, station_id)
-    # )
-    # alert_table = alert_table[[
-    #     'station_id', 'river_station_name', 'flood_risk', 'water_level_m', 'predicted_flood_date'
-    # ]]
- 
-### This function is not needed anymore, to be removed
+
+### This function is not supported now, It will be used in the future when we have a CSV file with station metadata.
 def get_station_name_from_csv(csv_path: str, station_number: int) -> str:
     """
     Reads the CSV file and retrieves the station name corresponding to the given station number.
@@ -87,3 +74,5 @@ def get_station_name_from_csv(csv_path: str, station_number: int) -> str:
     except Exception as e:
         print(f"Error reading CSV file: {e}")
         return None
+    
+    
