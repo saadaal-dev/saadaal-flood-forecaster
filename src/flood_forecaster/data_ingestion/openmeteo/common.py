@@ -17,6 +17,11 @@ from src.flood_forecaster.data_ingestion.openmeteo.forecast_weather import get_d
 
 from functools import partial
 
+def start_database_connection(config: Config):
+    return DatabaseConnection(config)
+
+
+
 def get_station_data(config: Config, get_data_function , get_forecast_function, manage_function):
     print(f"Reading {get_data_function} data...")
     data = get_data_function()
@@ -124,24 +129,27 @@ def append_station_information(response: WeatherApiResponse, station, function):
     print(f"Daily data for {station.label}")
     return df
 
+def fetch_forecast(config: Config):
+    database_connection = start_database_connection(config)
+    #Empty the table for the forecast weather data
+    print("Emptying the table for the forecast weather data")
+    database_connection.empty_table(ForecastWeather)       
+    get_station_function = partial(get_weather_locations, config.get_station_data__path())
 
-config = Config(config_file_path="config/config.ini")
-database_connection = DatabaseConnection(config)
+    get_station_data(config, get_station_function, get_weather_forecast, manage_weather_forecast)
 
-#Empty the table for the forecast weather data
-database_connection.empty_table(ForecastWeather)       
-print("Emptying the table for the forecast weather data")
 
-get_station_function = partial(get_weather_locations, config.get_station_data__path())
+def fetch_historical(config: Config):
+    database_connection = start_database_connection(config)
+    # get the mag date from the db 
+    max_date = database_connection.get_max_date(HistoricalWeather)
 
-# get the mag date from the db 
-max_date = database_connection.get_max_date(HistoricalWeather)
+    print(f"Max date in the database: {max_date}")
+    get_station_function = partial(get_weather_locations, config.get_station_data__path())
 
-print(f"Max date in the database: {max_date}")
-
-get_station_data(
-    config,
-    get_station_function,
-    partial(get_historical_weather, max_date=max_date),
-    manage_historical_forecast
-)
+    get_station_data(
+        config,
+        get_station_function,
+        partial(get_historical_weather, max_date=max_date),
+        manage_historical_forecast
+    )
