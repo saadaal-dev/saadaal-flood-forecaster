@@ -38,7 +38,6 @@ def load_csv(configuration: Config, file_path: str, schema_name: str, table_name
 def fetch_openmeteo(configuration: Config, type: str):
     """Fetch weather data from Open-Meteo API."""
     if type == "forecast":
-        result = fetch_forecast(configuration)
+        fetch_forecast(configuration)
     else:
-        result = fetch_historical(configuration)
-    click.echo(f"Fetched data: {result}")
+        fetch_historical(configuration)
