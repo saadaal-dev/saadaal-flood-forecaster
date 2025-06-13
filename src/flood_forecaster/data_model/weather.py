@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
 from sqlalchemy import Column, Float, String, DateTime, Integer
+
+from . import Base, mapper_registry
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
@@ -21,6 +23,13 @@ class HistoricalWeather(Base):
     rain_sum = Column(Float)
     precipitation_hours = Column(Float)
 
+    @classmethod
+    def from_dataframe(cls, df):
+        """
+        Convert a pandas DataFrame to a list of HistoricalWeather objects.
+        """
+        records = df.to_dict(orient="records")
+        return [cls(**record) for record in records]
 
 @dataclass
 class ForecastWeather(Base):
@@ -38,6 +47,13 @@ class ForecastWeather(Base):
     precipitation_probability_max = Column(Float)
     wind_speed_10m_max = Column(Float)
 
+    @classmethod
+    def from_dataframe(cls, df):
+        """
+        Convert a pandas DataFrame to a list of ForecastWeather objects.
+        """
+        records = df.to_dict(orient="records")
+        return [cls(**record) for record in records]
 # TODO: add orm getters and setters
 
 
