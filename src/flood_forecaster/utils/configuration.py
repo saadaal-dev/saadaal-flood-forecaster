@@ -60,8 +60,8 @@ class Config:
     def get_openmeteo_api_archive_url(self):
         return self._config.get("openmeteo", "api_archive_url")
     
-    def get_store_base_path(self):
-        return self._config.get("data.ingestion", "river_stations_metadata_path")
+    def get_station_data__path(self):
+        return self._config.get("data.ingestion", "station_data_file")
         
     def use_database_weather(self):
         return self._config.get("data.ingestion", "use_database")

@@ -127,9 +127,20 @@ def append_station_information(response: WeatherApiResponse, station, function):
 config = Config(config_file_path="config/config.ini")
 database_connection = DatabaseConnection(config)
 
+#Empty the table for the forecast weather data
+database_connection.empty_table(ForecastWeather)       
+print("Emptying the table for the forecast weather data")
+
 get_station_function = partial(get_weather_locations, config.get_station_data__path())
 
-# # Get DataForActualForecast
-get_station_data(config, get_station_function, get_weather_forecast, manage_weather_forecast)
+# get the mag date from the db 
+max_date = database_connection.get_max_date(HistoricalWeather)
 
-get_station_data(config, get_station_function, get_historical_weather, manage_historical_forecast)
+print(f"Max date in the database: {max_date}")
+
+get_station_data(
+    config,
+    get_station_function,
+    partial(get_historical_weather, max_date=max_date),
+    manage_historical_forecast
+)

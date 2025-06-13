@@ -10,12 +10,17 @@ from retry_requests import retry
 
 from flood_forecaster.utils.configuration import Config
 
-def get_historical_weather(latitudes: List[float], longitudes: List[float], config: Config):
+def get_historical_weather(latitudes: List[float], longitudes: List[float], config: Config, max_date: datetime.datetime = None):
     # Make sure all required weather variables are listed here
     # The order of variables in hourly or daily is important to assign them correctly below
     url = config.get_openmeteo_api_archive_url()
     end_date = datetime.datetime.now()
-    start_date = end_date - datetime.timedelta(days=3 * 365)
+    print("max_date:", max_date)
+    if max_date is not None:
+        start_date = max_date + datetime.timedelta(days=1)  # max date in table +1
+    else: 
+        start_date = end_date - datetime.timedelta(days=3 * 365)
+    print("Using max_date for historical weather data:", start_date)
     params = {
         "latitude": latitudes,
         "longitude": longitudes,
