@@ -11,7 +11,6 @@ from src.flood_forecaster.data_model import Base
 # Base = declarative_base()
 
 
-@mapper_registry.mapped
 @dataclass
 class HistoricalWeather(Base):
     __tablename__ = 'historical_weather'
@@ -25,8 +24,14 @@ class HistoricalWeather(Base):
     rain_sum = Column(Float)
     precipitation_hours = Column(Float)
 
+    @classmethod
+    def from_dataframe(cls, df):
+        """
+        Convert a pandas DataFrame to a list of HistoricalWeather objects.
+        """
+        records = df.to_dict(orient="records")
+        return [cls(**record) for record in records]
 
-@mapper_registry.mapped
 @dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'
@@ -42,6 +47,13 @@ class ForecastWeather(Base):
     precipitation_probability_max = Column(Float)
     wind_speed_10m_max = Column(Float)
 
+    @classmethod
+    def from_dataframe(cls, df):
+        """
+        Convert a pandas DataFrame to a list of ForecastWeather objects.
+        """
+        records = df.to_dict(orient="records")
+        return [cls(**record) for record in records]
 # TODO: add orm getters and setters
 
 

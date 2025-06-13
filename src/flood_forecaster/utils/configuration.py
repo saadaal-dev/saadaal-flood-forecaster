@@ -75,6 +75,9 @@ class Config:
     
     def get_station_data__path(self):
         return self._config.get("data.ingestion", "station_data_file")
+    
+    def get_use_database(self):
+        return self._config.get("data.ingestion", "use_database")
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
