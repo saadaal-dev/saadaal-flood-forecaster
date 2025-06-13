@@ -15,6 +15,7 @@ class Station:
         return f"Station [{self.id}]: {self.name}, Latitude: {self.latitude}, Longitude: {self.longitude}"
 
 
+# TODO remove
 def get_stations(csv_path: str) -> List[Station]:
     with open(csv_path, mode="r", newline="") as location_file:
         reader = csv.reader(location_file)

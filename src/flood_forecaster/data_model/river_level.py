@@ -17,7 +17,6 @@ class HistoricalRiverLevel(Base):
     location_name = Column(String(100))
     date = Column(Date)
     level_m = Column(Float)
-    station_number = Column(String(50))
 
 
 @dataclass

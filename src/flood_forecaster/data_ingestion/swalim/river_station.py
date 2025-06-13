@@ -1,11 +1,10 @@
 import csv
 from typing import List
 
-import pandas as pd
-
 from src.flood_forecaster.data_model.station import Station
 
 
+# TODO replace with read from data_model RiverStationMetadata
 class RiverStation(Station):
     def __init__(self, id: int, name: str, latitude: float, longitude: float, region: str, district: str, moderate_threshold: float, high_threshold: float, full_threshold: float = 0.0):
         super().__init__(id, name, latitude, longitude)
@@ -36,10 +35,13 @@ def get_river_stations(csv_path: str) -> List[RiverStation]:
         return stations
 
 
+# TODO replace from db read
 def get_river_station_names(config):
-    # Get the station metadata from the config
-    station_metadata_path = config.get_station_metadata_path()
-    # Read the station metadata csv file
-    river_stations = pd.read_csv(station_metadata_path, usecols=["station_name"])
-    # Convert the station names to a list of names
-    return river_stations["station_name"].tolist()
+    return ["Luuq", "Dollow", "Bardheere", "Kaitoi", "Bualle", "Belet Weyne", "Bulo Burti", "Jowhar", "Mahadey Weyne",
+            "Afgoi", "Audegle"]
+    # # Get the station metadata from the config
+    # station_metadata_path = config.get_station_metadata_path()
+    # # Read the station metadata csv file
+    # river_stations = pd.read_csv(station_metadata_path, usecols=["station_name"])
+    # # Convert the station names to a list of names
+    # return river_stations["station_name"].tolist()
