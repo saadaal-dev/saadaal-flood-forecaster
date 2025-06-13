@@ -41,6 +41,13 @@ def __get_preprocessed_data_path(config, station, forecast_days, suffix=".csv"):
     return preprocessed_data_path + preprocessor_type + f"_f{forecast_days}_{station}{suffix}"
 
 
+def __get_analysis_global_output_path(config, forecast_days, suffix):
+    model_config = config.load_model_config()
+    analysis_data_path = model_config["analysis_data_path"]
+    preprocessor_type = model_config["preprocessor_type"]
+    return analysis_data_path + preprocessor_type + f"_f{forecast_days}_global_analysis{suffix}"
+
+
 def __get_analysis_output_path(config, station, forecast_days, suffix):
     model_config = config.load_model_config()
     analysis_data_path = model_config["analysis_data_path"]
@@ -105,10 +112,15 @@ def analyze(config, forecast_days=None):
         forecast_days = int(config.load_model_config()["forecast_days"])
     
     # TODO: add support for other input formats
+    # WARNING: all stations are processed
     dfs = []
     for station in config.load_station_mapping().keys():
         preprocessed_data_path = __get_preprocessed_data_path(config, station, forecast_days, suffix=".csv")
-        df = pd.read_csv(preprocessed_data_path)
+        try:
+            df = pd.read_csv(preprocessed_data_path)
+        except FileNotFoundError:
+            print(f"WARNING: Preprocessed data for station {station} not found at {preprocessed_data_path}. Skipping analysis for this station.")
+            continue
         dfs.append(df)
     df = pd.concat(dfs, axis=0)
 
@@ -121,7 +133,7 @@ def analyze(config, forecast_days=None):
         missing_dates = missing_dates.astype(str)
         print("WARNING: Missing dates found:\n - " + '\n - '.join(missing_dates.to_list()))
     
-    corr_chart_path = __get_analysis_output_path(config, station, forecast_days, suffix="_corr_chart.png")
+    corr_chart_path = __get_analysis_global_output_path(config, forecast_days, suffix="_corr_chart.png")
     print(f"Storing correlation chart in {corr_chart_path}.")
     corr_chart(df, store_path=corr_chart_path)
 
@@ -203,9 +215,9 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
         raise ValueError(f"Station {station} not found in {river_stations_metadata_path}.")
     
     # extract river level thresholds from pd.Series object
-    level_moderate = station_metadata.moderate
-    level_high = station_metadata.high
-    level_full = station_metadata.full
+    level_moderate = station_metadata.moderate_threshold
+    level_high = station_metadata.high_threshold
+    level_full = station_metadata.full_threshold
 
     if forecast_days is None:
         forecast_days = int(model_config["forecast_days"])

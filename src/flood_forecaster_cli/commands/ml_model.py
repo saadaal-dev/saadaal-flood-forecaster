@@ -73,7 +73,7 @@ def analyze(config_path, forecast_days):
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 def split(station, config_path, forecast_days):
-    config = configuration.read_config(config_path)
+    config = Config(config_path)
     api.split(station, config, forecast_days)
 
 
@@ -83,7 +83,7 @@ def split(station, config_path, forecast_days):
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
 def train(station, config_path, forecast_days, model_type):
-    config = configuration.read_config(config_path)
+    config = Config(config_path)
     api.train(station, config, forecast_days, model_type)
 
 
@@ -93,7 +93,7 @@ def train(station, config_path, forecast_days, model_type):
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
 def eval(station, config_path, forecast_days, model_type):
-    config = configuration.read_config(config_path)
+    config = Config(config_path)
     api.eval(station, config, forecast_days, model_type)
 
 
