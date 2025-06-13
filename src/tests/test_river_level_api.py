@@ -23,10 +23,8 @@ class TestConfig(unittest.TestCase):
 
         # Mock data
         river_levels = [
-            HistoricalRiverLevel(location_name="test", date=datetime.date(3000, 10, 1), level_m=5.0,
-                                 station_number="123"),
-            HistoricalRiverLevel(location_name="test", date=datetime.date(3000, 10, 1), level_m=4.5,
-                                 station_number="456")
+            HistoricalRiverLevel(location_name="test", date=datetime.date(3000, 10, 1), level_m=5.0, ),
+            HistoricalRiverLevel(location_name="test", date=datetime.date(3000, 10, 1), level_m=4.5, )
         ]
 
         # Insert data into the database
@@ -48,5 +46,5 @@ class TestConfig(unittest.TestCase):
             # Print deleted rows
         self.assertEqual(len(rows_to_delete), 2, "Expected to delete 2 rows")
         for row in rows_to_delete:
-            print(f"Deleted row: {row.location_name}, {row.date}, {row.level_m}, {row.station_number}")
+            print(f"Deleted row: {row.location_name}, {row.date}, {row.level_m}")
             self.assertEqual(row.location_name, "test")

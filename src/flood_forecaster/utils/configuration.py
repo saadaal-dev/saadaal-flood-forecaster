@@ -71,8 +71,6 @@ class Config:
     def get_river_data_config(self):
         return dict(self._config.items("river_data"))
 
-    def get_station_metadata_path(self):
-        return self._config.get("data", "station_metadata_file")
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
