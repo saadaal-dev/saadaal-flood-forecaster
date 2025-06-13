@@ -26,8 +26,3 @@ def get_weather_locations(csv_path: str) -> List[WeatherLocation]:
             )
             locations.append(location)
         return locations
-    
-# #TODO
-# def from the database 
-# get_river_station_names 
-# return a list of statiom_name

@@ -9,7 +9,7 @@ from . import Base
 
 from sqlalchemy import Column, Integer, String, DateTime, Float, Date
 
-from . import Base, mapper_registry
+from . import Base
 
 
 @dataclass

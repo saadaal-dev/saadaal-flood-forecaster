@@ -26,9 +26,6 @@ class Config:
     def __init__(self, config_file_path: str) -> None:
         self._config: ConfigParser = self._load_config(config_file_path)
 
-    def get_database_config(self):
-        return dict(self._config.items("database"))
-    
     def load_data_config(self):
         return dict(self._config.items("data"))
 
@@ -38,7 +35,7 @@ class Config:
     def load_data_database_config(self):
         return dict(self._config.items("data.database"))
 
-    def get_openmeteo_config(self):
+    def load_openmeteo_config(self):
         return dict(self._config.items("openmeteo"))
 
     def load_static_data_config(self):
@@ -53,9 +50,6 @@ class Config:
 
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
-
-    def get_swalim_config(self):
-        return dict(self._config.items("swalim"))
     
     def get_store_base_path(self):
         return self._config.get("openmeteo", "store_base_path")
@@ -66,17 +60,12 @@ class Config:
     def get_openmeteo_api_archive_url(self):
         return self._config.get("openmeteo", "api_archive_url")
     
-    def get_station_metadata_path(self):
+    def get_store_base_path(self):
         return self._config.get("data.ingestion", "river_stations_metadata_path")
-    
-    def get_district_data_path(self):
-        return self._config.get("data.ingestion", "district_data_file")
-    
-    def get_station_data__path(self):
-        return self._config.get("data.ingestion", "station_data_file")
-    
-    def get_use_database(self):
+        
+    def use_database_weather(self):
         return self._config.get("data.ingestion", "use_database")
+    
     def get_river_data_config(self):
         return dict(self._config.items("river_data"))
 

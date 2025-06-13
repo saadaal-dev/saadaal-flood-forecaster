@@ -55,7 +55,7 @@ def manage_weather_forecast(config, stations, responses):
     )
     # add the logic to write to database
 
-    if config.get_use_database().lower() == "true":
+    if config.use_database_weather().lower() == "true":
             # Convert each row in daily_combined DataFrame to ForecastWeather objects
             daily_combined = daily_combined.drop(columns=["forecast_latitude"])
             daily_combined = daily_combined.drop(columns=["forecast_longitude"])
@@ -95,7 +95,7 @@ def manage_historical_forecast(config, stations, responses):
         datetime.datetime.now()
     )
 
-    if config.get_use_database().lower() == "true":
+    if config.use_database_weather().lower() == "true":
             # Convert each row in daily_combined DataFrame to ForecastWeather objects
             daily_combined = daily_combined.drop(columns=["forecast_latitude"])
             daily_combined = daily_combined.drop(columns=["forecast_longitude"])
