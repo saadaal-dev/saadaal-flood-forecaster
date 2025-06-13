@@ -19,7 +19,7 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
     """
     url = config.get_river_data_config().get("swalim_api_url")
     try:
-        response = requests.get(url)
+        response = requests.get(url, verify=False)
         response.raise_for_status()
 
         # Parse the response: Dependent on the structure of the html
@@ -54,8 +54,6 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
                 location_name=station,
                 date=pd.to_datetime(data_dict["Date"], format="%d-%m-%Y"),
                 level_m=pd.to_numeric(data_dict["Observed River Level (m)"], errors="coerce"),
-                station_number=station  # TODO: add station number to station class and metadata csv file
-                # TODO delete station_number from HistoricalRiverLevel????
             )
             new_level_data.append(station_level)
     return new_level_data
