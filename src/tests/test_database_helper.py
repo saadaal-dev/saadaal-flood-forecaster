@@ -15,7 +15,7 @@ class TestDatabaseHelper(unittest.TestCase):
 
     @patch("os.environ.get", return_value="testpassword")
     @patch("src.flood_forecaster.utils.database_helper.create_engine")
-    @patch("src.flood_forecaster.utils.configuration.Config.get_database_config", return_value={
+    @patch("src.flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
         "dbname": "testdb",
         "user": "testuser",
         "host": "localhost",
@@ -24,7 +24,7 @@ class TestDatabaseHelper(unittest.TestCase):
     def test_database_connection_success(self, mock_load_config, mock_create_engine, mock_env):
         # Mocking the Config object
         config = MagicMock()
-        config.get_database_config.return_value = {
+        config.load_data_database_config.return_value = {
             "dbname": "testdb",
             "user": "testuser",
             "host": "localhost",
@@ -55,7 +55,7 @@ class TestDatabaseHelper(unittest.TestCase):
 
     @patch("os.environ.get", return_value="testpassword")
     @patch("src.flood_forecaster.utils.database_helper.create_engine", side_effect=Exception("Mocked error"))
-    @patch("src.flood_forecaster.utils.configuration.Config.get_database_config", return_value={
+    @patch("src.flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
         "dbname": "testdb",
         "user": "testuser",
         "host": "localhost",

@@ -27,7 +27,7 @@ class TestConfig(unittest.TestCase):
     """)
     def test_load_database_config(self, mock_file, mock_exists):
         config = Config(self.mock_file_path)
-        db_config = config.get_database_config()
+        db_config = config.load_data_database_config()
         self.assertEqual(db_config["dbname"], "testdb")
         self.assertEqual(db_config["user"], "testuser")
         self.assertEqual(db_config["host"], "localhost")
@@ -59,5 +59,5 @@ class TestConfig(unittest.TestCase):
     @patch("os.path.exists", return_value=True)  # Simulate file existence
     def test_load_openmeteo_config(self, mock_file, mock_exists):
         config = Config(self.mock_file_path)
-        api_config = config.get_openmeteo_config()
+        api_config = config.load_openmeteo_config()
         self.assertEqual(api_config["api_url"], "https://api.open-meteo.com/v1/forecast")

@@ -186,6 +186,18 @@ class DatabaseConnection:
             print(f"Error listing schemas: {str(e)}")
             return []
 
+    def empty_table(self, model):
+        with self.engine.connect() as conn:
+            conn.execute(model.__table__.delete())
+            conn.commit()
+
+    def get_max_date(self, model_class, date_column="date"):
+        with self.engine.connect() as conn:
+            from sqlalchemy import func, select
+            stmt = select(func.max(getattr(model_class, date_column)))
+            result = conn.execute(stmt).scalar()
+            return result
+
     def fetch_table_to_csv(
         self,
         schema_name: str,
