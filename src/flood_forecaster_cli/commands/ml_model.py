@@ -1,3 +1,5 @@
+import itertools
+from typing import List
 from datetime import datetime
 
 import click
@@ -15,6 +17,7 @@ Supports the following commands:
 - train(station, config_path, forecast_days, model_type), to create the model
 - eval(station, config_path, forecast_days, model_type), to test the model
 - infer(station, config_path, forecast_days, date, model_type), to predict the river level for a given date
+- bulk_infer(stations, forecast_days, model_types, config_path, output_type), to run inference for multiple stations and forecast days
 - build_model(station, config_path, forecast_days, model_type), to run the full model building pipeline
 - list_models(), to list all supported model types
 """
@@ -53,7 +56,7 @@ def cli():
 
 @cli.command(cls=build_post_context_validation_command(validate_station))
 @click.argument('station')
-@click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 def preprocess(station, config_path, forecast_days):
     config = Config(config_path)
@@ -61,7 +64,7 @@ def preprocess(station, config_path, forecast_days):
 
 
 @cli.command()
-@click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 def analyze(config_path, forecast_days):
     config = Config(config_path)
@@ -70,7 +73,7 @@ def analyze(config_path, forecast_days):
 
 @cli.command(cls=build_post_context_validation_command(validate_station))
 @click.argument('station')
-@click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 def split(station, config_path, forecast_days):
     config = Config(config_path)
@@ -79,7 +82,7 @@ def split(station, config_path, forecast_days):
 
 @cli.command(cls=build_post_context_validation_command(validate_station))
 @click.argument('station')
-@click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
 def train(station, config_path, forecast_days, model_type):
@@ -89,7 +92,7 @@ def train(station, config_path, forecast_days, model_type):
 
 @cli.command(cls=build_post_context_validation_command(validate_station))
 @click.argument('station')
-@click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
 def eval(station, config_path, forecast_days, model_type):
@@ -100,7 +103,7 @@ def eval(station, config_path, forecast_days, model_type):
 # Command to run the preprocessing, analysis, split, training and evaluation steps
 @cli.command(cls=build_post_context_validation_command(validate_station))
 @click.argument('station')
-@click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
 def build_model(station, config_path, forecast_days, model_type):
@@ -123,7 +126,7 @@ def build_model(station, config_path, forecast_days, model_type):
 
 @cli.command(cls=build_post_context_validation_command(validate_station))
 @click.argument('station')
-@click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 @click.option('-d', '--date', type=click.DateTime(formats=["%Y-%m-%d"]), default=None)
 @click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
@@ -149,6 +152,32 @@ def infer(station, config_path, forecast_days, date, model_type, output_type):
     # QUICKFIX: access the ConfigParser object directly
     config = configuration.Config(config_path)
     api.infer(station, config, forecast_days, date, model_type, output_type)
+
+
+@cli.command()
+@click.argument('stations', nargs=-1)
+@click.option('-f', '--forecast_days', type=click.IntRange(1, None), multiple=True, default=[1])
+@click.option('-m', '--model_types', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), multiple=True, default=None)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-o', '--output_type', type=click.Choice(['stdout', 'database']), default='stdout')
+def bulk_infer(stations: List[str], forecast_days: List[int], model_types: List[str], config_path: str, output_type: str):
+    """
+    Bulk infer river levels for multiple stations and forecast days using specified model types.
+    All possible combinations of stations, forecast_days and model_types are used.
+    The results are printed to stdout or stored in the database, depending on the output_type.
+    """
+    config = configuration.Config(config_path)
+    _output_type = DataOutputType.from_string(output_type)
+
+    # FIXME: naive solution:
+    # an insert will be made for each combination of station, forecast_days and model_type
+    # NOTE: infer actually returns the predicted river level so we could externalize the database insert logic here
+    for station, forecast_day, model_type in itertools.product(stations, forecast_days, model_types):
+        print(f"Running inference for station: {station}, forecast_days: {forecast_day}, model_type: {model_type}")
+        try:
+            api.infer(station, config, forecast_day, None, model_type, _output_type)
+        except Exception as e:
+            print(f"Error during inference for station {station}, forecast_days {forecast_day}, model_type {model_type}: {e}")
 
 
 @cli.command()
