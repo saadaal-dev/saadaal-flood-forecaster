@@ -1,14 +1,18 @@
+from dataclasses import dataclass
+
 from sqlalchemy import Column, Float, String, DateTime, Integer
+
+from . import Base, mapper_registry
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from src.flood_forecaster.data_model import Base
-# from sqlalchemy.orm import declarative_base
-# Base = declarative_base()
 
+from . import Base
 
+@dataclass
 class HistoricalWeather(Base):
     __tablename__ = 'historical_weather'
+    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
@@ -19,9 +23,18 @@ class HistoricalWeather(Base):
     rain_sum = Column(Float)
     precipitation_hours = Column(Float)
 
+    @classmethod
+    def from_dataframe(cls, df):
+        """
+        Convert a pandas DataFrame to a list of HistoricalWeather objects.
+        """
+        records = df.to_dict(orient="records")
+        return [cls(**record) for record in records]
 
+@dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'
+    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
@@ -34,6 +47,13 @@ class ForecastWeather(Base):
     precipitation_probability_max = Column(Float)
     wind_speed_10m_max = Column(Float)
 
+    @classmethod
+    def from_dataframe(cls, df):
+        """
+        Convert a pandas DataFrame to a list of ForecastWeather objects.
+        """
+        records = df.to_dict(orient="records")
+        return [cls(**record) for record in records]
 # TODO: add orm getters and setters
 
 

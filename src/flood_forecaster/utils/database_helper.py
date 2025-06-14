@@ -3,11 +3,13 @@ import os
 import pkgutil
 
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
+from src.flood_forecaster.data_model import Base
 from src.flood_forecaster.utils.configuration import Config
 
 
@@ -42,7 +44,8 @@ class DatabaseConnection:
 
     @staticmethod
     def _get_env_pwd():
-        pwd = os.environ.get("POSTGRES_PASSWORD")
+        load_dotenv()
+        pwd = os.getenv("POSTGRES_PASSWORD")
         if not pwd:
             raise ValueError("POSTGRES_PASSWORD environment variable not set.")
         return pwd
@@ -80,6 +83,8 @@ class DatabaseConnection:
                 # Create all tables using metadata from imported models
                 data_model.Base.metadata.create_all(bind=connection)
                 print(f"Tables created in schema '{schema_name}'.")
+                Base.metadata.drop_all(bind=connection)
+
         except SQLAlchemyError as e:
             print(f"Error creating tables in schema '{schema_name}': {str(e)}")
 
@@ -180,6 +185,18 @@ class DatabaseConnection:
         except SQLAlchemyError as e:
             print(f"Error listing schemas: {str(e)}")
             return []
+
+    def empty_table(self, model):
+        with self.engine.connect() as conn:
+            conn.execute(model.__table__.delete())
+            conn.commit()
+
+    def get_max_date(self, model_class, date_column="date"):
+        with self.engine.connect() as conn:
+            from sqlalchemy import func, select
+            stmt = select(func.max(getattr(model_class, date_column)))
+            result = conn.execute(stmt).scalar()
+            return result
 
     def fetch_table_to_csv(
         self,
