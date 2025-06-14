@@ -64,7 +64,7 @@ def preprocess(station, config_path, forecast_days):
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 def analyze(config_path, forecast_days):
-    config = configuration.read_config(config_path)
+    config = Config(config_path)
     api.analyze(config, forecast_days)
 
 
