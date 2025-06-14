@@ -1,11 +1,10 @@
 from datetime import datetime
 import json
 from typing import Optional
-
 import pandas as pd
+import numpy as np
 
 from src.flood_forecaster.utils.database_helper import DatabaseConnection
-
 from src.flood_forecaster.utils.configuration import Config, DataOutputType
 from src.flood_forecaster.data_ingestion.load import load_inference_river_levels, load_inference_weather, load_modelling_river_levels, load_modelling_weather
 from src.flood_forecaster.ml_model.preprocess import preprocess_diff
@@ -277,6 +276,44 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
     # TODO: should it be forecast_days instead of 1?
     baseline_pred_y = eval_df["y"].shift(1).dropna()
     print("Baseline RMSE: {:.2f}".format(((baseline_pred_y - eval_df["y"].dropna())**2).mean()**0.5))
+
+
+    # Weighted RMSE using progressive sigmoid function with weights based on river level thresholds
+    errors = (pred_df["abs_pred_y"] - pred_df["abs_test_y"])**2
+    base_weight = 1.0
+    moderate_addition = 4.0
+    high_addition = 5.0
+
+    def plateau_sigmoid_weight(x, threshold, max_threshold=None, steepness=2.0):
+        """function for calculating sigmoid weights based on river level thresholds"""
+
+        if max_threshold is not None:
+            if hasattr(x, 'values'):
+                x_values = x.values
+            else:
+                x_values = x  
+            above_max = x_values >= max_threshold
+            result = 1 / (1 + np.exp(-steepness * (x_values - threshold)))
+            result[above_max] = 1.0
+            return result
+        else:
+            return 1 / (1 + np.exp(-steepness * (x - threshold)))
+    
+    moderate_component = plateau_sigmoid_weight(
+        pred_df["abs_test_y"], 
+        threshold=level_moderate,
+        max_threshold=level_high,  # same always at high river levels
+        steepness=2.0
+    ) * moderate_addition
+
+    high_mask = pred_df["abs_test_y"] >= level_high
+    high_component = np.zeros(len(pred_df))
+    high_component[high_mask] = high_addition
+    weights = base_weight + moderate_component + high_component
+    weighted_errors = errors * weights
+    weighted_rmse = (weighted_errors.sum() / weights.sum())**0.5
+    
+    print(f"Plateau Sigmoid Weighted RMSE: {weighted_rmse:.2f}")
 
 
 def build_model(station, config, forecast_days=None, model_type=None):
