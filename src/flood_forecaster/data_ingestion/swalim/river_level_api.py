@@ -6,8 +6,8 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from src.flood_forecaster import DatabaseConnection
-from src.flood_forecaster.data_ingestion.swalim.river_station import get_river_station_names
 from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel
+from src.flood_forecaster.data_model.river_station import get_river_station_names
 from src.flood_forecaster.utils.configuration import Config
 
 

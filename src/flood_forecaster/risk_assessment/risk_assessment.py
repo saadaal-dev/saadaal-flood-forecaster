@@ -1,8 +1,9 @@
 from sqlalchemy import update
-from src.flood_forecaster.utils.configuration import Config
-from src.flood_forecaster.data_ingestion.swalim.river_station import get_river_stations, RiverStation
-from src.flood_forecaster.utils.database_helper import DatabaseConnection
+
 from src.flood_forecaster.data_model.river_level import PredictedRiverLevel
+from src.flood_forecaster.data_model.river_station import get_river_stations, RiverStation
+from src.flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.utils.database_helper import DatabaseConnection
 
 
 def create_update_statement(river_station: RiverStation, risk_level: str) -> update:
