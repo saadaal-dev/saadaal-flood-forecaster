@@ -1,5 +1,6 @@
-import alerting_module
 import os
+
+import alerting_module
 
 if __name__ == "__main__":
     try:

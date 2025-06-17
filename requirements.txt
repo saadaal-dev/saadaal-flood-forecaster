@@ -5,10 +5,10 @@ black
 tox
 detect-secrets
 
-requests
-SQLAlchemy
-configparser
-mailjet-rest
+requests~=2.32.3
+SQLAlchemy~=2.0.36
+configparser~=7.1.0
+mailjet-rest~=1.3.4
 
 pandas~=2.3.0
 pandera[pandas]~=0.24.0
@@ -24,4 +24,6 @@ beautifulsoup4~=4.12.3
 python-dotenv
 joblib
 numpy
-setuptools
+openmeteo_sdk
+openmeteo_requests
+retry_requests
