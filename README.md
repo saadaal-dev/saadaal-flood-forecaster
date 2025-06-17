@@ -2,7 +2,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Linting: flake8](https://img.shields.io/badge/linting-flake8-yellow.svg)](https://flake8.pycqa.org/)
 
-## 📁 Repository Structure
+# 📁 Repository Structure
 
 The project is organized as follows:
 
@@ -27,14 +27,14 @@ The project is organized as follows:
 
 ---
 
-## 🧪 Code Guidelines & Validation
+# 🧪 Code Guidelines & Validation
 
 - Follow [PEP8](https://peps.python.org/pep-0008/) for Python code.
 - Write clean, readable code and comment where appropriate.
 - Use descriptive commit messages.
 - Ensure that your code passes all linting and unit tests before submitting.
 
-### ✅ Pull Request Checklist
+## ✅ Pull Request Checklist
 
 Before submitting a PR, please ensure:
 - [ ] The code runs correctly locally.
@@ -42,13 +42,13 @@ Before submitting a PR, please ensure:
 - [ ] Documentation is updated if needed.
 - [ ] You’ve added meaningful comments where applicable.
 
-### 🔹 Linting and secrets detection
+## 🔹 Linting and secrets detection
 
 * To run the Python linter flake8 on the whole repo, run the command: `tox -e linting`.
 * To detect new secrets, compared with the previously created baseline run the command: `tox -e detect-secrets`.
 * To run all validations from `tox.ini` just run `tox`
 
-### 🔹 Install the CLI
+## 🔹 Install the CLI
 
 To install the CLI tool, simply run the following command:
 
@@ -64,7 +64,7 @@ After installation, you can use the CLI with the `flood_forecaster_cli` command.
 
 To uninstall, simply run: `python -m pip uninstall flood_forecaster_cli`
 
-### 🔹 Run the CLI
+## 🔹 Run the CLI
 
 To run commands with the cli, execute one of the following commands, with appropriate args. 
 
@@ -101,71 +101,58 @@ Schemas in the database:
 ```
 ---
 
-## 🚀 Deployment [🔧 to be reviewed]
-### Server installation
+# 🚀 Deployment
+## Server installation
+### Prerequisites
+- Python 3.10.x installed
+- CRON daemon running:
+
+To check:
+```bash
+sudo service cron status
+```
+To start:
+```bash
+sudo service cron start
+```
+### Step by step guide
 1. Clone the repository at the root path of the target server.
 ```bash	
-BASE_PATH="/root/flood-forecaster"
-cd /
-git clone https://github.com/saadaal-dev/saadaal-flood-forecaster.git $BASE_PATH
-```
-2. Install the required python dependencies.
-```bash
+BASE_PATH="/root/Amadeus"
 cd $BASE_PATH
-bash install/install.sh
+git clone https://github.com/saadaal-dev/saadaal-flood-forecaster.git
 ```
-3. Create a `.env` file in the `data-extractor` path of the repository and add the following environment variables.
+2. Create a `.env` file repository root level and add the following environment variables.
 ```bash
-cd $BASE_PATH/src/data-extractor
-# Edit the file .env and add the following environment variables
-OPENAI_API_KEY=  # TODO remove
-POSTGRES_PASSWORD=
+cd saadaal-flood-forecaster/
+touch .env
 ```
-4. Get the weather historical data from the Open-Meteo API.
-It has to be done only one time manually for initialisation
 ```bash
-source $BASE_PATH/src/data-extractor-venv/bin/activate
-OPENMETEO_PATH="${BASE_PATH}/src/flood_forecaster/data_ingestion/openmeteo"
-cd ${OPENMETEO_PATH}
-python3 historical_weather.py
+export POSTGRES_PASSWORD=<database-password>
 ```
-Note that the python installation is done with [virtualenv](https://docs.python.org/3/library/venv.html#creating-virtual-environments), therefore venv has to be activated whenver the python scripts are run.
-
-5. Configure email alert to a contact list with Mailjet API
-* Create a .env_mailjet file in the `utils` folder including the Mailjet API credentials for your account, and the contact list_ID
+3. Install the application and the required python dependencies.
 ```bash
-UTILS_PATH="${BASE_PATH}/src/flood_forecaster/utils"
-cd ${UTILS_PATH}
-# Edit the file .env_apicreds and add the following environment variables
-MAILJET_API_KEY=
-MAILJET_API_SECRET=
-CONTACT_LIST_ID=
-```
-* `from utils import alerting_module` to your python script and call `alerting_module.send_email_to_contact_list()` to send an alert in case of failure, or when specific alerting criteria are being reached
-
-
-### Refresh of the server scripts
-* To refresh the server scripts, pull the repository and install the required python dependencies.
-```bash
-cd $BASE_PATH
-git pull
-pip install -e .
+bash install.sh
 ```
 
-### Setup of periodic tasks
-* Create a cron job to get the weather data every day.
+## Alert setup
+Checkout the alert README.md here: `src/flood_forecaster/alert_module/README.md`.
+
+## Setup of periodic tasks
+The script to be set up in the CRON is the following: [amadeus_saadaal_flood_forecaster.sh](scripts/amadeus_saadaal_flood_forecaster.sh).
+The goal of this file is to run sequentially all the modules from data ingestion to alert sending.
+The logs of the CRON app will be stored in this folder: `logs/`. The creation of this folder is managed by the [install.sh](install.sh) script.
 ```bash
 crontab -e
 # Add the last line to the crontab
-# m h  dom mon dow   command
-#TODO: Schedule flood_forecaster jobs
+* 12 * * * <path to the repository>/scripts/bash amadeus_saadaal_flood_forecaster.sh >><path to the repository>/logs/logs_amadeus_saadaal_flood_forecaster.log 2>&1
 
-# Check the crontab with
+# Check the crontab with:
 crontab -l
 ```
 ---
 
-## 🤝 Suggest improvements, contribute
+# 🤝 Suggest improvements, contribute
 
 * Report **Issues**: Use the GitHub [issues](https://github.com/saadaal-dev/saadaal-flood-forecaster/issues) tab to report bugs or request features.
 * Propose **Enhancements**: To suggest new ideas or improvements please check the [project backlog](https://github.com/orgs/saadaal-dev/projects/1).
