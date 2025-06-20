@@ -1,13 +1,13 @@
 from dataclasses import dataclass
+from typing import List
 
-from sqlalchemy import Column, Float, String, DateTime, Integer
-
-from . import Base, mapper_registry
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
+from sqlalchemy import Column, Float, String, DateTime, Integer
 
 from . import Base
+
 
 @dataclass
 class HistoricalWeather(Base):
@@ -54,7 +54,6 @@ class ForecastWeather(Base):
         """
         records = df.to_dict(orient="records")
         return [cls(**record) for record in records]
-# TODO: add orm getters and setters
 
 
 class WeatherDataFrameSchema(pa.DataFrameModel):
@@ -69,3 +68,31 @@ class WeatherDataFrameSchema(pa.DataFrameModel):
     class Config:
         strict = True
         coerce = True
+
+
+@dataclass
+class StationMapping:
+    """
+    A data class to store metadata for a weather station.
+
+    Attributes:
+        location (str): The location of the weather station.
+        river (str): The river associated with the weather station.
+        upstream_stations (List[str]): A list of upstream stations related to the weather station.
+        weather_locations (List[str]): A list of weather conditions relevant to the weather station.
+    """
+    location: str
+    river: str
+    upstream_stations: List[str]
+    weather_locations: List[str]
+
+
+@dataclass
+class WeatherLocation:
+    def __init__(self, label: str, region: str, district: str, latitude: float, longitude: float, remarks: str):
+        self.label = label
+        self.region = region
+        self.district = district
+        self.latitude = latitude
+        self.longitude = longitude
+        self.remarks = remarks

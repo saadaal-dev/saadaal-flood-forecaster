@@ -17,7 +17,7 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
     :param config:
     :return: list of HistoricalRiverLevel objects with the latest river data
     """
-    url = config.get_river_data_config().get("swalim_api_url")
+    url = config.load_river_data_config().get("swalim_api_url")
     try:
         response = requests.get(url, verify=False)
         response.raise_for_status()
