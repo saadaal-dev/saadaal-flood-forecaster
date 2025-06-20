@@ -14,7 +14,10 @@ class RiverStation(Station):
         self.region = region
         self.district = district
 
-def get_river_stations(csv_path: str) -> List[RiverStation]:
+
+def get_river_stations_static(config) -> List[RiverStation]:
+    data_static_config = config.load_static_data_config()
+    csv_path = data_static_config['river_stations_metadata_path']
     with open(csv_path, mode="r", newline="") as location_file:
         reader = csv.reader(location_file)
         stations: List[RiverStation] = []
@@ -37,11 +40,5 @@ def get_river_stations(csv_path: str) -> List[RiverStation]:
 
 # TODO replace from db read
 def get_river_station_names(config):
-    return ["Luuq", "Dollow", "Bardheere", "Kaitoi", "Bualle", "Belet Weyne", "Bulo Burti", "Jowhar", "Mahadey Weyne",
-            "Afgoi", "Audegle"]
-    # # Get the station metadata from the config
-    # station_metadata_path = config.get_store_base_path()
-    # # Read the station metadata csv file
-    # river_stations = pd.read_csv(station_metadata_path, usecols=["station_name"])
-    # # Convert the station names to a list of names
-    # return river_stations["station_name"].tolist()
+    river_stations = get_river_stations_static(config)
+    return [station.name for station in river_stations]

@@ -1,5 +1,6 @@
-import csv
 from typing import List
+
+import csv
 
 
 # TODO REMOVE
