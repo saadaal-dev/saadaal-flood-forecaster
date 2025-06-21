@@ -1,6 +1,9 @@
-import csv
 from typing import List
 
+import csv
+
+
+# TODO REMOVE
 
 class District:
     def __init__(self, region: str, name: str, latitude: float, longitude: float):

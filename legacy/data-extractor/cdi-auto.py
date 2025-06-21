@@ -119,7 +119,7 @@ df = fetch_data()
 df.to_csv("./csv/cdi-data.csv", index=False)
 
 # create file
-file = client.files.create(file=open("./csv/cdi-data.csv", "rb"), purpose="assistants")
+file = client.files.create(file=open("csv/cdi-data.csv", "rb"), purpose="assistants")
 
 
 report_human_date = month["human_format"]

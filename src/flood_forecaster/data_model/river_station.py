@@ -1,8 +1,10 @@
 import csv
 from typing import List
 
-from src.flood_forecaster.data_ingestion.openmeteo.station import Station
+from src.flood_forecaster.data_model.station import Station
 
+
+# TODO replace with read from data_model RiverStationMetadata
 class RiverStation(Station):
     def __init__(self, id: int, name: str, latitude: float, longitude: float, region: str, district: str, moderate_threshold: float, high_threshold: float, full_threshold: float = 0.0):
         super().__init__(id, name, latitude, longitude)
@@ -12,7 +14,10 @@ class RiverStation(Station):
         self.region = region
         self.district = district
 
-def get_river_stations(csv_path: str) -> List[RiverStation]:
+
+def get_river_stations_static(config) -> List[RiverStation]:
+    data_static_config = config.load_static_data_config()
+    csv_path = data_static_config['river_stations_metadata_path']
     with open(csv_path, mode="r", newline="") as location_file:
         reader = csv.reader(location_file)
         stations: List[RiverStation] = []
@@ -31,3 +36,9 @@ def get_river_stations(csv_path: str) -> List[RiverStation]:
             )
             stations.append(station)
         return stations
+
+
+# TODO replace from db read
+def get_river_station_names(config):
+    river_stations = get_river_stations_static(config)
+    return [station.name for station in river_stations]

@@ -1,10 +1,12 @@
 import unittest
-from unittest.mock import MagicMock
-import pandas as pd
 from datetime import datetime, timedelta
-from src.flood_forecaster.ml_model.inference import infer_from_raw_data
-from src.flood_forecaster.utils.configuration import StationMapping
+from unittest.mock import MagicMock
+
+import pandas as pd
+
 from src.flood_forecaster.data_ingestion.load import StationDataFrameSchema, WeatherDataFrameSchema
+from src.flood_forecaster.data_model.weather import StationMapping
+from src.flood_forecaster.ml_model.inference import infer_from_raw_data
 
 
 class TestInference(unittest.TestCase):

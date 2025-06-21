@@ -20,3 +20,10 @@ seaborn~=0.13.2
 prophet==1.1.6
 xgboost~=3.0.2
 click~=8.1.7
+beautifulsoup4~=4.12.3
+python-dotenv
+joblib
+numpy
+openmeteo_sdk
+openmeteo_requests
+retry_requests

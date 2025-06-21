@@ -117,7 +117,7 @@ def generate_report(week, year, file):
 df = fetch_data(week, year)
 df.to_csv("./csv/river-week.csv", index=False)
 river_file = client.files.create(
-    file=open("./csv/river-week.csv", "rb"), purpose="assistants"
+    file=open("csv/river-week.csv", "rb"), purpose="assistants"
 )
 report = generate_report(week, year, river_file)
 print(report)
