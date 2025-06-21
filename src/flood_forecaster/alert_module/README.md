@@ -23,8 +23,8 @@ Edit your `Config.ini` file with the following section:
 [mailjet_config]
 sender_email = [your_verified_sender_email]
 sender_name = [e.g. "Flood Alert"]
-reciever_email = [recipient_email_or_contact_list]
-reciever_name = [e.g. "Shaqodoon Team"]
+receiver_email = [recipient_email_or_contact_list]
+receiver_name = [e.g. "Shaqodoon Team"]
 ```
  
 ### 3. Set Environment Variables

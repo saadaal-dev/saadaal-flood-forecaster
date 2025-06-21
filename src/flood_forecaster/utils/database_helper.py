@@ -1,10 +1,11 @@
 import importlib
 import os
 import pkgutil
+from datetime import datetime
 
 import pandas as pd
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text, select, func
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
@@ -186,17 +187,25 @@ class DatabaseConnection:
             print(f"Error listing schemas: {str(e)}")
             return []
 
-    def empty_table(self, model):
+    def empty_table(self, table_class):
         with self.engine.connect() as conn:
-            conn.execute(model.__table__.delete())
+            conn.execute(table_class.__table__.delete())
             conn.commit()
 
-    def get_max_date(self, model_class, date_column="date"):
+    def get_latest_date(self, model_class) -> datetime:
+        """
+        Fetch the latest date from the specified model class.
+        Will fail if the model class does not have a 'date' column or __tablename__ attribute.
+        :param model_class: Class defined in /data_model, representing the table model (e.g., PredictedRiverLevel)
+        :return: Latest date as a datetime object (or ValueError if no dates found)
+        """
         with self.engine.connect() as conn:
-            from sqlalchemy import func, select
-            stmt = select(func.max(getattr(model_class, date_column)))
-            result = conn.execute(stmt).scalar()
-            return result
+            stmt = select(func.max(model_class.date))
+            result = conn.execute(stmt).fetchone()
+            if result:
+                return result[0]
+            else:
+                raise ValueError(f"No dates found in the {model_class.__tablename__} table.")
 
     def fetch_table_to_csv(
         self,
