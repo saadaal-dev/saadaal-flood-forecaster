@@ -1,12 +1,8 @@
 from dataclasses import dataclass
-from sqlalchemy import Column, Integer, String, DateTime
+
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from sqlalchemy import Column, Integer, String, DateTime, Float, Date
-
-from . import Base
-
 from sqlalchemy import Column, Integer, String, DateTime, Float, Date
 
 from . import Base
@@ -32,13 +28,11 @@ class PredictedRiverLevel(Base):
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))
     date = Column(DateTime)
-    level_m = Column(Integer)
+    level_m = Column(Float)
     station_number = Column(String(50))
     ml_model_name = Column(String(100))
     forecast_days = Column(Integer, comment="Number of days into the future the forecast is for")
     risk_level = Column(String(50), comment="Risk level of the forecasted river level, e.g., 'Low', 'Medium', 'High'")
-
-# TODO: add orm getters and setters
 
 
 class StationDataFrameSchema(pa.DataFrameModel):

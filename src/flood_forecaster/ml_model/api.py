@@ -7,7 +7,7 @@ import pandas as pd
 
 from src.flood_forecaster.data_ingestion.load import load_inference_river_levels, load_inference_weather, \
     load_modelling_river_levels, load_modelling_weather
-from src.flood_forecaster.data_model.river_station import get_river_stations_static
+from src.flood_forecaster.data_model.river_station import get_river_station_metadata
 from src.flood_forecaster.ml_model.inference import infer_from_raw_data, store_inference_result
 from src.flood_forecaster.ml_model.modelling import corr_chart, eval_chart
 from src.flood_forecaster.ml_model.preprocess import preprocess_diff
@@ -200,21 +200,13 @@ def train(station, config, forecast_days=None, model_type=None):
     print(f"Model training complete, stored in {model_full_path}.")
 
 
-def eval(station, config: Config, forecast_days=None, model_type=None):
+def eval(station_name: str, config: Config, forecast_days=None, model_type=None):
     print("Evaluating model...")
-    data_path = config.load_data_config()["data_path"]
-    static_data_config = config.load_static_data_config()
     model_config = config.load_model_config()
-    river_stations_metadata_path = data_path + static_data_config["river_stations_metadata_path"]
 
-    # load station metadata file
-    for s in get_river_stations_static(config):
-        if s.name == station:
-            station_metadata = s
-            break
-    else:
-        raise ValueError(f"Station {station} not found in {river_stations_metadata_path}.")
-    
+    # load station metadata from file
+    station_metadata = get_river_station_metadata(config, station_name)
+
     # extract river level thresholds from pd.Series object
     level_moderate = station_metadata.moderate_threshold
     level_high = station_metadata.high_threshold
@@ -229,12 +221,13 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
     model_manager = MODEL_MANAGER_REGISTRY[model_type]
 
     # TODO: add support for other input formats
-    eval_df = pd.read_csv(__get_eval_data_path(config, station, forecast_days))
+    eval_df = pd.read_csv(__get_eval_data_path(config, station_name, forecast_days))
     eval_df['date'] = pd.to_datetime(eval_df['date'], utc=False, format="%Y-%m-%d").dt.tz_localize(None)
     print(f"Evaluation data loaded, {len(eval_df):,.0f} entries.")
 
     model_path = model_config["model_path"]
-    model = model_manager.load(model_path=model_path, model_name=__get_model_name(config, station, forecast_days, model_type))
+    model = model_manager.load(model_path=model_path,
+                               model_name=__get_model_name(config, station_name, forecast_days, model_type))
 
     pred_df = model_manager.eval(model, eval_df.drop(columns=["location"])).reset_index()
 
@@ -245,8 +238,8 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
             df = df[df["date"] >= start_date]
         if end_date is not None:
             df = df[df["date"] < end_date]
-        
-        eval_chart_path = __get_eval_output_path(config, station, forecast_days, model_type, suffix)
+
+        eval_chart_path = __get_eval_output_path(config, station_name, forecast_days, model_type, suffix)
 
         fig, ax = eval_chart(
             df,
@@ -255,7 +248,7 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
             level_full=level_full,
             abs=abs,
         )
-        ax.set_title(f"{station}: " + ax.get_title() + f" - Forecast at {forecast_days} days")
+        ax.set_title(f"{station_name}: " + ax.get_title() + f" - Forecast at {forecast_days} days")
         fig.savefig(eval_chart_path)
         print(f"Stored evaluation chart ({suffix}) in {eval_chart_path}.")
 
