@@ -24,7 +24,7 @@ VENV_PATH=$REPOSITORY_ROOT_PATH/.venv
 # Check if venv directory exists
 if [ ! -d "$VENV_PATH" ]; then
     echo "The virtual environment directory does not exist. Creating it."
-    python3.10 -m venv "$VENV_PATH"
+    python3 -m venv "$VENV_PATH"
 fi
 
 # Activate the virtual environment for package installation
@@ -34,5 +34,19 @@ echo "Virtual environment activated $VIRTUAL_ENV"
 # Install the required packages
 pip3 install -r $REPOSITORY_ROOT_PATH/requirements.txt
 
+# Clean up any previous builds
+echo "Cleaning up previous builds..."
+rm -rf $REPOSITORY_ROOT_PATH/build/
+rm -rf $REPOSITORY_ROOT_PATH/*.egg-info/
+
+# Install the flood forecaster package in editable mode
+echo "Installing flood-forecaster package in editable mode..."
+pip3 install -e $REPOSITORY_ROOT_PATH
+
 # Ensure the script is executable
 chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster.sh
+
+echo "Installation completed successfully!"
+echo "To use the CLI, activate the virtual environment first:"
+echo "  source .venv/bin/activate"
+echo "Then try: flood_forecaster_cli --help"

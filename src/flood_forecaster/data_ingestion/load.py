@@ -5,7 +5,7 @@ from typing import Iterable
 
 import pandas as pd
 import pandera.pandas as pa
-import pandera.pandas.typing as pat
+import pandera.typing as pat
 from sqlalchemy import select
 
 from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema

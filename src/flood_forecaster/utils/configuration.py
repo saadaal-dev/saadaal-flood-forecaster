@@ -1,7 +1,7 @@
 import configparser
 import json
 import os
-from configparser import ConfigParser
+from configparser import ConfigParser, ExtendedInterpolation
 from enum import Enum
 
 from src.flood_forecaster.data_model.weather import StationMapping
@@ -81,9 +81,9 @@ class Config:
 
     def get_weather_location_metadata_path(self):
         return self.load_static_data_config()["weather_location_data_path"]
-        
-    def use_database_weather(self):
-        return self._config.get("data.ingestion", "use_database")
+
+    def use_database_weather(self) -> bool:
+        return self._config.get("data.ingestion", "use_database", fallback="false").lower() == "true"
 
 
     @staticmethod
@@ -97,7 +97,7 @@ class Config:
         if not os.path.exists(config_file_path):
             raise FileNotFoundError(f"Config file '{config_file_path}' not found.")
 
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=ExtendedInterpolation())
         config.read(config_file_path)
         return config
 
