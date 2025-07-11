@@ -187,11 +187,6 @@ class DatabaseConnection:
             print(f"Error listing schemas: {str(e)}")
             return []
 
-    def empty_table(self, table_class):
-        with self.engine.connect() as conn:
-            conn.execute(table_class.__table__.delete())
-            conn.commit()
-
     def get_latest_date(self, model_class) -> datetime:
         """
         Fetch the latest date from the specified model class.
@@ -208,11 +203,11 @@ class DatabaseConnection:
                 raise ValueError(f"No dates found in the {model_class.__tablename__} table.")
 
     def fetch_table_to_csv(
-        self,
-        schema_name: str,
-        table_name: str,
-        data_download_path: str,
-        force_overwrite: bool = False,
+            self,
+            schema_name: str,
+            table_name: str,
+            data_download_path: str,
+            force_overwrite: bool = False,
     ) -> None:
         """
         Fetch data from a table and download it as a CSV file to the specified folder.

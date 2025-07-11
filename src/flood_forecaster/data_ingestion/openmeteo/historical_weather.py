@@ -1,76 +1,74 @@
 import datetime
-import os
-from typing import List
+from typing import List, Optional
 
-import openmeteo_requests
 import pandas as pd
-import requests_cache
 from openmeteo_sdk import WeatherApiResponse
-from retry_requests import retry
 
+from flood_forecaster import DatabaseConnection
+from flood_forecaster.data_ingestion.openmeteo.common import (
+    fetch_openmeteo_data,
+    prepare_weather_locations,
+    process_weather_responses,
+    persist_weather_data,
+    create_historical_params,
+    parse_daily_weather
+)
+from flood_forecaster.data_model.weather import HistoricalWeather
 from flood_forecaster.utils.configuration import Config
 
-def get_historical_weather(latitudes: List[float], longitudes: List[float], config: Config, max_date: datetime.datetime = None):
-    # Make sure all required weather variables are listed here
-    # The order of variables in hourly or daily is important to assign them correctly below
-    url = config.get_openmeteo_api_archive_url()
+
+def fetch_historical(config: Config, openmeteo):
+    """Fetch historical weather data for all locations defined in the config file."""
+    # Get the latest date from the HistoricalWeather table
+    print("Fetching the latest date from the database...")
+    conn = DatabaseConnection(config)
+
+    max_date = conn.get_latest_date(HistoricalWeather)
+    if max_date:
+        print(f"Latest historical weather date in the database: {max_date.strftime('%Y-%m-%d')}")
+
+    location_labels, latitudes, longitudes = prepare_weather_locations(config)
+    historical_df = get_historical_weather(location_labels, latitudes, longitudes, config, openmeteo, max_date)
+
+    if historical_df is None:
+        print("No historical weather data to fetch.")
+        return None
+
+    persist_weather_data(config, historical_df, "historical_weather_daily", HistoricalWeather)
+    return historical_df
+
+
+def get_historical_weather(location_labels: List[str], latitudes: List[float], longitudes: List[float],
+                           config: Config, openmeteo, max_date: Optional[datetime.datetime] = None) -> Optional[
+    pd.DataFrame]:
+    """Get historical weather data for the specified locations and date range."""
+    # Use yesterday as the end date to avoid fetching today's data
     end_date = datetime.datetime.now() - datetime.timedelta(days=1)
-    if max_date is not None:
-        start_date = max_date + datetime.timedelta(days=1)  # max date in table +1
-    else: 
+
+    if max_date:
+        # Start from the day after the latest date in the database
+        start_date = max_date + datetime.timedelta(days=1)
+    else:
+        # Default to 3 years of historical data
         start_date = end_date - datetime.timedelta(days=3 * 365)
 
     if start_date > end_date:
         print("You have the most updated data in the forecast :)")
         return None
 
-    print("Using max_date for historical weather data:", start_date)
-    params = {
-        "latitude": latitudes,
-        "longitude": longitudes,
-        "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d"),
-        "daily": [
-            "temperature_2m_max",
-            "temperature_2m_min",
-            "precipitation_sum",
-            "rain_sum",
-            "precipitation_hours",
-        ],
-        "timezone": "auto",
-    }
-    responses = openmeteo.weather_api(url, params=params, verify=False)
-    return responses
+    print(
+        f"Fetching historical weather data from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}...")
+
+    # Create API parameters and fetch data
+    params = create_historical_params(start_date, end_date, latitudes, longitudes)
+    url = config.get_openmeteo_api_archive_url()
+    responses = fetch_openmeteo_data(openmeteo, url, params)
+
+    # Process responses into DataFrame
+    return process_weather_responses(responses, location_labels, parse_daily_historical_response)
 
 
-def get_daily_data_historical(response: WeatherApiResponse):
-    # Process daily data. The order of variables needs to be the same as requested.
+def parse_daily_historical_response(response: WeatherApiResponse):
+    """Parse historical response to extract daily data."""
     daily = response.Daily()
-    daily_temperature_2m_max = daily.Variables(0).ValuesAsNumpy()
-    daily_temperature_2m_min = daily.Variables(1).ValuesAsNumpy()
-    daily_precipitation_sum = daily.Variables(2).ValuesAsNumpy()
-    daily_rain_sum = daily.Variables(3).ValuesAsNumpy()
-    daily_precipitation_hours = daily.Variables(4).ValuesAsNumpy()
-
-    daily_data = {
-        "date": pd.date_range(
-            start=pd.to_datetime(daily.Time(), unit="s", utc=True),
-            end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
-            freq=pd.Timedelta(seconds=daily.Interval()),
-            inclusive="left",
-        )
-    }
-    daily_data["forecast_latitude"] = response.Latitude()
-    daily_data["forecast_longitude"] = response.Longitude()
-    daily_data["temperature_2m_max"] = daily_temperature_2m_max
-    daily_data["temperature_2m_min"] = daily_temperature_2m_min
-    daily_data["precipitation_sum"] = daily_precipitation_sum
-    daily_data["rain_sum"] = daily_rain_sum
-    daily_data["precipitation_hours"] = daily_precipitation_hours
-    return daily_data
-
-
-# Setup the Open-Meteo API client with cache and retry on error
-cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
-retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-openmeteo = openmeteo_requests.Client(session=retry_session)
+    return parse_daily_weather(daily)
