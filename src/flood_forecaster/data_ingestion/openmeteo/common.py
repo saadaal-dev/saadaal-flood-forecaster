@@ -135,7 +135,7 @@ def fetch_forecast(config: Config):
     #Empty the table for the forecast weather data
     print("Emptying the table for the forecast weather data")
     database_connection.empty_table(ForecastWeather)       
-    get_station_function = partial(get_weather_locations, config.get_station_data__path())
+    get_station_function = partial(get_weather_locations, config.get_weather_location_metadata_path())
 
     get_station_data(config, get_station_function, get_weather_forecast, manage_weather_forecast, database_connection)
 
@@ -146,7 +146,7 @@ def fetch_historical(config: Config):
     max_date = database_connection.get_max_date(HistoricalWeather)
 
     print(f"Max date in the database: {max_date}")
-    get_station_function = partial(get_weather_locations, config.get_station_data__path())
+    get_station_function = partial(get_weather_locations, config.get_weather_location_metadata_path())
 
     get_station_data(
         config,
