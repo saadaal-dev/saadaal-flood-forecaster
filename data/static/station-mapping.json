@@ -3,12 +3,30 @@
         "location": "Belet Weyne", 
         "river": "Shabelle",
         "upstream_stations": ["Belet Weyne"],
-        "weather_locations": ["ethiopia__tullu_dimtu", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+        "weather_locations": ["hiran__belet_weyne", "ethiopia__tullu_dimtu", "ethiopia__debre_selam_arsi", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
     },
     "Bulo Burti": {
         "location": "Bulo Burti",
         "river": "Shabelle",
         "upstream_stations": ["Bulo Burti", "Belet Weyne"],
-        "weather_locations": ["ethiopia__tullu_dimtu", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+        "weather_locations": ["hiran__bulo_burti", "hiran__belet_weyne", "ethiopia__tullu_dimtu", "ethiopia__debre_selam_arsi", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+    },
+    "Jowhar": {
+        "location": "Jowhar",
+        "river": "Shabelle",
+        "upstream_stations": ["Jowhar", "Bulo Burti", "Belet Weyne"],
+        "weather_locations": ["middle_shabelle__jowhar", "hiran__bulo_burti", "hiran__belet_weyne", "ethiopia__tullu_dimtu", "ethiopia__debre_selam_arsi", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+    },
+    "Dollow": {
+        "location": "Dollow",
+        "river": "Juba",
+        "upstream_stations": ["Dollow"],
+        "weather_locations": ["gedo__dollow", "ethiopia__baan_dheer", "ethiopia__ellughena", "ethiopia__cogobbe", "ethiopia__horancia", "ethiopia__welmel_shet_river", "ethiopia__delo_mena", "ethiopia__tullu_dimtu"]
+    },
+    "Luuq": {
+        "location": "Luuq",
+        "river": "Juba",
+        "upstream_stations": ["Luuq", "Dollow"],
+        "weather_locations": ["gedo__dollow", "gedo__luuq", "ethiopia__baan_dheer", "ethiopia__ellughena", "ethiopia__cogobbe", "ethiopia__horancia", "ethiopia__welmel_shet_river", "ethiopia__delo_mena", "ethiopia__tullu_dimtu", "ethiopia__magur", "ethiopia__yabelo"]
     }
 }
