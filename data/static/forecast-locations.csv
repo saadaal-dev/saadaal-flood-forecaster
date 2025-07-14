@@ -8,6 +8,10 @@ bay__baydhaba,Bay,Baydhaba,3.26636,43.63929,
 bay__buur_hakaba,Bay,Buur Hakaba,2.794785,44.0784549,
 bay__diinsoor,Bay,Diinsoor,1.995,42.8089931,
 bay__qansax_dheere,Bay,Qansax Dheere,2.87123,43.004341,
+gedo__dollow,Gedo,Dollow,4.18777,42.07938,river station
+gedo__luuq,Gedo,Luuq,3.79172,42.54264,river station
+hiran__belet_weyne,Hiran,Belet Weyne,4.73597,45.20596,river station
+hiran__bulo_burti,Hiran,Bulo Burti,3.85702,45.56727,river station
 lower_shabelle__afgooye,Lower Shabelle,Afgooye,2.2354874,44.9969419,
 lower_shabelle__baraawe,Lower Shabelle,Baraawe,1.112777,44.031005,
 lower_shabelle__kurtunwaarey,Lower Shabelle,Kurtunwaarey,1.65,44.135455,
@@ -15,7 +19,18 @@ lower_shabelle__marka,Lower Shabelle,Marka,1.7148358,44.7699326,
 lower_shabelle__qoryooley,Lower Shabelle,Qoryooley,1.789663,44.530629,
 lower_shabelle__sablaale,Lower Shabelle,Sablaale,1.2423281,43.4794898,
 lower_shabelle__wanla_weyn,Lower Shabelle,Wanla Weyn,2.6192699,44.8936393,
+middle_juba__bualle,Middle Juba,Bualle,1.24477, 42.57317,river station
+middle_shabelle__jowhar,Middle Shabelle,Jowhar,2.77872,45.50486,river station
 ethiopia__tullu_dimtu,Ethiopia,Bale,6.827034321069692,39.81910923515696,Mount Tullu Dimtu (river source)
 ethiopia__fafen_haren,Ethiopia,Harari,9.312932684554212,42.12141724519376,Harar city - Fafen river source (East Ethiopia), merging into Chabelle river
 ethiopia__fafen_gebredarre,Ethiopia,Korahe,6.855563401551738,44.267146985550426,Gabredarre city (a.k.a. Kebri Dehar) - Fafen river midpoint (East Ethiopia), before merging
 ethiopia__shabelle_gode,Ethiopia,Gode,5.956563275108595,43.55199121659339,Gode city - Chabelle before merging with Fafen
+ethiopia__debre_selam_arsi,Ethiopia,Debre Selam Arsi,8.25161,40.1347,Debre Selam Arsi city - towards Chabelle source
+ethiopia__delo_mena,Ethiopia,Delo Mena,6.4121,39.85019,Juba river affleunt (toward Mount Tullu Dimtu)
+ethiopia__baan_dheer,Ethiopia,Baan-Dheer,4.99486,41.42813,Juba river affleunt (Genale river)
+ethiopia__ellughena,Ethiopia,Ellughena,5.45239,39.90247,Juba river affleunt (Genale river - low)
+ethiopia__cogobbe,Ethiopia,Cogobbe,5.87875,39.47027,Juba river affleunt (Genale river - mid)
+ethiopia__horancia,Ethiopia,Horancia,6.51037,38.74179,Juba river affleunt (Genale river - high)
+ethiopia__welmel_shet_river,Ethiopia,Welmel Shet river,5.87074,40.49411,Juba river affleunt (convergence with Elgol river)
+ethiopia__magur,Ethiopia,Magur,4.82571,40.3039,Juba river affleunt AFTER Dollow (Dawa river)
+ethiopia__yabelo,Ethiopia,Yabelo,5.16793,38.84372,Juba river affleunt AFTER Dollow (Dawa river source)
