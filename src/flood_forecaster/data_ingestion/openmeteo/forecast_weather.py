@@ -1,5 +1,3 @@
-import datetime
-import os
 from typing import List
 
 import openmeteo_requests
@@ -8,11 +6,12 @@ import requests_cache
 from openmeteo_sdk import WeatherApiResponse
 from retry_requests import retry
 
-from flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.utils.configuration import Config
 
 # TODO: refactor with historical to delete duplicate code
 # TODO: add writing to database
 # TODO: add configurable: writing to db vs csv
+
 
 # Get the weather forecast for a specific location
 def get_weather_forecast(latitudes: List[float], longitudes: List[float], config: Config):
@@ -58,6 +57,7 @@ def get_hourly_data(response: WeatherApiResponse):
     hourly_data["precipitation"] = hourly_precipitation
     return hourly_data
 
+
 def get_daily_data_actual(response: WeatherApiResponse):
     # Process daily data. The order of variables needs to be the same as requested.
     daily = response.Daily()
@@ -88,6 +88,7 @@ def get_daily_data_actual(response: WeatherApiResponse):
     daily_data["wind_speed_10m_max"] = daily_wind_speed_10m_max
 
     return daily_data
+
 
 # Setup the Open-Meteo API client with cache and retry on error
 cache_session = requests_cache.CachedSession(".cache", expire_after=3600)
