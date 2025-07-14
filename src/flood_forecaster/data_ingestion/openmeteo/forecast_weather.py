@@ -30,6 +30,7 @@ def get_weather_forecast(latitudes: List[float], longitudes: List[float], config
             "precipitation_probability_max",
             "wind_speed_10m_max",
         ],
+        "forecast_days": 16,  # Forecast for the next 15 days + today
         "timezone": "auto",
     }
     responses = openmeteo.weather_api(url, params=params, verify=False)
