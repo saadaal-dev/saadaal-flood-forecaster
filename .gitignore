@@ -164,3 +164,11 @@ __azurite_db*__.json
 
 # IntelliJ
 .idea
+
+# Raw data files
+# Those files are raw data and should not be committed as they can be downloaded from the source
+data/raw
+
+# Interim files (ML pipeline)
+# Those files are generated during the ML pipeline and should not be committed as they can be reproduced.
+data/interim
