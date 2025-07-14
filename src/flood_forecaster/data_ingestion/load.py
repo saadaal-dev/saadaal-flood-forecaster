@@ -29,34 +29,137 @@ def load_history_weather_db(
     :param date_end:
     :return: pandas dataframe
     """
+    print(f"Loading history weather data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
+
+    # QUICKFIX: transform dates into datetimes for DB interaction
+    #           ignoring time information in date_begin and date_end
+    _date_begin = pd.to_datetime(date_begin).replace(hour=0, minute=0, second=0, microsecond=0)
+    _date_end = pd.to_datetime(date_end).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
     stmt = (select(HistoricalWeather)
             .where(HistoricalWeather.location_name.in_(locations))
-            .where(HistoricalWeather.date >= date_begin)
-            .where(HistoricalWeather.date <= date_end))
+            .where(HistoricalWeather.date >= _date_begin)
+            .where(HistoricalWeather.date <= _date_end))
     database = DatabaseConnection(config)
-    return pd.read_sql(stmt, database.engine)
+    df = pd.read_sql(stmt, database.engine)  # type: ignore (ensured by pandera)
+    print(f"Loaded {len(df)} rows from the database")
+
+    df['date'] = pd.to_datetime(df['date'], utc=True)  # TODO: verify UTC / timezone management
+    df['date'] = df['date'].dt.date  # convert datetime to date
+    df = df.rename(columns={
+        "location_name": "location",
+    })
+    # Keep only relevant columns
+    df = df[["location", "date", "precipitation_sum", "precipitation_hours"]]
+    # df = df.dropna(subset=["precipitation_sum", "precipitation_hours"], how="any")  # drop rows with NaN in these columns
+    df = df.fillna({
+        "precipitation_sum": 0.0,  # fill NaN with 0.0 for precipitation_sum
+        "precipitation_hours": 0.0,  # fill NaN with 0.0 for precipitation_hours
+    })
+
+    # Validate that we have data for all locations
+    if not set(locations).issubset(set(df['location'].unique())):
+        missing_locations = set(locations) - set(df['location'].unique())
+        raise ValueError(f"Missing weather history data for locations: {missing_locations}")
+    
+    # Validate that we have data for all dates in the range
+    all_dates = pd.date_range(start=date_begin, end=date_end).date
+    unique_dates = df['date'].unique()
+    if not set(all_dates).issubset(set(unique_dates)):
+        missing_dates = set(all_dates) - set(unique_dates)
+
+        # # FIXME: missing values
+        # raise ValueError(f"Missing history weather data for dates: {missing_dates}")
+        print("WARNING: Missing history weather data for dates:")
+        for missing_date in sorted(missing_dates):
+            print(f"  - {missing_date}")
+
+        if date_end not in unique_dates:
+            print(f"WARNING: Last date ({date_end}) is missing, it will be filled with forecast data later")
+
+    return df  # type: ignore (ensured by pandera)
 
 
 @pa.check_types
-def load_forecast_weather_db(config: Config, locations: Iterable[str], date_begin: datetime, date_end: datetime) -> \
-pat.DataFrame[WeatherDataFrameSchema]:
+def load_forecast_weather_db(
+    config: Config, locations: Iterable[str], date_begin: date, date_end: date
+) -> pat.DataFrame[WeatherDataFrameSchema]:
+    print(f"Loading forecast weather data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
+
+    # QUICKFIX: transform dates into datetimes for DB interaction
+    #           ignoring time information in date_begin and date_end
+    _date_begin = pd.to_datetime(date_begin).replace(hour=0, minute=0, second=0, microsecond=0)
+    _date_end = pd.to_datetime(date_end).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
     stmt = (select(ForecastWeather)
             .where(ForecastWeather.location_name.in_(locations))
-            .where(ForecastWeather.date >= date_begin)
-            .where(ForecastWeather.date <= date_end))
+            .where(ForecastWeather.date >= _date_begin)
+            .where(ForecastWeather.date < _date_end))
     database = DatabaseConnection(config)
-    return pd.read_sql(stmt, database.engine)
+    df = pd.read_sql(stmt, database.engine)  # type: ignore (ensured by pandera)
+    print(f"Loaded {len(df)} rows from the database")
+    
+    df['date'] = pd.to_datetime(df['date'], utc=True)  # TODO: verify UTC / timezone management
+    df['date'] = df['date'].dt.date  # convert datetime to date
+    df = df.rename(columns={
+        "location_name": "location",
+    })
+    # Keep only relevant columns
+    df = df[["location", "date", "precipitation_sum", "precipitation_hours"]]
+
+    # Validate that we have data for all locations
+    if not set(locations).issubset(set(df['location'].unique())):
+        missing_locations = set(locations) - set(df['location'].unique())
+        raise ValueError(f"Missing weather forecast data for locations: {missing_locations}")
+    
+    # Validate that we have data for all dates in the range
+    all_dates = pd.date_range(start=date_begin, end=date_end).date
+    unique_dates = df['date'].unique()
+    if not set(all_dates).issubset(set(unique_dates)):
+        missing_dates = set(all_dates) - set(unique_dates)
+        raise ValueError(f"Missing weather forecast data for dates: {missing_dates}")
+
+    return df  # type: ignore (ensured by pandera)
 
 
 @pa.check_types
-def load_river_level_db(config: Config, locations: Iterable[str], date_begin: datetime, date_end: datetime) -> \
-pat.DataFrame[StationDataFrameSchema]:
+def load_river_level_db(
+    config: Config, locations: Iterable[str], date_begin: date, date_end: date
+) -> pat.DataFrame[StationDataFrameSchema]:
+    print(f"Loading river level data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
+
     stmt = (select(HistoricalRiverLevel)
             .where(HistoricalRiverLevel.location_name.in_(locations))
             .where(HistoricalRiverLevel.date >= date_begin)
             .where(HistoricalRiverLevel.date <= date_end))
     database = DatabaseConnection(config)
-    return pd.read_sql(stmt, database.engine)
+    df = pd.read_sql(stmt, database.engine)  # type: ignore (ensured by pandera)
+    print(f"Loaded {len(df)} rows from the database")
+    df['date'] = pd.to_datetime(df['date'], utc=True)  # TODO: verify UTC / timezone management
+    df['date'] = df['date'].dt.date  # convert datetime to date
+    df = df.rename(columns={
+        "level_m": "level__m",
+        "location_name": "location",
+    })
+    df = df.drop(columns=["id"])  # drop id column, not needed for the analysis
+
+    # Validate that we have data for all locations
+    if not set(locations).issubset(set(df['location'].unique())):
+        missing_locations = set(locations) - set(df['location'].unique())
+        raise ValueError(f"Missing river level data for locations: {missing_locations}")
+    
+    # Validate that we have data for all dates in the range
+    all_dates = pd.date_range(start=date_begin, end=date_end).date
+    if not set(all_dates).issubset(set(df['date'].unique())):
+        missing_dates = set(all_dates) - set(df['date'].unique())
+        
+        # # FIXME: missing values
+        # raise ValueError(f"Missing river level data for dates: {missing_dates}")
+        print("WARNING: Missing river level data for dates:")
+        for missing_date in sorted(missing_dates):
+            print(f"  - {missing_date}")
+
+    return df  # type: ignore (ensured by pandera)
 
 
 def __load_csv(path, start_date=None, end_date=None, datefmt="%Y-%m-%d"):
@@ -241,7 +344,7 @@ def load_inference_weather(
     """
 
     # ignore time information in date
-    date = date.date()
+    date = date.date() - timedelta(days=1)  # QUICKFIX: forecast needs to be used for today as well
 
     model_config = config.load_model_config()
 
@@ -251,10 +354,11 @@ def load_inference_weather(
 
     # max_date: datetime = date - min(config.get("model", "WEATHER_LAG_DAYS")-1
     # LAG=0 is the current day, so it is part of the forecast
-    max_date = date - timedelta(days=min(json.loads(model_config["weather_lag_days"])))
+    max_date = date - timedelta(days=min(json.loads(model_config["weather_lag_days"])) - 1)
 
     today = datetime.now().date()
 
+    # TODO: check this logic if it is correct after QUICKFIX above
     # if max_date is in the future, we will need to load forecast data
     # exclude today from historical data
     # else, we will only load historical data
@@ -263,6 +367,7 @@ def load_inference_weather(
     else:
         history_max_date = max_date
 
+    # TODO: REVIEW: odd logic
     acc = []
     if min_date < today:
         print("Loading inference data (history) from", min_date, "to", history_max_date)
