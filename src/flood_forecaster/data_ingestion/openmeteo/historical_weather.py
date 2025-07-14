@@ -1,27 +1,30 @@
 import datetime
-import os
-from typing import List
+from typing import List, Optional
 
 import openmeteo_requests
-import pandas as pd
 import requests_cache
-from openmeteo_sdk import WeatherApiResponse
+from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
 from retry_requests import retry
 
-from flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.data_ingestion.openmeteo.common import get_daily_data
+from src.flood_forecaster.utils.configuration import Config
 
-def get_historical_weather(latitudes: List[float], longitudes: List[float], config: Config, max_date: datetime.datetime = None):
+
+# Get the historical weather data for specific locations
+def get_historical_weather(latitudes: List[float], longitudes: List[float], config: Config, max_date: Optional[datetime.datetime] = None):
     # Make sure all required weather variables are listed here
     # The order of variables in hourly or daily is important to assign them correctly below
     url = config.get_openmeteo_api_archive_url()
     end_date = datetime.datetime.now() - datetime.timedelta(days=1)
     if max_date is not None:
-        start_date = max_date + datetime.timedelta(days=1)  # max date in table +1
-    else: 
-        start_date = end_date - datetime.timedelta(days=3 * 365)
+        start_date = max_date + datetime.timedelta(days=1)  # FIXME this creates duplicates
+    else:
+        start_date = end_date - datetime.timedelta(days=10 * 365)
 
+    print("Fetching historical weather data from Open-Meteo API...")
+    print(f"Start date: {start_date.strftime('%Y-%m-%d')}, End date: {end_date.strftime('%Y-%m-%d')}")
     if start_date > end_date:
-        print("You have the most updated data in the forecast :)")
+        print("You have the most updated data in the historical weather :)")
         return None
 
     print("Using max_date for historical weather data:", start_date)
@@ -29,6 +32,7 @@ def get_historical_weather(latitudes: List[float], longitudes: List[float], conf
         "latitude": latitudes,
         "longitude": longitudes,
         "start_date": start_date.strftime("%Y-%m-%d"),
+        # FIXME: having issue resolving the historical data for yesterday... (API returns empty values)
         "end_date": end_date.strftime("%Y-%m-%d"),
         "daily": [
             "temperature_2m_max",
@@ -43,31 +47,8 @@ def get_historical_weather(latitudes: List[float], longitudes: List[float], conf
     return responses
 
 
-def get_daily_data_historical(response: WeatherApiResponse):
-    # Process daily data. The order of variables needs to be the same as requested.
-    daily = response.Daily()
-    daily_temperature_2m_max = daily.Variables(0).ValuesAsNumpy()
-    daily_temperature_2m_min = daily.Variables(1).ValuesAsNumpy()
-    daily_precipitation_sum = daily.Variables(2).ValuesAsNumpy()
-    daily_rain_sum = daily.Variables(3).ValuesAsNumpy()
-    daily_precipitation_hours = daily.Variables(4).ValuesAsNumpy()
-
-    daily_data = {
-        "date": pd.date_range(
-            start=pd.to_datetime(daily.Time(), unit="s", utc=True),
-            end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
-            freq=pd.Timedelta(seconds=daily.Interval()),
-            inclusive="left",
-        )
-    }
-    daily_data["forecast_latitude"] = response.Latitude()
-    daily_data["forecast_longitude"] = response.Longitude()
-    daily_data["temperature_2m_max"] = daily_temperature_2m_max
-    daily_data["temperature_2m_min"] = daily_temperature_2m_min
-    daily_data["precipitation_sum"] = daily_precipitation_sum
-    daily_data["rain_sum"] = daily_rain_sum
-    daily_data["precipitation_hours"] = daily_precipitation_hours
-    return daily_data
+def get_daily_data_historical(response: WeatherApiResponse) -> Optional[dict]:
+    return get_daily_data(response, forecast=False)
 
 
 # Setup the Open-Meteo API client with cache and retry on error
