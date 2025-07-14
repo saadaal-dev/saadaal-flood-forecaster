@@ -57,8 +57,8 @@ def create_inference_insert_statement(
         An SQLAlchemy insert statement.
     """
     return insert(PredictedRiverLevel).values(
-        location=location,
-        model_name=model_name,
+        location_name=location,
+        ml_model_name=model_name,
         forecast_days=forecast_days,
         date=date,
         level_m=level_m
@@ -81,3 +81,4 @@ def store_inference_result(db_connection: DatabaseConnection, location, model_na
         insert_stmt = create_inference_insert_statement(location, model_name, forecast_days, date, level_m)
         conn.execute(insert_stmt)
         conn.commit()
+        print(f"Inserted inference result for {location} with model {model_name} for {forecast_days} days ahead on {date} with level {level_m} m.")
