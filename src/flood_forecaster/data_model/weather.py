@@ -31,6 +31,7 @@ class HistoricalWeather(Base):
         records = df.to_dict(orient="records")
         return [cls(**record) for record in records]
 
+
 @dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'

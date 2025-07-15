@@ -132,6 +132,7 @@ def save_alert_as_file(html_content: str):
     with open("flood_alert_message.html", "w", encoding="utf-8") as file:
         file.write(html_content)
 
+
 def main():
     """
     This script is part of the flood forecasting and alerting system. It performs the following tasks:

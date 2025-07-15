@@ -15,5 +15,3 @@ def cli():
 def run_alert():
     """Run the flood alert main process with no parameters."""
     alert_main.main()
-    
-    

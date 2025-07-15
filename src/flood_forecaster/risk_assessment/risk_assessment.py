@@ -16,32 +16,32 @@ def create_update_statement(river_station: RiverStation, risk_level: str) -> upd
     """
     match risk_level:
         case "low":
-            return update(PredictedRiverLevel)\
-                        .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
-                        .where(PredictedRiverLevel.risk_level is None)\
-                        .where(PredictedRiverLevel.level_m < river_station.moderate_threshold)
+            return update(PredictedRiverLevel) \
+                .values(risk_level=risk_level) \
+                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
+                .where(PredictedRiverLevel.risk_level is None) \
+                .where(PredictedRiverLevel.level_m < river_station.moderate_threshold)
         case "moderate":
-            return update(PredictedRiverLevel)\
-                        .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
-                        .where(PredictedRiverLevel.risk_level is None)\
-                        .where(PredictedRiverLevel.level_m >= river_station.moderate_threshold)\
-                        .where(PredictedRiverLevel.level_m < river_station.high_threshold)
+            return update(PredictedRiverLevel) \
+                .values(risk_level=risk_level) \
+                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
+                .where(PredictedRiverLevel.risk_level is None) \
+                .where(PredictedRiverLevel.level_m >= river_station.moderate_threshold) \
+                .where(PredictedRiverLevel.level_m < river_station.high_threshold)
         case "high":
-            return update(PredictedRiverLevel)\
-                        .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
-                        .where(PredictedRiverLevel.risk_level is None)\
-                        .where(PredictedRiverLevel.level_m >= river_station.high_threshold)\
-                        .where(PredictedRiverLevel.level_m < river_station.full_threshold)
+            return update(PredictedRiverLevel) \
+                .values(risk_level=risk_level) \
+                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
+                .where(PredictedRiverLevel.risk_level is None) \
+                .where(PredictedRiverLevel.level_m >= river_station.high_threshold) \
+                .where(PredictedRiverLevel.level_m < river_station.full_threshold)
         case "full":
-            return update(PredictedRiverLevel)\
-                        .values(risk_level=risk_level)\
-                        .where(PredictedRiverLevel.station_number == str(river_station.id))\
-                        .where(PredictedRiverLevel.risk_level is None)\
-                        .where(PredictedRiverLevel.level_m >= river_station.full_threshold)
-        
+            return update(PredictedRiverLevel) \
+                .values(risk_level=risk_level) \
+                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
+                .where(PredictedRiverLevel.risk_level is None) \
+                .where(PredictedRiverLevel.level_m >= river_station.full_threshold)
+
 
 def execute_sql_update(river_station: RiverStation, risk_level: str, database_connection: DatabaseConnection):
     """
@@ -67,6 +67,7 @@ thresholds = ["low", "moderate", "high", "full"]
 
 for river_station in river_stations:
     print(f"Processing station: {river_station.name}")
-    print(f"Moderate threshold: {river_station.moderate_threshold}, High threshold: {river_station.high_threshold}, Full threshold: {river_station.full_threshold}")
+    print(
+        f"Moderate threshold: {river_station.moderate_threshold}, High threshold: {river_station.high_threshold}, Full threshold: {river_station.full_threshold}")
     for threshold in thresholds:
         execute_sql_update(river_station, threshold, database_connection)

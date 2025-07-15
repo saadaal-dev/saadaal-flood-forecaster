@@ -69,13 +69,13 @@ class Config:
 
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
-    
+
     def get_store_base_path(self):
         return self._config.get("openmeteo", "store_base_path")
-    
+
     def get_openmeteo_api_url(self):
         return self._config.get("openmeteo", "api_url")
-    
+
     def get_openmeteo_api_archive_url(self):
         return self._config.get("openmeteo", "api_archive_url")
 
@@ -84,7 +84,6 @@ class Config:
 
     def use_database_weather(self) -> bool:
         return self._config.get("data.ingestion", "use_database", fallback="false").lower() == "true"
-
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:

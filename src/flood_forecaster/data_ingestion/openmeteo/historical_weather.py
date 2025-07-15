@@ -38,9 +38,10 @@ def fetch_historical(config: Config, openmeteo):
     return historical_df
 
 
-def get_historical_weather(location_labels: List[str], latitudes: List[float], longitudes: List[float],
-                           config: Config, openmeteo, max_date: Optional[datetime.datetime] = None) -> Optional[
-    pd.DataFrame]:
+def get_historical_weather(location_labels: List[str],
+                           latitudes: List[float], longitudes: List[float],
+                           config: Config, openmeteo,
+                           max_date: Optional[datetime.datetime] = None) -> Optional[pd.DataFrame]:
     """Get historical weather data for the specified locations and date range."""
     # Use yesterday as the end date to avoid fetching today's data
     end_date = datetime.datetime.now() - datetime.timedelta(days=1)

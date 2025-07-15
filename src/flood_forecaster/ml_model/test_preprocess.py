@@ -13,7 +13,7 @@ class TestPreprocessDiff(unittest.TestCase):
             "date": [pd.Timestamp("2021-01-01"), pd.Timestamp("2021-01-02"), pd.Timestamp("2021-01-03")] * 2,
             "level__m": [10.0, 11.0, 13.0, 23.0, 24.0, 25.0],
         })
-    
+
     def create_weather_df(self):
         return pd.DataFrame({
             "location": ["W1", "W1", "W1"],
@@ -21,7 +21,7 @@ class TestPreprocessDiff(unittest.TestCase):
             "precipitation_sum": [0.1, 0.2, 0.3],
             "precipitation_hours": [1, 2, 3],
         })
-    
+
     def _add_sin_cos_features(self, df):
         """
         Add sine and cosine features for month and day of the year.
@@ -32,7 +32,7 @@ class TestPreprocessDiff(unittest.TestCase):
         df["dayofyear_sin"] = np.sin((df["date"].dt.dayofyear - 1) * (2 * np.pi / 365))
         df["dayofyear_cos"] = np.cos((df["date"].dt.dayofyear - 1) * (2 * np.pi / 365))
         return df
-    
+
     def _add_month_day_features(self, df):
         """
         Add month and day of the year features.
@@ -77,7 +77,8 @@ class TestPreprocessDiff(unittest.TestCase):
         stations_df = self.create_station_df()
         weather_df = self.create_weather_df()
 
-        actual_df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days, forecast_days=1, infer=False)
+        actual_df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days,
+                                    forecast_days=1, infer=False)
 
         try:
             pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True)
@@ -91,7 +92,7 @@ class TestPreprocessDiff(unittest.TestCase):
             print(actual_df)
             pd.set_option('display.max_columns', max_columns)
             raise e
-    
+
     def test_simple_2(self):
         """
         Test a simple case with one relevant station and one weather location.
@@ -135,7 +136,8 @@ class TestPreprocessDiff(unittest.TestCase):
         stations_df = self.create_station_df()
         weather_df = self.create_weather_df()
 
-        actual_df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days, forecast_days=1, infer=False)
+        actual_df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days,
+                                    forecast_days=1, infer=False)
 
         try:
             pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True)
@@ -179,7 +181,8 @@ class TestPreprocessDiff(unittest.TestCase):
 
         # Expected output:
         # date: pd.Timestamp("2021-01-02") is the date where the prediction is made,
-        # (implicit) pd.Timestamp("2021-01-02").add(pd.Timedelta(days=(forecast_days-1))) = pd.Timestamp("2021-01-03") is the date where the prediction is made for
+        # (implicit) pd.Timestamp("2021-01-02").add(pd.Timedelta(days=(forecast_days-1))) = pd.Timestamp("2021-01-03")
+        #   is the date where the prediction is made for
         # level__m: 13.0 is the absolute level at pd.Timestamp("2021-01-03") (prediction)
         # y: 1.0 is the difference between level__m (prediction) and lag01__level__m (last known observation) = 13.0 - 10.0 = 1.0
         expected_df = pd.DataFrame({
@@ -201,7 +204,8 @@ class TestPreprocessDiff(unittest.TestCase):
         stations_df = self.create_station_df()
         weather_df = self.create_weather_df()
 
-        actual_df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days, forecast_days=forecast_days, infer=False)
+        actual_df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days,
+                                    forecast_days=forecast_days, infer=False)
 
         try:
             pd.testing.assert_frame_equal(expected_df, actual_df, check_like=True)
