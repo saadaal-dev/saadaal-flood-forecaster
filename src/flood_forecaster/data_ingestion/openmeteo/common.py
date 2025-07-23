@@ -1,22 +1,13 @@
-
-
-import datetime
 from typing import Optional
-from functools import partial
 
 from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
 from openmeteo_sdk.VariablesWithTime import VariablesWithTime
 from openmeteo_sdk.VariableWithValues import VariableWithValues
 import pandas as pd
-from sqlalchemy.orm import Session
+import numpy as np
 
-from src.flood_forecaster.data_ingestion.openmeteo.weather_location import get_weather_locations
-from src.flood_forecaster.data_model.weather import ForecastWeather, HistoricalWeather
 from src.flood_forecaster.utils.database_helper import DatabaseConnection
-from src.flood_forecaster.data_ingestion.openmeteo.historical_weather import get_daily_data_historical, get_historical_weather
 from src.flood_forecaster.utils.configuration import Config
-from src.flood_forecaster.data_model.station import Station
-from src.flood_forecaster.data_ingestion.openmeteo.forecast_weather import get_daily_data_actual, get_weather_forecast
 
 
 def start_database_connection(config: Config):
@@ -32,90 +23,6 @@ def get_station_data(config: Config, get_data_function , get_forecast_function, 
     responses = get_forecast_function(latitudes, longitudes, config)
     if responses is not None:
         manage_function(config, data, responses, database_connection)
-    
-
-def manage_weather_forecast(config, stations, responses, database_connection):
-    daily_dfs = []
-    data_path = config.get_store_base_path()
-
-    station = None
-    for station, response in zip(stations, responses):
-        print(f"The Label is {station.label}")
-        print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
-        print(f"Elevation {response.Elevation()} m asl")
-        print(f"Timezone {response.Timezone()} {response.TimezoneAbbreviation()}")
-        print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
-
-        daily_df = append_station_information(response, station, get_daily_data_actual)
-        daily_dfs.append(daily_df)
-
-    daily_combined = pd.concat(daily_dfs, ignore_index=True)
-
-    if isinstance(station, Station):
-        type = "station"
-    else:
-        type = "distinct"
-
-    basename = data_path + f"forecast_station_weather_{type}"
-    daily_filename = "{}_daily_{:%Y-%m-%d}.csv".format(
-        basename, datetime.datetime.now()
-    )
-    # add the logic to write to database
-
-    if config.use_database_weather().lower() == "true":
-        # Convert each row in daily_combined DataFrame to ForecastWeather objects
-        daily_combined = daily_combined.drop(columns=["forecast_latitude"])
-        daily_combined = daily_combined.drop(columns=["forecast_longitude"])
-        forecast_weather_objects = ForecastWeather.from_dataframe(daily_combined)
-
-        with database_connection.engine.connect() as conn:
-            with Session(bind=conn) as session:
-                session.add_all(forecast_weather_objects)
-                session.commit()
-                print(f"Inserted {len(forecast_weather_objects)} weather forecast entries into the database.")
-            
-    else:
-        daily_combined.to_csv(daily_filename, index=False)
-
-
-def manage_historical_forecast(config, stations, responses, database_connection):
-    daily_dfs = []
-    data_path = config.get_store_base_path()
-
-    station = None
-    for station, response in zip(stations, responses):
-        print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
-        print(f"Elevation {response.Elevation()} m asl")
-        print(f"Timezone {response.Timezone()} {response.TimezoneAbbreviation()}")
-        print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
-
-        daily_df = append_station_information(response, station, get_daily_data_historical)
-        daily_dfs.append(daily_df)
-
-    daily_combined = pd.concat(daily_dfs, ignore_index=True)
-
-    if isinstance(station, Station):
-        type = "station"
-    else:
-        type = "distinct"
-
-    daily_filename = data_path + "historical__" + f"{type}_" + "weather_daily_{:%Y-%m-%d}.csv".format(
-        datetime.datetime.now()
-    )
-
-    if config.use_database_weather().lower() == "true":
-        # Convert each row in daily_combined DataFrame to ForecastWeather objects
-        daily_combined = daily_combined.drop(columns=["forecast_latitude"])
-        daily_combined = daily_combined.drop(columns=["forecast_longitude"])
-        forecast_weather_objects = HistoricalWeather.from_dataframe(daily_combined)
-
-        with database_connection.engine.connect() as conn:
-            with Session(bind=conn) as session:
-                session.add_all(forecast_weather_objects)
-                session.commit()
-                print(f"Inserted {len(forecast_weather_objects)} historical weather entries into the database.")
-    else:
-        daily_combined.to_csv(daily_filename)
 
 
 def append_station_information(response: WeatherApiResponse, station, function):
@@ -129,32 +36,6 @@ def append_station_information(response: WeatherApiResponse, station, function):
     df = pd.DataFrame(data=daily_data)
     print(f"Daily data for {station.label}")
     return df
-
-
-def fetch_forecast(config: Config):
-    database_connection = start_database_connection(config)
-    # Empty the table for the forecast weather data
-    print("Emptying the table for the forecast weather data")
-    database_connection.empty_table(ForecastWeather)
-    get_station_function = partial(get_weather_locations, config.get_weather_location_metadata_path())
-
-    get_station_data(config, get_station_function, get_weather_forecast, manage_weather_forecast, database_connection)
-
-
-def fetch_historical(config: Config):
-    database_connection = start_database_connection(config)
-    # get the max date from the db
-    max_date = database_connection.get_max_date(HistoricalWeather)
-
-    print(f"Max date in the database: {max_date}")
-    get_station_function = partial(get_weather_locations, config.get_weather_location_metadata_path())
-
-    get_station_data(
-        config,
-        get_station_function,
-        partial(get_historical_weather, max_date=max_date),
-        manage_historical_forecast, database_connection
-    )
 
 
 def __get_variable_values_as_numpy(daily: VariablesWithTime, variable_index: int, variable_name: Optional[str]) -> np.ndarray:
