@@ -42,3 +42,11 @@ def get_river_stations_static(config) -> List[RiverStation]:
 def get_river_station_names(config):
     river_stations = get_river_stations_static(config)
     return [station.name for station in river_stations]
+
+
+def get_river_station_by_name(config, name: str) -> RiverStation:
+    river_stations = get_river_stations_static(config)
+    for station in river_stations:
+        if station.name == name:
+            return station
+    raise ValueError(f"River station with name {name} not found.")
