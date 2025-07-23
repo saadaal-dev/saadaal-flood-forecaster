@@ -344,21 +344,22 @@ def load_inference_weather(
     """
 
     # ignore time information in date
-    date = date.date() - timedelta(days=1)  # QUICKFIX: forecast needs to be used for today as well
+    date = date.date()
 
     model_config = config.load_model_config()
 
+    weather_lag_days = json.loads(model_config["weather_lag_days"])
+
     # load historical weather data for the last max(WEATHER_LAG) days
     # min_date: datetime = date - max(config.get("model", "WEATHER_LAG_DAYS"))
-    min_date = date - timedelta(days=max(json.loads(model_config["weather_lag_days"])))
+    min_date = date - timedelta(days=max(weather_lag_days))
 
     # max_date: datetime = date - min(config.get("model", "WEATHER_LAG_DAYS")-1
     # LAG=0 is the current day, so it is part of the forecast
-    max_date = date - timedelta(days=min(json.loads(model_config["weather_lag_days"])) - 1)
+    max_date = date - timedelta(days=min(weather_lag_days))
 
     today = datetime.now().date()
 
-    # TODO: check this logic if it is correct after QUICKFIX above
     # if max_date is in the future, we will need to load forecast data
     # exclude today from historical data
     # else, we will only load historical data
