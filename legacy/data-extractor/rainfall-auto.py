@@ -130,7 +130,7 @@ df.to_csv("./csv/long-rainfall-data.csv", index=False)
 
 # create file
 file = client.files.create(
-    file=open("./csv/long-rainfall-data.csv", "rb"), purpose="assistants"
+    file=open("csv/long-rainfall-data.csv", "rb"), purpose="assistants"
 )
 
 

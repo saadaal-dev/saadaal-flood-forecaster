@@ -1,18 +1,19 @@
-from datetime import datetime
 import json
+from datetime import datetime
 from typing import Optional
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
-from src.flood_forecaster.utils.database_helper import DatabaseConnection
-from src.flood_forecaster.utils.configuration import Config, DataOutputType
-from src.flood_forecaster.data_ingestion.load import load_inference_river_levels, load_inference_weather, load_modelling_river_levels, load_modelling_weather
-from src.flood_forecaster.ml_model.preprocess import preprocess_diff
-from src.flood_forecaster.ml_model.modelling import corr_chart, eval_chart
+from src.flood_forecaster.data_ingestion.load import load_inference_river_levels, load_inference_weather, \
+    load_modelling_river_levels, load_modelling_weather
+from src.flood_forecaster.data_model.river_station import get_river_station_metadata
 from src.flood_forecaster.ml_model.inference import infer_from_raw_data, store_inference_result
+from src.flood_forecaster.ml_model.modelling import corr_chart, eval_chart
+from src.flood_forecaster.ml_model.preprocess import preprocess_diff
 from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
-from src.flood_forecaster.data_ingestion.swalim.river_station import get_river_stations
-
+from src.flood_forecaster.utils.configuration import Config, DataOutputType
+from src.flood_forecaster.utils.database_helper import DatabaseConnection
 
 """
 Functions to interact with the model building pipeline.
@@ -93,7 +94,8 @@ def preprocess(station, config: Config, forecast_days=None):
     weather_lag_days = json.loads(model_config["weather_lag_days"])
 
     # TODO: add support for other preprocessors
-    df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days=station_lag_days, weather_lag_days=weather_lag_days, forecast_days=forecast_days)
+    df = preprocess_diff(station_metadata, stations_df, weather_df, station_lag_days=station_lag_days,
+                         weather_lag_days=weather_lag_days, forecast_days=forecast_days)
 
     output_data_path = __get_preprocessed_data_path(config, station, forecast_days, suffix=".csv")
     print(f"Preprocessing data complete, storing {len(df):,.0f} entries in {output_data_path}.")
@@ -107,10 +109,10 @@ def preprocess(station, config: Config, forecast_days=None):
 
 def analyze(config, forecast_days=None):
     print("Analyzing data...")
-    
+
     if forecast_days is None:
         forecast_days = int(config.load_model_config()["forecast_days"])
-    
+
     # TODO: add support for other input formats
     # WARNING: all stations are processed
     dfs = []
@@ -119,7 +121,8 @@ def analyze(config, forecast_days=None):
         try:
             df = pd.read_csv(preprocessed_data_path)
         except FileNotFoundError:
-            print(f"WARNING: Preprocessed data for station {station} not found at {preprocessed_data_path}. Skipping analysis for this station.")
+            print(
+                f"WARNING: Preprocessed data for station {station} not found at {preprocessed_data_path}. Skipping analysis for this station.")
             continue
         dfs.append(df)
     df = pd.concat(dfs, axis=0)
@@ -132,7 +135,7 @@ def analyze(config, forecast_days=None):
         # format datetimes as dates as strings
         missing_dates = missing_dates.astype(str)
         print("WARNING: Missing dates found:\n - " + '\n - '.join(missing_dates.to_list()))
-    
+
     corr_chart_path = __get_analysis_global_output_path(config, forecast_days, suffix="_corr_chart.png")
     print(f"Storing correlation chart in {corr_chart_path}.")
     corr_chart(df, store_path=corr_chart_path)
@@ -143,10 +146,10 @@ def analyze(config, forecast_days=None):
 def split(station, config, forecast_days=None):
     print("Splitting data...")
     model_config = config.load_model_config()
-    
+
     if forecast_days is None:
         forecast_days = int(model_config["forecast_days"])
-    
+
     # TODO: add support for other input formats
     preprocessed_data_path = __get_preprocessed_data_path(config, station, forecast_days, suffix=".csv")
     df = pd.read_csv(preprocessed_data_path)
@@ -155,8 +158,9 @@ def split(station, config, forecast_days=None):
     train_df, test_df = df[df["date"] < split_date], df[df["date"] >= split_date]
     output_training_data_path = __get_training_data_path(config, station, forecast_days)
     output_eval_data_path = __get_eval_data_path(config, station, forecast_days)
-    print(f"Splitting data complete, storing training data in {output_training_data_path} and evaluation data in {output_eval_data_path}.")
-    
+    print(
+        f"Splitting data complete, storing training data in {output_training_data_path} and evaluation data in {output_eval_data_path}.")
+
     # add buffer for lag
     station_lag_days = json.loads(model_config["river_station_lag_days"])
     weather_lag_days = json.loads(model_config["weather_lag_days"])
@@ -179,7 +183,7 @@ def split(station, config, forecast_days=None):
 def train(station, config, forecast_days=None, model_type=None):
     print("Training model...")
     model_config = config.load_model_config()
-    
+
     if forecast_days is None:
         forecast_days = int(model_config["forecast_days"])
 
@@ -194,26 +198,20 @@ def train(station, config, forecast_days=None, model_type=None):
 
     # TODO: add support for other models
     model_path = model_config["model_path"]
-    model, model_full_path = model_manager.train_and_serialize(df, model_path=model_path, model_name=__get_model_name(config, station, forecast_days, model_type))
+    model, model_full_path = model_manager.train_and_serialize(df, model_path=model_path,
+                                                               model_name=__get_model_name(config, station,
+                                                                                           forecast_days, model_type))
 
     print(f"Model training complete, stored in {model_full_path}.")
 
 
-def eval(station, config: Config, forecast_days=None, model_type=None):
+def eval(station_name: str, config: Config, forecast_days=None, model_type=None):
     print("Evaluating model...")
-    data_path = config.load_data_config()["data_path"]
-    static_data_config = config.load_static_data_config()
     model_config = config.load_model_config()
-    river_stations_metadata_path = data_path + static_data_config["river_stations_metadata_path"]
 
-    # load station metadata file
-    for s in get_river_stations(river_stations_metadata_path):
-        if s.name == station:
-            station_metadata = s
-            break
-    else:
-        raise ValueError(f"Station {station} not found in {river_stations_metadata_path}.")
-    
+    # load station metadata from file
+    station_metadata = get_river_station_metadata(config, station_name)
+
     # extract river level thresholds from pd.Series object
     level_moderate = station_metadata.moderate_threshold
     level_high = station_metadata.high_threshold
@@ -224,28 +222,30 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
 
     if model_type is None:
         model_type = model_config["model_type"]
-    
+
     model_manager = MODEL_MANAGER_REGISTRY[model_type]
 
     # TODO: add support for other input formats
-    eval_df = pd.read_csv(__get_eval_data_path(config, station, forecast_days))
+    eval_df = pd.read_csv(__get_eval_data_path(config, station_name, forecast_days))
     eval_df['date'] = pd.to_datetime(eval_df['date'], utc=False, format="%Y-%m-%d").dt.tz_localize(None)
     print(f"Evaluation data loaded, {len(eval_df):,.0f} entries.")
 
     model_path = model_config["model_path"]
-    model = model_manager.load(model_path=model_path, model_name=__get_model_name(config, station, forecast_days, model_type))
+    model = model_manager.load(model_path=model_path,
+                               model_name=__get_model_name(config, station_name, forecast_days, model_type))
 
     pred_df = model_manager.eval(model, eval_df.drop(columns=["location"])).reset_index()
 
-    def __plot_eval_chart(df: pd.DataFrame, abs: bool, start_date: Optional[str] = None, end_date: Optional[str] = None, suffix: str = ""):
+    def __plot_eval_chart(df: pd.DataFrame, abs: bool, start_date: Optional[str] = None, end_date: Optional[str] = None,
+                          suffix: str = ""):
         suffix = ("" if abs else "_diff") + suffix
 
         if start_date is not None:
             df = df[df["date"] >= start_date]
         if end_date is not None:
             df = df[df["date"] < end_date]
-        
-        eval_chart_path = __get_eval_output_path(config, station, forecast_days, model_type, suffix)
+
+        eval_chart_path = __get_eval_output_path(config, station_name, forecast_days, model_type, suffix)
 
         fig, ax = eval_chart(
             df,
@@ -254,7 +254,7 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
             level_full=level_full,
             abs=abs,
         )
-        ax.set_title(f"{station}: " + ax.get_title() + f" - Forecast at {forecast_days} days")
+        ax.set_title(f"{station_name}: " + ax.get_title() + f" - Forecast at {forecast_days} days")
         fig.savefig(eval_chart_path)
         print(f"Stored evaluation chart ({suffix}) in {eval_chart_path}.")
 
@@ -269,17 +269,16 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
     print("Diff pred vs test")
     print((pred_df["abs_pred_y"] - pred_df["abs_test_y"]).describe())
 
-    print("RMSE: {:.2f}".format(((pred_df["abs_pred_y"] - pred_df["abs_test_y"])**2).mean()**0.5))
+    print("RMSE: {:.2f}".format(((pred_df["abs_pred_y"] - pred_df["abs_test_y"]) ** 2).mean() ** 0.5))
 
     # Baseline RMSE:
     # replicate previous day's river level as prediction
     # TODO: should it be forecast_days instead of 1?
     baseline_pred_y = eval_df["y"].shift(1).dropna()
-    print("Baseline RMSE: {:.2f}".format(((baseline_pred_y - eval_df["y"].dropna())**2).mean()**0.5))
-
+    print("Baseline RMSE: {:.2f}".format(((baseline_pred_y - eval_df["y"].dropna()) ** 2).mean() ** 0.5))
 
     # Weighted RMSE using progressive sigmoid function with weights based on river level thresholds
-    errors = (pred_df["abs_pred_y"] - pred_df["abs_test_y"])**2
+    errors = (pred_df["abs_pred_y"] - pred_df["abs_test_y"]) ** 2
     base_weight = 1.0
     moderate_addition = 4.0
     high_addition = 5.0
@@ -291,16 +290,16 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
             if hasattr(x, 'values'):
                 x_values = x.values
             else:
-                x_values = x  
+                x_values = x
             above_max = x_values >= max_threshold
             result = 1 / (1 + np.exp(-steepness * (x_values - threshold)))
             result[above_max] = 1.0
             return result
         else:
             return 1 / (1 + np.exp(-steepness * (x - threshold)))
-    
+
     moderate_component = plateau_sigmoid_weight(
-        pred_df["abs_test_y"], 
+        pred_df["abs_test_y"],
         threshold=level_moderate,
         max_threshold=level_high,  # same always at high river levels
         steepness=2.0
@@ -311,8 +310,8 @@ def eval(station, config: Config, forecast_days=None, model_type=None):
     high_component[high_mask] = high_addition
     weights = base_weight + moderate_component + high_component
     weighted_errors = errors * weights
-    weighted_rmse = (weighted_errors.sum() / weights.sum())**0.5
-    
+    weighted_rmse = (weighted_errors.sum() / weights.sum()) ** 0.5
+
     print(f"Plateau Sigmoid Weighted RMSE: {weighted_rmse:.2f}")
 
 
@@ -350,9 +349,11 @@ def infer(
     Parameters:
     :station (str): The station name to run inference for.
     :config (Config): The configuration object containing the model and data paths.
-    :forecast_days (int, optional): The number of days to look ahead for the prediction. Defaults to None, which will use the value from the model config.
+    :forecast_days (int, optional): The number of days to look ahead for the prediction.
+        Defaults to None, which will use the value from the model config.
     :date (datetime.date, optional): The date to run inference for. Defaults to today.
-    :model_type (str, optional): The type of model to use for inference. Defaults to None, which will use the value from the model config.
+    :model_type (str, optional): The type of model to use for inference.
+        Defaults to None, which will use the value from the model config.
     :output_type (DataOutputType): The type of output behaviour. Defaults to DataOutputType.STDOUT.
     Returns:
     :float: The predicted river level at the given date + (forecast_days-1).
@@ -364,10 +365,10 @@ def infer(
     print(f"Station mapping:\n{json.dumps(station_metadata.__dict__, indent=2)}")
     station_lag_days = json.loads(model_config["river_station_lag_days"])
     weather_lag_days = json.loads(model_config["weather_lag_days"])
-    
+
     if forecast_days is None:
         forecast_days = int(model_config["forecast_days"])
-    
+
     if model_type is None:
         model_type = model_config["model_type"]
     model_manager = MODEL_MANAGER_REGISTRY[model_type]
@@ -375,8 +376,10 @@ def infer(
     weather_df = load_inference_weather(config, station_metadata.weather_locations, date=date)
     stations_df = load_inference_river_levels(config, station_metadata.upstream_stations, date=date)
 
-    weather_df['date'] = pd.to_datetime(weather_df['date'], utc=False, format="%Y-%m-%d %H:%M:%S%z").dt.tz_localize(None).dt.date.astype("datetime64[ns]")
-    stations_df['date'] = pd.to_datetime(stations_df['date'], utc=False, format="%d/%m/%Y").dt.tz_localize(None).dt.date.astype("datetime64[ns]")
+    weather_df['date'] = pd.to_datetime(weather_df['date'], utc=False, format="%Y-%m-%d %H:%M:%S%z").dt.tz_localize(
+        None).dt.date.astype("datetime64[ns]")
+    stations_df['date'] = pd.to_datetime(stations_df['date'], utc=False, format="%d/%m/%Y").dt.tz_localize(
+        None).dt.date.astype("datetime64[ns]")
 
     model_path = model_config["model_path"]
     model_name = __get_model_name(config, station, forecast_days, model_type)
@@ -389,7 +392,7 @@ def infer(
 
     if inference_df.empty:
         raise RuntimeError("Inference DataFrame is empty. Please check the input data and preprocessing steps.")
-    
+
     if output_type == DataOutputType.STDOUT:
         # print first entry of inference_df as a JSON
         print("Inference DataFrame:")
@@ -408,9 +411,10 @@ def infer(
 
     if output_type == DataOutputType.STDOUT:
         date_str = date.strftime("%Y-%m-%d")
-        y_diff_str = "river level going " + (f"up by {y_diff:.2f} m" if y_diff > 0 else f"down by {y_diff:.2f} m" if y_diff < 0 else "unchanged")
+        y_diff_str = "river level going " + (
+            f"up by {y_diff:.2f} m" if y_diff > 0 else f"down by {y_diff:.2f} m" if y_diff < 0 else "unchanged")
         print(f"Predicted river level for {station} on {date_str} is {y:.2f} m ({y_diff_str}).")
-    
+
     if output_type == DataOutputType.DATABASE:
         # store the prediction in the database using:
         # location_name,

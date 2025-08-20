@@ -1,13 +1,16 @@
 import importlib
 import os
 import pkgutil
+from datetime import datetime
 
 import pandas as pd
-from sqlalchemy import create_engine, inspect, text
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, inspect, text, select, func
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
+from src.flood_forecaster.data_model import Base
 from src.flood_forecaster.utils.configuration import Config
 
 
@@ -42,7 +45,8 @@ class DatabaseConnection:
 
     @staticmethod
     def _get_env_pwd():
-        pwd = os.environ.get("POSTGRES_PASSWORD")
+        load_dotenv()
+        pwd = os.getenv("POSTGRES_PASSWORD")
         if not pwd:
             raise ValueError("POSTGRES_PASSWORD environment variable not set.")
         return pwd
@@ -80,6 +84,8 @@ class DatabaseConnection:
                 # Create all tables using metadata from imported models
                 data_model.Base.metadata.create_all(bind=connection)
                 print(f"Tables created in schema '{schema_name}'.")
+                Base.metadata.drop_all(bind=connection)
+
         except SQLAlchemyError as e:
             print(f"Error creating tables in schema '{schema_name}': {str(e)}")
 
@@ -181,12 +187,27 @@ class DatabaseConnection:
             print(f"Error listing schemas: {str(e)}")
             return []
 
+    def get_latest_date(self, model_class) -> datetime:
+        """
+        Fetch the latest date from the specified model class.
+        Will fail if the model class does not have a 'date' column or __tablename__ attribute.
+        :param model_class: Class defined in /data_model, representing the table model (e.g., PredictedRiverLevel)
+        :return: Latest date as a datetime object (or ValueError if no dates found)
+        """
+        with self.engine.connect() as conn:
+            stmt = select(func.max(model_class.date))
+            result = conn.execute(stmt).fetchone()
+            if result:
+                return result[0]
+            else:
+                raise ValueError(f"No dates found in the {model_class.__tablename__} table.")
+
     def fetch_table_to_csv(
-        self,
-        schema_name: str,
-        table_name: str,
-        data_download_path: str,
-        force_overwrite: bool = False,
+            self,
+            schema_name: str,
+            table_name: str,
+            data_download_path: str,
+            force_overwrite: bool = False,
     ) -> None:
         """
         Fetch data from a table and download it as a CSV file to the specified folder.

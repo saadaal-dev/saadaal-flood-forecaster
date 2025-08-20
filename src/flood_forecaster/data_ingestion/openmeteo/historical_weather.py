@@ -1,145 +1,75 @@
-import openmeteo_requests
-from openmeteo_sdk import WeatherApiResponse
 import datetime
-import requests_cache
+from typing import List, Optional
+
 import pandas as pd
-from retry_requests import retry
-from station import Station, get_stations
-from district import District, get_districts
-from typing import List
-import os
+from openmeteo_sdk import WeatherApiResponse
 
-data_path = os.path.dirname(os.path.realpath(__file__)) + "/../data/"  # TODO read from config
-if not os.path.exists(data_path):
-    os.makedirs(data_path)
-
-
-def get_historical_weather(latitudes: List[float], longitudes: List[float]):
-    # Make sure all required weather variables are listed here
-    # The order of variables in hourly or daily is important to assign them correctly below
-    url = "https://archive-api.open-meteo.com/v1/archive"  # TODO read from config
-    end_date = datetime.datetime.now()
-    start_date = end_date - datetime.timedelta(days=3 * 365)
-    params = {
-        "latitude": latitudes,
-        "longitude": longitudes,
-        "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d"),
-        "daily": [
-            "temperature_2m_max",
-            "temperature_2m_min",
-            "precipitation_sum",
-            "rain_sum",
-            "precipitation_hours",
-        ],
-        "timezone": "auto",
-    }
-    responses = openmeteo.weather_api(url, params=params, verify=False)
-    return responses
+from flood_forecaster import DatabaseConnection
+from flood_forecaster.data_ingestion.openmeteo.common import (
+    fetch_openmeteo_data,
+    prepare_weather_locations,
+    process_weather_responses,
+    persist_weather_data,
+    create_historical_params,
+    parse_daily_weather
+)
+from flood_forecaster.data_model.weather import HistoricalWeather
+from flood_forecaster.utils.configuration import Config
 
 
-def get_daily_data(response: WeatherApiResponse):
-    # Process daily data. The order of variables needs to be the same as requested.
+def fetch_historical(config: Config, openmeteo):
+    """Fetch historical weather data for all locations defined in the config file."""
+    # Get the latest date from the HistoricalWeather table
+    print("Fetching the latest date from the database...")
+    conn = DatabaseConnection(config)
+
+    max_date = conn.get_latest_date(HistoricalWeather)
+    if max_date:
+        print(f"Latest historical weather date in the database: {max_date.strftime('%Y-%m-%d')}")
+
+    location_labels, latitudes, longitudes = prepare_weather_locations(config)
+    historical_df = get_historical_weather(location_labels, latitudes, longitudes, config, openmeteo, max_date)
+
+    if historical_df is None:
+        print("No historical weather data to fetch.")
+        return None
+
+    persist_weather_data(config, historical_df, "historical_weather_daily", HistoricalWeather)
+    return historical_df
+
+
+def get_historical_weather(location_labels: List[str],
+                           latitudes: List[float], longitudes: List[float],
+                           config: Config, openmeteo,
+                           max_date: Optional[datetime.datetime] = None) -> Optional[pd.DataFrame]:
+    """Get historical weather data for the specified locations and date range."""
+    # Use yesterday as the end date to avoid fetching today's data
+    end_date = datetime.datetime.now() - datetime.timedelta(days=1)
+
+    if max_date:
+        # Start from the day after the latest date in the database
+        start_date = max_date + datetime.timedelta(days=1)
+    else:
+        # Default to 3 years of historical data
+        start_date = end_date - datetime.timedelta(days=3 * 365)
+
+    if start_date > end_date:
+        print("You have the most updated data in the forecast :)")
+        return None
+
+    print(
+        f"Fetching historical weather data from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}...")
+
+    # Create API parameters and fetch data
+    params = create_historical_params(start_date, end_date, latitudes, longitudes)
+    url = config.get_openmeteo_api_archive_url()
+    responses = fetch_openmeteo_data(openmeteo, url, params)
+
+    # Process responses into DataFrame
+    return process_weather_responses(responses, location_labels, parse_daily_historical_response)
+
+
+def parse_daily_historical_response(response: WeatherApiResponse):
+    """Parse historical response to extract daily data."""
     daily = response.Daily()
-    daily_temperature_2m_max = daily.Variables(0).ValuesAsNumpy()
-    daily_temperature_2m_min = daily.Variables(1).ValuesAsNumpy()
-    daily_precipitation_sum = daily.Variables(2).ValuesAsNumpy()
-    daily_rain_sum = daily.Variables(3).ValuesAsNumpy()
-    daily_precipitation_hours = daily.Variables(4).ValuesAsNumpy()
-
-    daily_data = {
-        "date": pd.date_range(
-            start=pd.to_datetime(daily.Time(), unit="s", utc=True),
-            end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
-            freq=pd.Timedelta(seconds=daily.Interval()),
-            inclusive="left",
-        )
-    }
-    daily_data["forecast_latitude"] = response.Latitude()
-    daily_data["forecast_longitude"] = response.Longitude()
-    daily_data["temperature_2m_max"] = daily_temperature_2m_max
-    daily_data["temperature_2m_min"] = daily_temperature_2m_min
-    daily_data["precipitation_sum"] = daily_precipitation_sum
-    daily_data["rain_sum"] = daily_rain_sum
-    daily_data["precipitation_hours"] = daily_precipitation_hours
-    return daily_data
-
-
-def get_daily_station_data_frame(response: WeatherApiResponse, station: Station):
-    # Get the daily data as a pandas DataFrame
-    daily_data = get_daily_data(response)
-    daily_data["station_id"] = station.id
-    daily_data["station_name"] = station.name
-    daily_data["station_latitude"] = station.latitude
-    daily_data["station_longitude"] = station.longitude
-    daily_df = pd.DataFrame(data=daily_data)
-    print(daily_df)
-    return daily_df
-
-
-def get_daily_district_data_frame(response: WeatherApiResponse, district: District):
-    # Get the daily data as a pandas DataFrame
-    daily_data = get_daily_data(response)
-    daily_data["region"] = district.region
-    daily_data["district"] = district.name
-    daily_data["district_latitude"] = district.latitude
-    daily_data["district_longitude"] = district.longitude
-    daily_df = pd.DataFrame(data=daily_data)
-    print(daily_df)
-    return daily_df
-
-
-def get_station_data():
-    print("Reading station data...")
-    stations: List[Station] = get_stations("station-data.csv")
-    latitudes = [s.latitude for s in stations]
-    longitudes = [s.longitude for s in stations]
-    responses = get_historical_weather(latitudes, longitudes)
-
-    daily_dfs = []
-    for station, response in zip(stations, responses):
-        print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
-        print(f"Elevation {response.Elevation()} m asl")
-        print(f"Timezone {response.Timezone()} {response.TimezoneAbbreviation()}")
-        print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
-
-        daily_df = get_daily_station_data_frame(response, station)
-        daily_dfs.append(daily_df)
-
-    daily_combined = pd.concat(daily_dfs, ignore_index=True)
-    daily_filename = data_path + "historical_station_weather_daily_{:%Y-%m-%d}.csv".format(
-        datetime.datetime.now()
-    )
-    daily_combined.to_csv(daily_filename)
-
-
-def get_district_data():
-    print("Reading district data...")
-    districts = get_districts("district-data.csv")
-    latitudes = [d.latitude for d in districts]
-    longitudes = [d.longitude for d in districts]
-    responses = get_historical_weather(latitudes, longitudes)
-
-    daily_dfs = []
-    for district, response in zip(districts, responses):
-        print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
-        print(f"Elevation {response.Elevation()} m asl")
-        print(f"Timezone {response.Timezone()} {response.TimezoneAbbreviation()}")
-        print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
-
-        daily_df = get_daily_district_data_frame(response, district)
-        daily_dfs.append(daily_df)
-
-    daily_combined = pd.concat(daily_dfs, ignore_index=True)
-    daily_filename = data_path + "historical_district_weather_daily_{:%Y-%m-%d}.csv".format(
-        datetime.datetime.now()
-    )
-    daily_combined.to_csv(daily_filename)
-
-
-# Setup the Open-Meteo API client with cache and retry on error
-cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
-retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-openmeteo = openmeteo_requests.Client(session=retry_session)
-get_station_data()
-get_district_data()
+    return parse_daily_weather(daily)

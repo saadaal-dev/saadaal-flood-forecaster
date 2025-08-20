@@ -6,24 +6,27 @@
 
 The project is organized as follows:
 
-| Path | Description |
-|------|-------------|
-| `src/data-extractor/` |[Obsolete] Scripts to extract raw environmental/hydrological data. |
-| `src/flood_forecaster/data_model/` | Utility functions (e.g., alert dispatch, time helpers). |
-| `src/flood_forecaster/data_ingestion/` | Ingestion modules for external APIs. |
-| `src/flood_forecaster/data_ingestion/openmeteo/` | API integration for weather data from `Open-Meteo`. |
-| `src/flood_forecaster/data_ingestion/swalim/` | API integration for weather data from `Open-Meteo`. |
-| `src/flood_forecaster/utils/` | Common helper modules (e.g., alert dispatch). |
-| `src/flood_forecaster/prediction/` | ML models and training logic for flood prediction. |
-| `src/flood_forecaster/recommendation_algorithm/` | Generates actionable alerts based on predictions. |
-| `src/flood_forecaster_cli/` | Command-line client for flood_forecaster. |
-| `src/tests` | Unit and integration tests.|
-| `install/` | Environment setup scripts (Python dependencies). |
-| `scripts/` | Cron-scheduled automation jobs for running models. |
-| `data/` | Sample environmental data from exploration phase.<br/>*🔧 To be reorganized into `data/` folder.* |
-| `config/` | Configuration files: model paths, thresholds, env vars. |
-| `resource/` | Serialized trained models and artifacts. |
-| `docs/` | Architecture and design details, API docs, data model details and data flows. |
+| Path                                             | Description                                                                   |
+|--------------------------------------------------|-------------------------------------------------------------------------------|
+| `src/flood_forecaster/data_model/`               | Utility functions (e.g., alert dispatch, time helpers).                       |
+| `src/flood_forecaster/data_ingestion/`           | Ingestion modules for external APIs.                                          |
+| `src/flood_forecaster/data_ingestion/openmeteo/` | API integration for weather data from `Open-Meteo`.                           |
+| `src/flood_forecaster/data_ingestion/swalim/`    | API integration for weather data from `Open-Meteo`.                           |
+| `src/flood_forecaster/utils/`                    | Common helper modules (e.g., alert dispatch).                                 |
+| `src/flood_forecaster/prediction/`               | ML models and training logic for flood prediction.                            |
+| `src/flood_forecaster/recommendation_algorithm/` | Generates actionable alerts based on predictions.                             |
+| `src/flood_forecaster_cli/`                      | Command-line client for flood_forecaster.                                     |
+| `src/tests`                                      | Unit and integration tests.                                                   |
+| `install/`                                       | Environment setup scripts (Python dependencies).                              |
+| `scripts/`                                       | Cron-scheduled automation jobs for running models.                            |
+| `sql/`                                           | Database schema and setup scripts for PostgreSQL.                             |
+| `data/interim`                                   | Data used for ML model training and validation.                               |
+| `data/raw`                                       | Sample environmental data from exploration phase.                             |
+| `data/static`                                    | Static metadata of stations and locations for weather and river data.         |
+| `config/`                                        | Configuration files: model paths, thresholds, env vars.                       |
+| `models/`                                        | Serialized trained models and artifacts.                                      |
+| `docs/`                                          | Architecture and design details, API docs, data model details and data flows. |
+| `legacy/data-extractor/`                         | [Obsolete] Scripts to extract raw environmental/hydrological data.            |
 
 ---
 
@@ -48,63 +51,80 @@ Before submitting a PR, please ensure:
 * To detect new secrets, compared with the previously created baseline run the command: `tox -e detect-secrets`.
 * To run all validations from `tox.ini` just run `tox`
 
-## 🔹 Install the CLI
+---
 
-To install the CLI tool, simply run the following command:
+## 📦 Install the CLI
+
+### Recommended Installation (using install.sh)
+
+The recommended way to install the flood forecaster CLI is using the provided installation script:
 
 ```bash
-pip install <PATH_TO_CLI_FOLDER>
+# Clone the repository
+git clone https://github.com/saadaal-dev/saadaal-flood-forecaster.git
+cd saadaal-flood-forecaster
 
-# or from the repo root path
+# Run the installation script
+bash install.sh
+```
+
+The `install.sh` script will:
+
+- Create a virtual environment in `.venv/`
+- Install all required dependencies from `requirements.txt`
+- Install the CLI package in editable mode
+- Set up the necessary permissions for scripts
+
+### Manual Installation
+
+Alternatively, you can install manually:
+
+```bash
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies and CLI package
+pip install -r requirements.txt
 pip install -e .
-
 ```
 
-After installation, you can use the CLI with the `flood_forecaster_cli` command. Example: `flood_forecaster_cli --help`
+### Using the CLI
 
-To uninstall, simply run: `python -m pip uninstall flood_forecaster_cli`
-
-## 🔹 Run the CLI
-
-To run commands with the cli, execute one of the following commands, with appropriate args. 
+After installation, activate the virtual environment and use the CLI:
 
 ```bash
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Use the CLI
 flood_forecaster_cli --help
-Usage: flood_forecaster_cli [OPTIONS] COMMAND [ARGS]...
-
-  flood_forecaster client tool
-
-Options:
-  --help  Show this message and exit.
-
-Commands:
-  data-ingestion  Commands for data ingestion
-  database-model  Manage Database Schema Operations
-
-flood_forecaster_cli database-model list-db-schemas
-Connected to database 'postgres'
-Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
-Schemas in the database:
-- flood_forecaster
-- hdb_catalog
-- information_schema
-- public
-
-python -m flood_forecaster_cli.main database-model list-db-schemas
-Connected to database 'postgres'
-Available schemas: ['flood_forecaster', 'hdb_catalog', 'information_schema', 'public']
-Schemas in the database:
-- flood_forecaster
-- hdb_catalog
-- information_schema
-- public
 ```
+
+The CLI is configured in `setup.py` as a console script entry point, making the `flood_forecaster_cli` command available
+system-wide when the virtual environment is active.
+
+To uninstall, simply run: `python -m pip uninstall flood-forecaster-tool`
+
+### Configuration Notes
+
+The CLI configuration is managed through `setup.py` and the `install.sh` script. Advanced users can manually adjust the
+`PATH` or create custom shell aliases for convenience.
+
+For example, to create a shell alias, you can add the following line to your `.bashrc` or `.zshrc`:
+
+```bash
+alias flood_forecaster_cli='source /full/path/to/saadaal-flood-forecaster/.venv/bin/activate && flood_forecaster_cli'
+```
+
 ---
 
 # 🚀 Deployment
 ## Server installation
 ### Prerequisites
 - Python 3.10.x installed
+- PostgreSQL installed and running
+- Database configured (if not, see [Database Setup](#-database-setup))
 - CRON daemon running:
 
 To check:
@@ -117,7 +137,8 @@ sudo service cron start
 ```
 ### Step by step guide
 1. Clone the repository at the root path of the target server.
-```bash	
+
+```bash
 BASE_PATH="/root/Amadeus"
 cd $BASE_PATH
 git clone https://github.com/saadaal-dev/saadaal-flood-forecaster.git
@@ -150,6 +171,63 @@ crontab -e
 # Check the crontab with:
 crontab -l
 ```
+---
+
+## 🗄️ Database Setup
+
+The flood forecaster uses PostgreSQL to store historical data, predictions, and metadata. Follow these steps to set up
+the database:
+
+### Prerequisites
+
+- PostgreSQL 15+ installed and running
+- Database user with CREATE privileges
+
+### Quick Setup
+
+1. **Install PostgreSQL** (if not already installed):
+   ```bash
+   # macOS
+   brew install postgresql@15
+   brew services start postgresql@15
+
+   # Ubuntu/Debian
+   sudo apt-get install postgresql-15
+   sudo systemctl start postgresql
+   ```
+
+2. **Create the database schema**:
+   ```bash
+   # From the project root directory
+   psql -U postgres -d postgres -f sql/database_bootstrap.sql
+   ```
+
+3. **Add performance indexes** (optional but recommended):
+   ```bash
+   psql -U postgres -d postgres -f sql/database_indexes.sql
+   ```
+
+### Database Files
+
+| File                         | Description                                                      |
+|------------------------------|------------------------------------------------------------------|
+| `sql/database_bootstrap.sql` | Creates the `flood_forecaster` schema with all 5 required tables |
+| `sql/database_indexes.sql`   | Adds performance indexes for optimized queries                   |
+| `sql/database_views.sql`     | Defines commonly used database views for easier querying         |
+
+### Database Schema Overview
+
+The database includes the following tables:
+
+- **`historical_river_level`** - Historical river level measurements
+- **`predicted_river_level`** - ML model predictions for future river levels
+- **`historical_weather`** - Historical weather data for model training
+- **`forecast_weather`** - Weather forecast data for predictions
+- **`river_station_metadata`** - Metadata about river monitoring stations
+
+For a detailed visual representation of the database schema and table relationships, see
+the [database model diagram](docs/flood_forecaster_datamodel.md).
+
 ---
 
 # 🤝 Suggest improvements, contribute

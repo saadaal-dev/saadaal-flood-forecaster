@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, mock_open
-from flood_forecaster.utils.configuration import Config
+
+from src.flood_forecaster.utils.configuration import Config
 
 
 class TestConfig(unittest.TestCase):
@@ -26,7 +27,7 @@ class TestConfig(unittest.TestCase):
     """)
     def test_load_database_config(self, mock_file, mock_exists):
         config = Config(self.mock_file_path)
-        db_config = config.load_database_config()
+        db_config = config.load_data_database_config()
         self.assertEqual(db_config["dbname"], "testdb")
         self.assertEqual(db_config["user"], "testuser")
         self.assertEqual(db_config["host"], "localhost")

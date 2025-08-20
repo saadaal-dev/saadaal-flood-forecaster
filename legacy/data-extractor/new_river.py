@@ -1,13 +1,13 @@
-import os
-
 import pandas as pd
 import requests
 from sqlalchemy import create_engine, text
-from tqdm import tqdm
 
-POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+# from tqdm import tqdm
 
-url = "http://frrims.faoswalim.org/rivers/graph"
+# POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+
+url = "https://frrims.faoswalim.org/rivers/graph"
+url = "https://snrfa.faoswalim.org/stations/sh001"
 
 
 def get_data(station_id):
@@ -81,6 +81,9 @@ stations = [
     {"id": 17, "name": "Bardheere"},
 ]
 
-for station in tqdm(stations, desc="Processing stations", unit="station"):
-    data = get_data(station["id"])
-    insert_data(data, station["id"])
+# for station in tqdm(stations, desc="Processing stations", unit="station"):
+#     data = get_data(station["id"])
+#     insert_data(data, station["id"])
+
+if __name__ == '__main__':
+    print(get_data(1))

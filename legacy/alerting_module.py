@@ -1,5 +1,6 @@
-from mailjet_rest import Client
 import os
+
+from mailjet_rest import Client
 
 # Load API keys from environment variables
 api_key = os.getenv("MAILJET_API_KEY")

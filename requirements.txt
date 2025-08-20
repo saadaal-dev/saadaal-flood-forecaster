@@ -14,9 +14,16 @@ pandas~=2.3.0
 pandera[pandas]~=0.24.0
 requests-cache~=1.2.1
 psycopg2-binary~=2.9.10
-scikit-learn~=1.3.2
+scikit-learn~=1.5.0
 matplotlib~=3.7.5
 seaborn~=0.13.2
 prophet==1.1.6
 xgboost~=3.0.2
 click~=8.1.7
+beautifulsoup4~=4.12.3
+python-dotenv~=0.19.2
+joblib~=1.2.0
+numpy>=1.26.0
+openmeteo_sdk~=1.0.0
+openmeteo_requests~=1.0.0
+retry_requests~=1.0.0
