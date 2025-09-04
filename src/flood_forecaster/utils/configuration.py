@@ -84,7 +84,9 @@ class Config:
         
     def use_database_weather(self):
         return self._config.get("data.ingestion", "use_database")
-
+    
+    def get_station_data__path(self):
+        return self._config.get("data.static", "station_data_path")
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:

@@ -122,7 +122,9 @@ def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDat
     # Otherwise the merge will fail (dataframe will grow larger than expected)
     for weather_location, weather_df in weather_dfs.items():
         if weather_df.index.has_duplicates:
-            raise ValueError(f"Weather data for {weather_location} has non-unique index values. Please ensure the data is unique by date and location.")
+            # Get duplicate index entries in weather_df
+            duplicate_values = weather_df[weather_df.index.duplicated(keep='first')].index.unique().tolist()
+            raise ValueError(f"Weather data for {weather_location} has non-unique index values: {duplicate_values}. Please ensure the data is unique by date and location.")
 
     acc_df = None
     for weather_location, weather_df in weather_dfs.items():
