@@ -1,0 +1,52 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 tox yamllint
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint code with flake8 (except spikes)
+        run: tox -e linting
+
+      - name: Lint yaml code
+        run: tox -e yaml
+
+      - name: Check if there are any secrets in repo
+        run: tox -e detect-secrets
+
+      - name: Create deployment package
+        run: |
+          tar -cvf deploy.tar \
+            Dockerfile \
+            requirements.txt \
+            setup.py \
+            install.sh \
+            src/ \
+            config/ \
+            static/ \
+            scripts/
+
+      - name: Deploy App to CapRover
+        uses: caprover/caprover-deploy@v1
+        with:
+          server: '${{ secrets.CAPROVER_SERVER }}'
+          app: '${{ secrets.APP_NAME }}'
+          token: '${{ secrets.APP_TOKEN }}'
