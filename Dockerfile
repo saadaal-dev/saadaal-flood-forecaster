@@ -1,8 +1,4 @@
-FROM python:3.10-slim
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+FROM python:3.11-slim
 
 # Set work directory
 WORKDIR /app
@@ -24,3 +20,4 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . .
 
 RUN pip install -e .
+ 
