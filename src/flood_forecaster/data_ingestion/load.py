@@ -143,6 +143,7 @@ def write_history_weather_csv(config: Config, df: pat.DataFrame[WeatherDataFrame
     except Exception as e:
         print(f"Error writing CSV to {path}: {e}")
 
+
 @pa.check_types
 def write_forecast_weather_csv(config: Config, df: pat.DataFrame[ForecastWeather]) -> None:
     """
@@ -165,6 +166,7 @@ def write_forecast_weather_csv(config: Config, df: pat.DataFrame[ForecastWeather
         df.to_csv(path, index=False)
     except Exception as e:
         print(f"Error writing CSV to {path}: {e}")
+
 
 @pa.check_types
 def write_river_level_csv(config: Config, df: pat.DataFrame[StationDataFrameSchema]) -> None:
@@ -205,6 +207,7 @@ def write_history_weather_db(config: Config, df: pat.DataFrame[WeatherDataFrameS
     except Exception as e:
         print(f"Error writing historical weather to DB table '{table_name}': {e}")
 
+
 @pa.check_types
 def write_forecast_weather_db(config: Config, df: pat.DataFrame[ForecastWeather]) -> None:
     """
@@ -227,6 +230,7 @@ def write_forecast_weather_db(config: Config, df: pat.DataFrame[ForecastWeather]
     except Exception as e:
         print(f"Error writing forecast weather to DB table '{table_name}': {e}")
 
+
 @pa.check_types
 def write_river_level_db(config: Config, df: pat.DataFrame[StationDataFrameSchema]) -> None:
     """
@@ -248,6 +252,7 @@ def write_river_level_db(config: Config, df: pat.DataFrame[StationDataFrameSchem
         df.to_sql(name=table_name, con=database.engine, if_exists="append", index=False)
     except Exception as e:
         print(f"Error writing river level to DB table '{table_name}': {e}")
+
 
 __WEATHER_HISTORY_LOAD_FNS = {
     DataSourceType.CSV: load_history_weather_csv,
