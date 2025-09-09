@@ -101,11 +101,12 @@ uv pip compile pyproject.toml -o requirements.txt
 After installation, activate the virtual environment and use the CLI:
 
 ```bash
-# Activate the virtual environment
-source .venv/bin/activate
+# Use CLI via script exec
+flood-cli --help
 
-# Use the CLI
-flood_forecaster_cli --help
+# Use CLI with direct module call
+python -m flood_forecaster_cli.main ml list-models
+
 ```
 
 The CLI is configured in `setup.py` as a console script entry point, making the `flood_forecaster_cli` command available

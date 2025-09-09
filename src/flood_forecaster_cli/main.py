@@ -22,5 +22,10 @@ cli.add_command(run_alert, "alert")
 # cli.add_command(config)
 
 
+def main():
+    """Main function for console_scripts entry point."""
+    cli()
+
+
 if __name__ == "__main__":
     cli()
