@@ -6,10 +6,17 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 import pandera.pandas as pa
 
+<<<<<<< HEAD
 from src.flood_forecaster import DatabaseConnection
 from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
 from src.flood_forecaster.data_model.river_station import get_river_station_names, get_river_station_metadata
 from src.flood_forecaster.utils.configuration import Config
+=======
+from flood_forecaster import DatabaseConnection
+from flood_forecaster.data_model.river_level import HistoricalRiverLevel
+from flood_forecaster.data_model.river_station import get_river_station_names
+from flood_forecaster.utils.configuration import Config
+>>>>>>> 869b59f (Fix flood_forecaster_cli tool build; correct module search and import path.)
 
 
 def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:

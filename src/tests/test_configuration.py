@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, mock_open
 
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.configuration import Config
 
 
 class TestConfig(unittest.TestCase):

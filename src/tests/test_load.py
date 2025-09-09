@@ -4,11 +4,11 @@ from unittest.mock import patch, MagicMock
 
 import pandas as pd
 
-from src.flood_forecaster.data_ingestion.load import (
+from flood_forecaster.data_ingestion.load import (
     load_inference_weather,
     load_inference_river_levels
 )
-from src.flood_forecaster.utils.configuration import Config, DataSourceType
+from flood_forecaster.utils.configuration import Config, DataSourceType
 
 
 class TestLoadFunctions(unittest.TestCase):

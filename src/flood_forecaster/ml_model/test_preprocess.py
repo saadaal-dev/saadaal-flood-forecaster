@@ -2,8 +2,8 @@ import unittest
 
 import pandas as pd
 
-from src.flood_forecaster.data_model.weather import StationMapping
-from src.flood_forecaster.ml_model.preprocess import preprocess_diff
+from flood_forecaster.data_model.weather import StationMapping
+from flood_forecaster.ml_model.preprocess import preprocess_diff
 
 
 class TestPreprocessDiff(unittest.TestCase):

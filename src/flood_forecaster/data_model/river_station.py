@@ -1,7 +1,7 @@
 import csv
 from typing import List
 
-from src.flood_forecaster.data_model.station import Station
+from flood_forecaster.data_model.station import Station
 
 
 # TODO replace with read from data_model RiverStationMetadata

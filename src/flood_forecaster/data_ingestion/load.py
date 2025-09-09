@@ -8,10 +8,10 @@ import pandas as pd
 import pandera.pandas as pa
 from sqlalchemy import select
 
-from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
-from src.flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather, WeatherDataFrameSchema
-from src.flood_forecaster.utils.configuration import Config, DataSourceType
-from src.flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
+from flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather, WeatherDataFrameSchema
+from flood_forecaster.utils.configuration import Config, DataSourceType
+from flood_forecaster.utils.database_helper import DatabaseConnection
 
 
 pat = pa.typing

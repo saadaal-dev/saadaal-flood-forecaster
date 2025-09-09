@@ -1,6 +1,6 @@
 import click
 
-from src.flood_forecaster.alert_module import main as alert_main
+from flood_forecaster.alert_module import main as alert_main
 
 
 @click.group()

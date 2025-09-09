@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pandera.pandas as pa
 
-from src.flood_forecaster.data_ingestion.load import StationDataFrameSchema, WeatherDataFrameSchema
-from src.flood_forecaster.data_model.weather import StationMapping
+from flood_forecaster.data_ingestion.load import StationDataFrameSchema, WeatherDataFrameSchema
+from flood_forecaster.data_model.weather import StationMapping
 
 DEFAULT_STATION_LAG_DAYS = [1, 3, 7, 14]
 DEFAULT_WEATHER_LAG_DAYS = [1, 3, 7, 14] + [0, -2, -6]

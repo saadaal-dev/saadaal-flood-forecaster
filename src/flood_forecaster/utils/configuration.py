@@ -4,7 +4,7 @@ import os
 from configparser import ConfigParser, ExtendedInterpolation
 from enum import Enum
 
-from src.flood_forecaster.data_model.weather import StationMapping
+from flood_forecaster.data_model.weather import StationMapping
 
 DEFAULT_CONFIG_FILE_PATH = os.path.dirname(os.path.realpath(__file__)) + "/../../../config/config.ini"
 
