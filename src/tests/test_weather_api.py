@@ -35,8 +35,10 @@ class TestOpenmeteo(unittest.TestCase):
 
         # Fetch forecast data
         historical_data = fetch_historical(config, openmeteo)
-        if historical_data:
+        if historical_data is not None:
             self.assertGreater(len(historical_data), 20)  # At least 1 day of historical data for 20 locations
+        else:
+            self.fail("Expected to fetch historical weather data, but got None")
 
 
 if __name__ == '__main__':

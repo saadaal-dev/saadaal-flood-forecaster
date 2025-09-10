@@ -142,7 +142,7 @@ def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDat
     return acc_df
 
 
-def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS):
+def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS) -> pd.DataFrame:
     if forecast_days > 1:
         # shift for output data of <forecast_days>-1 (-1 since y contains the next day prediction by default)
         shift = -forecast_days + 1
@@ -156,7 +156,9 @@ def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS):
         df = df[:shift]
         
     # apply final structure
-    df['y'] = df['level__m'] - df['lag01__level__m']
+    df = df.assign(y=(df['level__m'] - df['lag01__level__m']))
+
+    return df
 
 
 def preprocess_diff(
@@ -217,7 +219,7 @@ def preprocess_diff(
     df = df.reset_index()
     
     if not infer:
-
+        df = add_y_column(df, forecast_days)
     
     # data augmentation: add date features
     df['month'] = df['date'].dt.month

@@ -8,7 +8,7 @@ import pandera.pandas as pa
 
 from src.flood_forecaster import DatabaseConnection
 from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
-from src.flood_forecaster.data_model.river_station import get_river_station_names, get_river_station_by_name
+from src.flood_forecaster.data_model.river_station import get_river_station_names, get_river_station_metadata
 from src.flood_forecaster.utils.configuration import Config
 
 
@@ -172,7 +172,7 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
     url = config.load_river_data_config()["swalim_api_url"].replace("/levels", "/graph")
 
     # get the station ID from the station name
-    station = get_river_station_by_name(config, station_name)
+    station = get_river_station_metadata(config, station_name)
     station_id = station.id
     print(f"Fetching river data for station: {station_name} (ID: {station_id})")
 
@@ -288,7 +288,8 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
         # Extract the current year from the data
         current_year = next(iter(current_year_data_by_date.keys())).split("-")[2]
 
-        # Combine data into the following format: "date","bankfull","highfloodrisk","moderatefloodrisk","longtermmean","previousreadingvalue","readingvalue"
+        # Combine data into the following format:
+        # "date","bankfull","highfloodrisk","moderatefloodrisk","longtermmean","previousreadingvalue","readingvalue"
         river_levels = []
 
         # FIXME: handle leap years correctly

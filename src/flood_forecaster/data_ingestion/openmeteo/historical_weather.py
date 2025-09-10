@@ -1,6 +1,8 @@
 import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 import pandas as pd
 from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
 
@@ -14,6 +16,50 @@ from src.flood_forecaster.data_ingestion.openmeteo.common import (
 )
 from src.flood_forecaster.data_model.weather import HistoricalWeather
 from src.flood_forecaster.utils.configuration import Config
+
+
+def remove_duplicates_historical_weather_from_db(config: Config, dry_run: bool = True):
+    """
+    Remove duplicate historical weather entries from the database based on date and location.
+    This function is used to ensure that the historical weather data in the database is unique.
+    It checks for duplicate entries and removes them if found.
+    :param config: Configuration object containing settings.
+    :param dry_run: If True, only prints the duplicates without deleting them.
+    """
+    database_connection = DatabaseConnection(config)
+    with database_connection.engine.connect() as conn:
+        with Session(bind=conn) as session:
+            # Get all historical weather entries where the key has more than one entry (key: location_name and date columns only)
+            duplicates = session.query(
+                HistoricalWeather.location_name,
+                HistoricalWeather.date,
+            ).group_by(
+                HistoricalWeather.location_name,
+                HistoricalWeather.date,
+            ).having(
+                func.count(HistoricalWeather.id) > 1
+            ).order_by(
+                HistoricalWeather.location_name,
+                HistoricalWeather.date
+            ).all()
+
+            if not duplicates:
+                print("No duplicate historical weather entries found.")
+                return
+            
+            print(f"Found {len(duplicates)} duplicate historical weather entries:")
+            for duplicate in duplicates:
+                print(f" - Location: {duplicate.location_name}, Date: {duplicate.date}")
+            
+            if not dry_run:
+                # Bulk delete duplicates
+                for duplicate in duplicates:
+                    session.query(HistoricalWeather).filter(
+                        HistoricalWeather.location_name == duplicate.location_name,
+                        HistoricalWeather.date == duplicate.date
+                    ).delete(synchronize_session=False)
+                session.commit()
+                print("Duplicate historical weather entries removed from the database.")
 
 
 def create_historical_params(start_date: datetime.datetime, end_date: datetime.datetime,
@@ -71,7 +117,9 @@ def get_historical_weather(location_labels: List[str],
     else:
         # Default to 10 years of historical data
         start_date = end_date - datetime.timedelta(days=10 * 365)
-    
+
+    print(f"DEBUG: max_date: {max_date}, start_date: {start_date}, end_date: {end_date}")
+
     if start_date > end_date:
         print("You have the most updated data in the historical weather :)")
         return None

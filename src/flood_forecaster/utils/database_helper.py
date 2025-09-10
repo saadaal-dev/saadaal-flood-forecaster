@@ -1,3 +1,4 @@
+import datetime
 import importlib
 import os
 import pkgutil
@@ -192,7 +193,7 @@ class DatabaseConnection:
             conn.execute(model.__table__.delete())
             conn.commit()
 
-    def get_max_date(self, model_class, date_column="date"):
+    def get_max_date(self, model_class, date_column="date") -> Optional[datetime.datetime]:
         """
         Fetch the maximum date from the specified model class and date column.
         :param model_class: Class defined in /data_model, representing the table model (e.g., PredictedRiverLevel)
