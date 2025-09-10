@@ -17,14 +17,14 @@ def common_options(function):
         "-c",
         required=False,
         default="./config/config.ini",
-        help="File with configuration",
+        help="File with the configuration",
     )
     def updated_func(*args, **kwargs):
         configfile = kwargs["configfile"]
         configuration = Config(configfile)
         kwargs["configuration"] = configuration
 
-        # Remove unneed function parameters
+        # Remove unneeded function parameters
         del kwargs["configfile"]
 
         function(*args, **kwargs)

@@ -412,6 +412,9 @@ def load_inference_river_levels(
 
     # for each location, append row with empty values and index = date
     # this row is to ensure that the last day is included (corresponding to the date of the inference)
-    df = pd.concat([df, pd.DataFrame([{"location": location, "date": date, "level__m": 0.0} for location in locations])], ignore_index=True)
+    df = pd.concat(
+        [df, pd.DataFrame([{"location": location, "date": date, "level__m": 0.0} for location in locations])],
+        ignore_index=True
+    )
 
     return df  # type: ignore (ensured by pandera)

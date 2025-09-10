@@ -1,6 +1,7 @@
 import importlib
 import os
 import pkgutil
+from typing import Optional
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -14,17 +15,17 @@ from src.flood_forecaster.utils.configuration import Config
 
 
 class DatabaseConnection:
-    def __init__(self, config: Config, db_password: str = None) -> None:
+    def __init__(self, config: Config, db_password: Optional[str] = None) -> None:
         """
         Initialize the database connection using parameters from a config file.
 
         :param config: Config object
         """
-        config = config.load_data_database_config()
-        self.dbname = config.get("dbname")
-        self.user = config.get("user")
-        self.host = config.get("host")
-        self.port = int(config.get("port"))
+        _config = config.load_data_database_config()
+        self.dbname = _config.get("dbname")
+        self.user = _config.get("user")
+        self.host = _config.get("host")
+        self.port = int(_config.get("port", 5432))
         self.password = self._get_env_pwd() if db_password is None else db_password
 
         try:
@@ -192,6 +193,12 @@ class DatabaseConnection:
             conn.commit()
 
     def get_max_date(self, model_class, date_column="date"):
+        """
+        Fetch the maximum date from the specified model class and date column.
+        :param model_class: Class defined in /data_model, representing the table model (e.g., PredictedRiverLevel)
+        :param date_column: Name of the date column in the table (default is 'date')
+        :return: Maximum date as a datetime object (or None if no dates found)
+        """
         with self.engine.connect() as conn:
             from sqlalchemy import func, select
             stmt = select(func.max(getattr(model_class, date_column)))

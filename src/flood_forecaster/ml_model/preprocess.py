@@ -142,6 +142,23 @@ def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDat
     return acc_df
 
 
+def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS):
+    if forecast_days > 1:
+        # shift for output data of <forecast_days>-1 (-1 since y contains the next day prediction by default)
+        shift = -forecast_days + 1
+        df['level__m'] = df['level__m'].shift(shift)
+
+        # data usable for a forecast (without output label, only input data):
+        # # forecast dates (last <forecast_days> days not available)
+        # forecast_df = df[shift:]
+
+        # remove null entries (last <forecast_days> days not available)
+        df = df[:shift]
+        
+    # apply final structure
+    df['y'] = df['level__m'] - df['lag01__level__m']
+
+
 def preprocess_diff(
     station_metadata: StationMapping,
     stations_df: pa.typing.DataFrame[StationDataFrameSchema],
@@ -200,20 +217,7 @@ def preprocess_diff(
     df = df.reset_index()
     
     if not infer:
-        if forecast_days > 1:
-            # shift for output data of <forecast_days>-1 (-1 since y contains the next day prediction by default)
-            shift = -forecast_days + 1
-            df['level__m'] = df['level__m'].shift(shift)
 
-            # data usable for a forecast (without output label, only input data):
-            # # forecast dates (last <forecast_days> days not available)
-            # forecast_df = df[shift:]
-
-            # remove null entries (last <forecast_days> days not available)
-            df = df[:shift]
-        
-        # apply final structure
-        df['y'] = df['level__m'] - df['lag01__level__m']
     
     # data augmentation: add date features
     df['month'] = df['date'].dt.month

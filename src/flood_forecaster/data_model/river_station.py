@@ -16,6 +16,12 @@ class RiverStation(Station):
 
 
 def get_river_stations_static(config) -> List[RiverStation]:
+    """
+    Get river station metadata from the static data CSV file.
+
+    :param config: Configuration object containing the path to the CSV file.
+    :return: List of RiverStation objects with metadata.
+    """
     data_static_config = config.load_static_data_config()
     csv_path = data_static_config['river_stations_metadata_path']
     with open(csv_path, mode="r", newline="") as location_file:
@@ -44,9 +50,16 @@ def get_river_station_names(config):
     return [station.name for station in river_stations]
 
 
-def get_river_station_by_name(config, name: str) -> RiverStation:
+def get_river_station_metadata(config, station) -> RiverStation:
+    """
+    Get river station metadata for a specific station.
+
+    :param config: Configuration object containing the path to the CSV file.
+    :param station: Name of the river station.
+    :return: RiverStation object with metadata.
+    """
     river_stations = get_river_stations_static(config)
-    for station in river_stations:
-        if station.name == name:
-            return station
-    raise ValueError(f"River station with name {name} not found.")
+    for river_station in river_stations:
+        if river_station.name == station:
+            return river_station
+    raise ValueError(f"River station {station} not found in the static data file.")

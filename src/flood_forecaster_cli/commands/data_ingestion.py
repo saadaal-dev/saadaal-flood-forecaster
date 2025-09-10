@@ -1,10 +1,12 @@
-
 """
 Data ingestion Commands
 """
 
 from typing import Optional
 import click
+import openmeteo_requests
+import requests_cache
+from retry_requests import retry
 
 from src.flood_forecaster.utils.configuration import Config
 
@@ -47,11 +49,17 @@ def fetch_openmeteo(configuration: Config, type: str, empty_table: bool = False,
     :param configuration: Configuration object containing settings.
     :param type: Type of data to fetch, either 'forecast' or 'historical'.
     """
-    click.echo(f"Fetching {type} data from Open-Meteo API...")     
+    click.echo(f"Fetching {type} data from Open-Meteo API...")
+
+    # Set up the Open-Meteo API client with cache and retry on error
+    cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
+    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    openmeteo = openmeteo_requests.Client(session=retry_session)
+
     if type == "forecast":
-        fetch_forecast(configuration)
+        fetch_forecast(configuration, openmeteo)
     else:
-        fetch_historical(configuration)
+        fetch_historical(configuration, openmeteo)
         
         # INTERNAL: Remove duplicate historical weather entries from the database
         #           This is a quick fix to remove duplicates from the database

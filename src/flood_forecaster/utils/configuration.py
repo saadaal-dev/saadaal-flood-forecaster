@@ -1,7 +1,7 @@
 import configparser
 import json
 import os
-from configparser import ConfigParser
+from configparser import ConfigParser, ExtendedInterpolation
 from enum import Enum
 
 from src.flood_forecaster.data_model.weather import StationMapping
@@ -69,24 +69,21 @@ class Config:
 
     def get_data_source_type(self) -> DataSourceType:
         return DataSourceType.from_string(self._config.get("data", "data_source"))
-    
+
     def get_store_base_path(self):
         return self._config.get("openmeteo", "store_base_path")
-    
+
     def get_openmeteo_api_url(self):
         return self._config.get("openmeteo", "api_url")
-    
+
     def get_openmeteo_api_archive_url(self):
         return self._config.get("openmeteo", "api_archive_url")
 
     def get_weather_location_metadata_path(self):
         return self.load_static_data_config()["weather_location_data_path"]
-        
-    def use_database_weather(self):
-        return self._config.get("data.ingestion", "use_database")
-    
-    def get_station_data__path(self):
-        return self._config.get("data.static", "station_data_path")
+
+    def use_database_weather(self) -> bool:
+        return self._config.get("data.ingestion", "use_database", fallback="false").lower() == "true"
 
     @staticmethod
     def _load_config(config_file_path: str) -> configparser.ConfigParser:
@@ -99,7 +96,7 @@ class Config:
         if not os.path.exists(config_file_path):
             raise FileNotFoundError(f"Config file '{config_file_path}' not found.")
 
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=ExtendedInterpolation())
         config.read(config_file_path)
         return config
 
