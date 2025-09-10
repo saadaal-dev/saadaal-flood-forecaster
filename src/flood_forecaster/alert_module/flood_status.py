@@ -18,12 +18,14 @@ def get_df_by_date(db_client, date_begin: datetime, risk_level='full') -> pd.Dat
         .where(PredictedRiverLevel.risk_level.ilike(risk_level))
     )
     result_df = pd.read_sql(stations_risk, db_client.engine)
+
     # Create a new table with custom columns
     if result_df.empty:
         logger.info("No matching risk levels found. Returning an empty DataFrame.")
         return pd.DataFrame(columns=[
             'location_name', 'flood_risk', 'water_level_m', 'predicted_flood_date'
         ])
+
     result_df['forecast_date'] = result_df['date'] + pd.to_timedelta(result_df['forecast_days'], unit='D')
     result_df['forecast_date'] = result_df['date'].dt.date
     alert_table = result_df[['location_name', 'risk_level', 'level_m', 'forecast_date']]
