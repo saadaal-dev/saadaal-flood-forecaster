@@ -63,12 +63,12 @@ def deploy_alert(mailjet_client, html_template_path: str, alert_status_table: pd
     # Load the HTML template
     with open(html_template_path, "r", encoding="utf-8") as file:
         soup = BeautifulSoup(file, "html.parser")
-    
+
     # Inject the table into the content section
     table_soup = BeautifulSoup(table_html, "html.parser")
     content_div = soup.find("div", class_="content")
     content_div.append(table_soup)
-    
+
     # Inject the custom style into the <head> of the HTML
     if soup.head:
         soup.head.append(BeautifulSoup(custom_style, "html.parser"))
