@@ -116,13 +116,13 @@ To uninstall, simply run: `python -m pip uninstall flood-forecaster-tool`
 
 ### Configuration Notes
 
-The CLI configuration is managed through `setup.py` and the `install.sh` script. Advanced users can manually adjust the
-`PATH` or create custom shell aliases for convenience.
+The CLI configuration is managed through `pyproject.toml`.
 
+Advanced users can manually adjust the `PATH` or create custom shell aliases for convenience.
 For example, to create a shell alias, you can add the following line to your `.bashrc` or `.zshrc`:
 
 ```bash
-alias flood_forecaster_cli='source /full/path/to/saadaal-flood-forecaster/.venv/bin/activate && flood_forecaster_cli'
+alias my_flood_cli='source /full/path/to/saadaal-flood-forecaster/.venv/bin/activate && flood-cli'
 ```
 
 ---
