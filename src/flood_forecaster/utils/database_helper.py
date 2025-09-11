@@ -214,7 +214,8 @@ class DatabaseConnection:
             table_name: str,
             data_download_path: str,
             force_overwrite: bool = False,
-            preview_rows: int = 20,  # new: limit rows for screen printing
+            preview_rows: int = 20,  # limit rows for screen printing
+            where_clause: str | None = None,
     ) -> None:
         """
         Fetch data from a table and download it as a CSV file to the specified folder.
@@ -223,6 +224,8 @@ class DatabaseConnection:
         :param table_name: Name of the table
         :param data_download_path: Directory to save the CSV file
         :param force_overwrite: If True, overwrite the file if it already exists. Default is False.
+        :param preview_rows: Number of rows to pretty-print.
+        :param where_clause: Optional SQL WHERE condition (without 'WHERE') to filter data.
         """
         try:
             # Ensure the download path exists
@@ -241,7 +244,12 @@ class DatabaseConnection:
                 return
 
             # Construct SQL query
-            query = text(f'SELECT * FROM "{schema_name}"."{table_name}"')
+            # Build SQL query dynamically
+            query_str = f'SELECT * FROM "{schema_name}"."{table_name}"'
+            if where_clause:
+                query_str += f" WHERE {where_clause}"
+
+            query = text(query_str)
             print(f"Executing query: {query.text}")
 
             with self.engine.connect() as connection:
