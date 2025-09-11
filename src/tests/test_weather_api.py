@@ -4,9 +4,9 @@ import openmeteo_requests
 import requests_cache
 from retry_requests import retry
 
-from flood_forecaster import Config
-from flood_forecaster.data_ingestion.openmeteo.forecast_weather import fetch_forecast
-from flood_forecaster.data_ingestion.openmeteo.historical_weather import fetch_historical
+from src.flood_forecaster import Config
+from src.flood_forecaster.data_ingestion.openmeteo.forecast_weather import fetch_forecast
+from src.flood_forecaster.data_ingestion.openmeteo.historical_weather import fetch_historical
 
 
 class TestOpenmeteo(unittest.TestCase):
