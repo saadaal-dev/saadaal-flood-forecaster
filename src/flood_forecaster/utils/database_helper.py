@@ -1,11 +1,12 @@
+import datetime
 import importlib
 import os
 import pkgutil
-from datetime import datetime
+from typing import Optional
 
 import pandas as pd
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, inspect, text, select, func
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
@@ -15,17 +16,17 @@ from src.flood_forecaster.utils.configuration import Config
 
 
 class DatabaseConnection:
-    def __init__(self, config: Config, db_password: str = None) -> None:
+    def __init__(self, config: Config, db_password: Optional[str] = None) -> None:
         """
         Initialize the database connection using parameters from a config file.
 
         :param config: Config object
         """
-        config = config.load_data_database_config()
-        self.dbname = config.get("dbname")
-        self.user = config.get("user")
-        self.host = config.get("host")
-        self.port = int(config.get("port"))
+        _config = config.load_data_database_config()
+        self.dbname = _config.get("dbname")
+        self.user = _config.get("user")
+        self.host = _config.get("host")
+        self.port = int(_config.get("port", 5432))
         self.password = self._get_env_pwd() if db_password is None else db_password
 
         try:
@@ -187,27 +188,30 @@ class DatabaseConnection:
             print(f"Error listing schemas: {str(e)}")
             return []
 
-    def get_latest_date(self, model_class) -> datetime:
+    def empty_table(self, model):
+        with self.engine.connect() as conn:
+            conn.execute(model.__table__.delete())
+            conn.commit()
+
+    def get_max_date(self, model_class, date_column="date") -> Optional[datetime.datetime]:
         """
-        Fetch the latest date from the specified model class.
-        Will fail if the model class does not have a 'date' column or __tablename__ attribute.
+        Fetch the maximum date from the specified model class and date column.
         :param model_class: Class defined in /data_model, representing the table model (e.g., PredictedRiverLevel)
-        :return: Latest date as a datetime object (or ValueError if no dates found)
+        :param date_column: Name of the date column in the table (default is 'date')
+        :return: Maximum date as a datetime object (or None if no dates found)
         """
         with self.engine.connect() as conn:
-            stmt = select(func.max(model_class.date))
-            result = conn.execute(stmt).fetchone()
-            if result:
-                return result[0]
-            else:
-                raise ValueError(f"No dates found in the {model_class.__tablename__} table.")
+            from sqlalchemy import func, select
+            stmt = select(func.max(getattr(model_class, date_column)))
+            result = conn.execute(stmt).scalar()
+            return result
 
     def fetch_table_to_csv(
-            self,
-            schema_name: str,
-            table_name: str,
-            data_download_path: str,
-            force_overwrite: bool = False,
+        self,
+        schema_name: str,
+        table_name: str,
+        data_download_path: str,
+        force_overwrite: bool = False,
     ) -> None:
         """
         Fetch data from a table and download it as a CSV file to the specified folder.

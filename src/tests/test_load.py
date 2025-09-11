@@ -19,7 +19,10 @@ class TestLoadFunctions(unittest.TestCase):
         mock_config = MagicMock(spec=Config)
         mock_config.load_model_config.return_value = {"weather_lag_days": "[1, 2, 3]"}
         mock_config.get_data_source_type.return_value = DataSourceType.CSV
-        now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # NOTE: today is considered as a future day (forecast day)
+        # so we set the current datetime to yesterday
+        now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
         
         # generate mock data for historical weather with 2 locations, 3 days each
         mock_history_df = pd.DataFrame({
@@ -38,7 +41,7 @@ class TestLoadFunctions(unittest.TestCase):
         result = load_inference_weather(mock_config, ['loc1', 'loc2'], now)
         expected_df = mock_history_df
 
-        mock_load_history_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now - timedelta(days=3), now - timedelta(days=1))
+        mock_load_history_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now.date() - timedelta(days=3), now.date() - timedelta(days=1))
         mock_load_forecast_weather.assert_not_called()
 
         pd.testing.assert_frame_equal(result, expected_df)
@@ -68,7 +71,7 @@ class TestLoadFunctions(unittest.TestCase):
         result = load_inference_weather(mock_config, ['loc1', 'loc2'], now)
         expected_df = mock_forecast_df
 
-        mock_load_forecast_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now, now + timedelta(days=1))
+        mock_load_forecast_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now.date(), now.date() + timedelta(days=1))
         mock_load_history_weather.assert_not_called()
 
         pd.testing.assert_frame_equal(result, expected_df)
@@ -106,8 +109,8 @@ class TestLoadFunctions(unittest.TestCase):
         # expected result is the concatenation of history and forecast data
         expected_df = pd.concat([mock_history_df, mock_forecast_df], axis=0, ignore_index=True)
 
-        mock_load_history_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now - timedelta(days=3), now - timedelta(days=1))
-        mock_load_forecast_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now, now + timedelta(days=1))
+        mock_load_history_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now.date() - timedelta(days=3), now.date() - timedelta(days=1))
+        mock_load_forecast_weather.assert_called_with(mock_config, ['loc1', 'loc2'], now.date(), now.date() + timedelta(days=1))
         
         pd.testing.assert_frame_equal(result, expected_df)
 
@@ -125,7 +128,7 @@ class TestLoadFunctions(unittest.TestCase):
         mock_config = MagicMock(spec=Config)
         mock_config.load_model_config.return_value = {"river_station_lag_days": "[1, 2, 3]"}
         mock_config.get_data_source_type.return_value = DataSourceType.CSV
-        now = datetime.now()
+        now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
         # generate mock data for river levels with 2 locations, 3 lag days each
         # 6 values in total
@@ -153,7 +156,7 @@ class TestLoadFunctions(unittest.TestCase):
         mock_load_river_level.assert_called_with(
             mock_config,
             ['loc1', 'loc2'],
-            now - timedelta(days=3), now - timedelta(days=1)
+            now.date() - timedelta(days=3), now.date() - timedelta(days=1)
         )
 
         pd.testing.assert_frame_equal(result, expected_df)

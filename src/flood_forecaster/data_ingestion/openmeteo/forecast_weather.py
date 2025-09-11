@@ -1,18 +1,36 @@
-from typing import List
+from typing import Any, Dict, List
 
 import pandas as pd
-from openmeteo_sdk import WeatherApiResponse
+from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
 
-from flood_forecaster.data_ingestion.openmeteo.common import (
+from src.flood_forecaster.data_ingestion.openmeteo.common import (
     fetch_openmeteo_data,
     prepare_weather_locations,
     process_weather_responses,
     persist_weather_data,
-    create_forecast_params,
-    parse_daily_weather
+    parse_daily_data
 )
-from flood_forecaster.data_model.weather import ForecastWeather
-from flood_forecaster.utils.configuration import Config
+from src.flood_forecaster.data_model.weather import ForecastWeather
+from src.flood_forecaster.utils.configuration import Config
+
+
+def create_forecast_params(latitudes: List[float], longitudes: List[float]) -> Dict[str, Any]:
+    """Create parameters for forecast API call"""
+    return {
+        "latitude": latitudes,
+        "longitude": longitudes,
+        "forecast_days": 16,
+        "daily": [
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "precipitation_sum",
+            "rain_sum",
+            "precipitation_hours",
+            "precipitation_probability_max",
+            "wind_speed_10m_max",
+        ],
+        "timezone": "auto",
+    }
 
 
 def fetch_forecast(config: Config, openmeteo):
@@ -38,13 +56,4 @@ def get_weather_forecast(location_labels: List[str], latitudes: List[float],
 
 def parse_daily_forecast_response(response: WeatherApiResponse):
     """Parse forecast response to extract daily data including forecast-specific fields."""
-    daily = response.Daily()
-    daily_data = parse_daily_weather(daily)
-
-    # Add forecast-specific fields
-    daily_precipitation_probability_max = daily.Variables(5).ValuesAsNumpy()
-    daily_wind_speed_10m_max = daily.Variables(6).ValuesAsNumpy()
-    daily_data["precipitation_probability_max"] = daily_precipitation_probability_max
-    daily_data["wind_speed_10m_max"] = daily_wind_speed_10m_max
-
-    return daily_data
+    return parse_daily_data(response, forecast=True)
