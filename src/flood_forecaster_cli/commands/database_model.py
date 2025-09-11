@@ -48,6 +48,7 @@ def list_tables_from_schema(
         for column in columns:
             print(f"  Column: {column['name']} | Type: {column['type']}")
 
+
 @database_model.command("fetch-table-to-csv", help="Fetch table data to CSV")
 @click.option("--schema-name", "-s", required=True, help="Schema name")
 @click.option("--table-name", "-t", required=True, help="Table name")
@@ -64,6 +65,7 @@ def fetch_table_to_csv(
     # Fetch table data and write to CSV
     db_conn.fetch_table_to_csv(schema_name, table_name, data_download_path, force_overwrite, preview_rows, where)
 
+
 @database_model.command("validate-sensor-readings", help="Validate table data")
 @click.option("--schema-name", "-s", default="public", help="Schema name")
 @click.option("--table-name", "-t", default="sensor_readings", help="Table name")
@@ -72,6 +74,7 @@ def validate_sensor_readings(configuration: Config, schema_name: str, table_name
     db_conn = DatabaseConnection(configuration)
     issues = db_conn.validate_sensor_readings(schema_name, table_name)
     print("\nValidation issues:", issues)
+
 
 @database_model.command("validate-table-data", help="Validate table data")
 @click.option("--schema-name", "-s", default="public", help="Schema name")
