@@ -16,32 +16,32 @@ def create_update_statement(river_station: RiverStation, risk_level: str) -> upd
     """
     match risk_level:
         case "low":
-            return update(PredictedRiverLevel) \
-                .values(risk_level=risk_level) \
-                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
-                .where(PredictedRiverLevel.risk_level is None) \
+            return update(PredictedRiverLevel)\
+                .values(risk_level=risk_level)\
+                .where(PredictedRiverLevel.location_name == str(river_station.name))\
+                .where(PredictedRiverLevel.risk_level.is_(None))\
                 .where(PredictedRiverLevel.level_m < river_station.moderate_threshold)
         case "moderate":
-            return update(PredictedRiverLevel) \
-                .values(risk_level=risk_level) \
-                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
-                .where(PredictedRiverLevel.risk_level is None) \
-                .where(PredictedRiverLevel.level_m >= river_station.moderate_threshold) \
+            return update(PredictedRiverLevel)\
+                .values(risk_level=risk_level)\
+                .where(PredictedRiverLevel.location_name == str(river_station.name))\
+                .where(PredictedRiverLevel.risk_level.is_(None))\
+                .where(PredictedRiverLevel.level_m >= river_station.moderate_threshold)\
                 .where(PredictedRiverLevel.level_m < river_station.high_threshold)
         case "high":
-            return update(PredictedRiverLevel) \
-                .values(risk_level=risk_level) \
-                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
-                .where(PredictedRiverLevel.risk_level is None) \
-                .where(PredictedRiverLevel.level_m >= river_station.high_threshold) \
+            return update(PredictedRiverLevel)\
+                .values(risk_level=risk_level)\
+                .where(PredictedRiverLevel.location_name == str(river_station.name))\
+                .where(PredictedRiverLevel.risk_level.is_(None))\
+                .where(PredictedRiverLevel.level_m >= river_station.high_threshold)\
                 .where(PredictedRiverLevel.level_m < river_station.full_threshold)
         case "full":
-            return update(PredictedRiverLevel) \
-                .values(risk_level=risk_level) \
-                .where(PredictedRiverLevel.station_number == str(river_station.id)) \
-                .where(PredictedRiverLevel.risk_level is None) \
+            return update(PredictedRiverLevel)\
+                .values(risk_level=risk_level)\
+                .where(PredictedRiverLevel.location_name == str(river_station.name))\
+                .where(PredictedRiverLevel.risk_level.is_(None))\
                 .where(PredictedRiverLevel.level_m >= river_station.full_threshold)
-
+        
 
 def execute_sql_update(river_station: RiverStation, risk_level: str, database_connection: DatabaseConnection):
     """
@@ -58,16 +58,27 @@ def execute_sql_update(river_station: RiverStation, risk_level: str, database_co
         print(f"Row(s) updated for station {river_station.id} with risk level {risk_level}: {result.rowcount}")
 
 
-config = Config(config_file_path="config/config.ini")
-data_config = config.load_data_config()
-data_static_config = config.load_static_data_config()
-database_connection = DatabaseConnection(config)
-river_stations = get_river_stations_static(config)
-thresholds = ["low", "moderate", "high", "full"]
+def main():
+    """
+    Main function to execute the risk assessment updates for river stations.
+    """
+    # Load configuration and database connection
+    config = Config(config_file_path="config/config.ini")
+    database_connection = DatabaseConnection(config)
+    
+    # Get river stations
+    river_stations = get_river_stations_static(config)
+    
+    # Define thresholds
+    thresholds = ["low", "moderate", "high", "full"]
+    
+    # Process each river station
+    for river_station in river_stations:
+        print(f"Processing station: {river_station.name}")
+        print(f"Moderate threshold: {river_station.moderate_threshold}, High threshold: {river_station.high_threshold}, Full threshold: {river_station.full_threshold}")
+        for threshold in thresholds:
+            execute_sql_update(river_station, threshold, database_connection)
 
-for river_station in river_stations:
-    print(f"Processing station: {river_station.name}")
-    print(
-        f"Moderate threshold: {river_station.moderate_threshold}, High threshold: {river_station.high_threshold}, Full threshold: {river_station.full_threshold}")
-    for threshold in thresholds:
-        execute_sql_update(river_station, threshold, database_connection)
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
@@ -17,7 +16,7 @@ class HistoricalRiverLevel(Base):
     location_name = Column(String(100))
     date = Column(Date)
     level_m = Column(Float)
-    station_number = Column(String(50))
+    # station_number = Column(String(50))  # HOTFIX: commented out as it is not used in the current implementation and adds useless complexity
 
 
 @dataclass

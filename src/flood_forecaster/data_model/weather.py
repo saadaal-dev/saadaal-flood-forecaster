@@ -57,6 +57,44 @@ class ForecastWeather(Base):
         return [cls(**record) for record in records]
 
 
+class HistoricalWeatherDataFrameSchema(pa.DataFrameModel):
+    """
+    Schema for historical weather data in ETL.
+    Equivalent to the HistoricalWeather SQLAlchemy model.
+    """
+    location_name: Series[str]
+    date: Series[pd.Timestamp]
+    temperature_2m_max: Series[float]
+    temperature_2m_min: Series[float]
+    precipitation_sum: Series[float]
+    rain_sum: Series[float]
+    precipitation_hours: Series[float]
+
+    class Config:
+        strict = True
+        coerce = True
+
+
+class ForecastWeatherDataFrameSchema(pa.DataFrameModel):
+    """
+    Schema for forecast weather data in ETL.
+    Equivalent to the ForecastWeather SQLAlchemy model.
+    """
+    location_name: Series[str]
+    date: Series[pd.Timestamp]
+    temperature_2m_max: Series[float]
+    temperature_2m_min: Series[float]
+    precipitation_sum: Series[float]
+    rain_sum: Series[float]
+    precipitation_hours: Series[float]
+    precipitation_probability_max: Series[float]
+    wind_speed_10m_max: Series[float]
+
+    class Config:
+        strict = True
+        coerce = True
+
+
 class WeatherDataFrameSchema(pa.DataFrameModel):
     """
     Schema for weather data in ETL.
@@ -64,7 +102,7 @@ class WeatherDataFrameSchema(pa.DataFrameModel):
     location: Series[str]
     date: Series[pd.Timestamp]
     precipitation_sum: Series[float]
-    precipitation_hours: Series[float]
+    precipitation_hours: Series[int]
 
     class Config:
         strict = True

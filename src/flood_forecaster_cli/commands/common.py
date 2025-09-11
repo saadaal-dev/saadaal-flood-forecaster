@@ -3,7 +3,6 @@ Common methods for cli commands
 """
 
 import click
-
 from src.flood_forecaster.utils.configuration import Config
 
 

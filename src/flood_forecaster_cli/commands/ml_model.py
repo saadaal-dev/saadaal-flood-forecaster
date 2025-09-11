@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import List
+import itertools
 
 import click
 
@@ -30,12 +32,24 @@ def build_post_context_validation_command(validation_fn):
     return PostContextValidationCommand
 
 
+def __get_stations(config: Config) -> List[str]:
+    """
+    Get the list of stations.
+    The configuration is used to resolve the station mapping.
+    :param config: The configuration object.
+    :return: A list of station names.
+    """
+    station_mapping = config.load_station_mapping()
+    return list(station_mapping.keys())
+
+
 # custom validation for the station based on the config_path file
 def validate_station(ctx):
     config = configuration.Config(ctx.params['config_path'])
     value = ctx.params['station']
-    if value not in config.load_station_mapping():
-        raise click.BadParameter(f"Station {value} not supported. Supported stations: {list(configuration.STATION_MAPPING.keys())}")
+    station_mapping = config.load_station_mapping()
+    if value not in station_mapping:
+        raise click.BadParameter(f"Station {value} not supported. Supported stations: {list(station_mapping.keys())}")
     return value
 
 
@@ -81,7 +95,7 @@ def split(station, config_path, forecast_days):
 @click.argument('station')
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
-@click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
+@click.option('-m', '--model_type', type=click.Choice(list(MODEL_MANAGER_REGISTRY.keys())), default=None)
 def train(station, config_path, forecast_days, model_type):
     config = Config(config_path)
     api.train(station, config, forecast_days, model_type)
@@ -91,7 +105,7 @@ def train(station, config_path, forecast_days, model_type):
 @click.argument('station')
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
-@click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
+@click.option('-m', '--model_type', type=click.Choice(list(MODEL_MANAGER_REGISTRY.keys())), default=None)
 def eval(station, config_path, forecast_days, model_type):
     config = Config(config_path)
     api.eval(station, config, forecast_days, model_type)
@@ -102,7 +116,7 @@ def eval(station, config_path, forecast_days, model_type):
 @click.argument('station')
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
-@click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
+@click.option('-m', '--model_type', type=click.Choice(list(MODEL_MANAGER_REGISTRY.keys())), default=None)
 def build_model(station, config_path, forecast_days, model_type):
     """
     Run the full model building pipeline.
@@ -126,7 +140,7 @@ def build_model(station, config_path, forecast_days, model_type):
 @click.argument('config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
 @click.option('-f', '--forecast_days', type=click.IntRange(1, None), default=None)
 @click.option('-d', '--date', type=click.DateTime(formats=["%Y-%m-%d"]), default=None)
-@click.option('-m', '--model_type', type=click.Choice(MODEL_MANAGER_REGISTRY.keys()), default=None)
+@click.option('-m', '--model_type', type=click.Choice(list(MODEL_MANAGER_REGISTRY.keys())), default=None)
 @click.option('-o', '--output_type', type=click.Choice(['stdout', 'database']), default='stdout')
 def infer(station, config_path, forecast_days, date, model_type, output_type):
     """
@@ -152,7 +166,79 @@ def infer(station, config_path, forecast_days, date, model_type, output_type):
 
 
 @cli.command()
-def list_models():
+@click.argument('stations', nargs=-1)
+@click.option('-f', '--forecast_days', type=click.IntRange(1, None), multiple=True, default=[1])
+@click.option('-m', '--model_types', type=click.Choice(list(MODEL_MANAGER_REGISTRY.keys())), multiple=True, default=None)
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+@click.option('-o', '--output_type', type=click.Choice(['stdout', 'database']), default='stdout')
+def bulk_infer(stations: List[str], forecast_days: List[int], model_types: List[str], config_path: str, output_type: str):
+    """
+    Bulk infer river levels for multiple stations and forecast days using specified model types.
+    All possible combinations of stations, forecast_days and model_types are used.
+    The results are printed to stdout or stored in the database, depending on the output_type.
+    """
+    config = configuration.Config(config_path)
+    _output_type = DataOutputType.from_string(output_type)
+
+    # FIXME: naive solution:
+    # an insert will be made for each combination of station, forecast_days and model_type
+    # NOTE: infer actually returns the predicted river level so we could externalize the database insert logic here
+    for station, forecast_day, model_type in itertools.product(stations, forecast_days, model_types):
+        print(f"Running inference for station: {station}, forecast_days: {forecast_day}, model_type: {model_type}")
+        try:
+            api.infer(station, config, forecast_day, None, model_type, _output_type)
+        except Exception as e:
+            print(f"Error during inference for station {station}, forecast_days {forecast_day}, model_type {model_type}: {e}")
+
+
+@cli.command()
+def list_model_types():
     print("Supported model types:")
     for model_key in MODEL_MANAGER_REGISTRY.keys():
         print(" - " + model_key)
+
+
+@cli.command()
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+def list_stations(config_path):
+    """
+    List all supported stations based on the configuration file.
+    """
+    config = Config(config_path)
+    stations = __get_stations(config)
+    print("Supported stations:")
+    for station in stations:
+        print(" - " + station)
+
+
+@cli.command()
+@click.option('-c', '--config_path', type=click.Path(exists=True, dir_okay=False), default=configuration.DEFAULT_CONFIG_FILE_PATH)
+def list_models(config_path):
+    """
+    List all available pretrained models.
+    """
+    config = Config(config_path)
+    model_path = config.load_model_config().get("model_path", None)
+
+    if model_path is None:
+        print("No model path configured. Please check your configuration file.")
+        return
+    
+    print("Available pretrained models:")
+    model_params = api.list_model_params_from_model_path(model_path)
+
+    # QICKFIX: replace forecast_days=None with * to make more explicit the wildcard
+    model_params += [
+        (t[0], "*", t[2], t[3])
+        for t in api.list_available_dummy_model_params(config)
+    ]
+
+    if not model_params:
+        print("No pretrained models found.")
+        return
+    
+    # sort models by station, forecast_days and model_type
+    model_params.sort(key=lambda x: (x[3], x[1], x[2]))
+
+    for preprocessor_type, forecast_days, model_type, station in model_params:
+        print(f" - Station: \"{station}\", Forecast Days: {forecast_days}, Model Type: {model_type}")

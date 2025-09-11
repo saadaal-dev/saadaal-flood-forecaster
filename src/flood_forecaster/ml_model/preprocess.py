@@ -54,7 +54,7 @@ Schema for inference data (no target column).
 """
 
 
-def preprocess_station(station_df: StationDataFrameSchema, lag_days=DEFAULT_STATION_LAG_DAYS, only_lag_columns=False):
+def preprocess_station(station_df: pa.typing.DataFrame[StationDataFrameSchema], lag_days=DEFAULT_STATION_LAG_DAYS, only_lag_columns=False):
     """
     Preprocess a single station dataframe:
      - add lagged values for the level__m column
@@ -71,7 +71,7 @@ def preprocess_station(station_df: StationDataFrameSchema, lag_days=DEFAULT_STAT
     return df
 
 
-def preprocess_all_stations(ref_station_df: StationDataFrameSchema, upstream_station_dfs: Dict[str, StationDataFrameSchema], lag_days=DEFAULT_STATION_LAG_DAYS):
+def preprocess_all_stations(ref_station_df: pa.typing.DataFrame[StationDataFrameSchema], upstream_station_dfs: Dict[str, pa.typing.DataFrame[StationDataFrameSchema]], lag_days=DEFAULT_STATION_LAG_DAYS):
     # """
     # Preprocess all station dataframes:
     #  - add lagged values for the level__m column on all stations
@@ -93,7 +93,7 @@ def preprocess_all_stations(ref_station_df: StationDataFrameSchema, upstream_sta
     return acc_df
 
 
-def preprocess_weather(weather_df: WeatherDataFrameSchema, lag_days=DEFAULT_WEATHER_LAG_DAYS):
+def preprocess_weather(weather_df: pa.typing.DataFrame[WeatherDataFrameSchema], lag_days=DEFAULT_WEATHER_LAG_DAYS):
     """
     Preprocess a single station dataframe:
      - add lagged values for the precipitation_sum and precipitation_hours columns
@@ -117,7 +117,15 @@ def preprocess_weather(weather_df: WeatherDataFrameSchema, lag_days=DEFAULT_WEAT
     return df.astype(float)
 
 
-def preprocess_all_weather(weather_dfs: Dict[str, WeatherDataFrameSchema], lag_days=DEFAULT_WEATHER_LAG_DAYS):
+def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDataFrameSchema]], lag_days=DEFAULT_WEATHER_LAG_DAYS):
+    # ensure index has unique values
+    # Otherwise the merge will fail (dataframe will grow larger than expected)
+    for weather_location, weather_df in weather_dfs.items():
+        if weather_df.index.has_duplicates:
+            # Get duplicate index entries in weather_df
+            duplicate_values = weather_df[weather_df.index.duplicated(keep='first')].index.unique().tolist()
+            raise ValueError(f"Weather data for {weather_location} has non-unique index values: {duplicate_values}. Please ensure the data is unique by date and location.")
+
     acc_df = None
     for weather_location, weather_df in weather_dfs.items():
         # standardize station column names (lowercase, remove spaces)
@@ -134,13 +142,33 @@ def preprocess_all_weather(weather_dfs: Dict[str, WeatherDataFrameSchema], lag_d
     return acc_df
 
 
+def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS) -> pd.DataFrame:
+    if forecast_days > 1:
+        # shift for output data of <forecast_days>-1 (-1 since y contains the next day prediction by default)
+        shift = -forecast_days + 1
+        df['level__m'] = df['level__m'].shift(shift)
+
+        # data usable for a forecast (without output label, only input data):
+        # # forecast dates (last <forecast_days> days not available)
+        # forecast_df = df[shift:]
+
+        # remove null entries (last <forecast_days> days not available)
+        df = df[:shift]
+        
+    # apply final structure
+    df = df.assign(y=(df['level__m'] - df['lag01__level__m']))
+
+    return df
+
+
 def preprocess_diff(
     station_metadata: StationMapping,
-    stations_df: StationDataFrameSchema, weather_df: WeatherDataFrameSchema,
+    stations_df: pa.typing.DataFrame[StationDataFrameSchema],
+    weather_df: pa.typing.DataFrame[WeatherDataFrameSchema],
     station_lag_days=DEFAULT_STATION_LAG_DAYS, weather_lag_days=DEFAULT_WEATHER_LAG_DAYS,
     forecast_days=DEFAULT_FORECAST_DAYS,
     infer=False,
-) -> pd.DataFrame:
+) -> pa.typing.DataFrame:  # DataFrame[ModellingDataFrameSchema] | DataFrame[InferenceDataFrameSchema]
     """
     Preprocess the data for the ML model.
     
@@ -166,31 +194,32 @@ def preprocess_diff(
     
     # extract weather data
     weather_dfs = {}
-    for weather_condition in station_metadata.weather_locations:
-        weather_location_df = weather_df[weather_df.index.get_level_values("location") == weather_condition]
-        weather_dfs[weather_condition] = weather_location_df
+    for weather_location in station_metadata.weather_locations:
+        weather_location_df = weather_df[weather_df.index.get_level_values("location") == weather_location]
+        weather_dfs[weather_location] = weather_location_df
 
+    if not upstream_station_dfs:
+        raise ValueError(f"No upstream stations found for {station_metadata.location}.")
+    if any(station_df.empty for station_df in upstream_station_dfs.values()):
+        raise ValueError(f"One or more upstream station dataframes are empty for {station_metadata.location}.")
+    if not weather_dfs:
+        raise ValueError(f"No weather data found for {station_metadata.location}.")
+    if any(weather_df.empty for weather_df in weather_dfs.values()):
+        raise ValueError(f"One or more weather dataframes are empty for {station_metadata.location}.")
+    if ref_station_df.empty:
+        raise ValueError(f"No reference station data found for {station_metadata.location}.")
+    
     # preprocess data
     stations_df = preprocess_all_stations(ref_station_df, upstream_station_dfs, lag_days=station_lag_days)
     weathers_df = preprocess_all_weather(weather_dfs, lag_days=weather_lag_days)
+    if weathers_df is None or weathers_df.empty:
+        raise ValueError(f"No weather data found for {station_metadata.location}. Please check the weather data source.")
+
     df = pd.merge(stations_df, weathers_df, left_index=True, right_index=True)
     df = df.reset_index()
     
     if not infer:
-        if forecast_days > 1:
-            # shift for output data of <forecast_days>-1 (-1 since y contains the next day prediction by default)
-            shift = -forecast_days + 1
-            df['level__m'] = df['level__m'].shift(shift)
-
-            # data usable for a forecast (without output label, only input data):
-            # # forecast dates (last <forecast_days> days not available)
-            # forecast_df = df[shift:]
-
-            # remove null entries (last <forecast_days> days not available)
-            df = df[:shift]
-        
-        # apply final structure
-        df['y'] = df['level__m'] - df['lag01__level__m']
+        df = add_y_column(df, forecast_days)
     
     # data augmentation: add date features
     df['month'] = df['date'].dt.month
@@ -221,4 +250,4 @@ def preprocess_diff(
     else:
         ModellingDataFrameSchema.validate(df)
 
-    return df
+    return df  # type: ignore

@@ -32,3 +32,10 @@ The `ml_model` package consists of the following files:
   It is not used in the training or inference. 
   Will be removed in the future as it is handled by the data module.
 - @Adina: Might be useful to add a _Const(object) class to keep all const definitions in one place, like STDOUT, DB, ENVFILE, but also other static params used like PREDICTION_LEVEL, .. see [PR#59](https://github.com/saadaal-dev/saadaal-flood-forecaster/pull/59#discussion_r2143111696)
+- Preprocessing configuration is in config.ini.
+  It should be moved on it's own since changing the lag / forecast paramters has an impact on the model itself.
+  A model should reference a preprocessor by name.
+- refactor models as a common Class with methods like `train`, `predict`, `evaluate`, etc.
+  This would allow to have a common interface for all models and make it easier to add new models in the future.
+- refactor models so that they return absolute river levels instead of relative levels (diff).
+  This to have models returning the expected output and not requiring a postprocessing step to convert the output to absolute levels.
