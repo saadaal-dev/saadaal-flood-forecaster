@@ -57,6 +57,7 @@ where = ["src"]
 flood-cli = "flood_forecaster_cli.main:cli"
 
 [tool.flake8]
-max-line-length = 150
-max-complexity = 15
+max-line-length = 140
+max-doc-length = 155
+max-complexity = 14
 ignore = ["E203", "W503"]

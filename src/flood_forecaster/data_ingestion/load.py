@@ -423,7 +423,7 @@ def load_modelling_river_levels(
 
 def __weather_df_without_missing_dates(df: pd.DataFrame, location: str, date_begin: date, date_end: date):
     """
-    Processes a DataFrame containing WeatherDataFrameSchema data to ensure that 
+    Processes a DataFrame containing WeatherDataFrameSchema data to ensure that
     it includes entries for all dates within a specified range for the specified location.
     The input DataFrame is expected to have the following columns:
         - location: str
@@ -576,7 +576,7 @@ def load_inference_river_levels(
     min_date = date - timedelta(days=max(json.loads(model_config["river_station_lag_days"])))
     max_date = date - timedelta(days=1)
     df = load_river_level(
-        config, locations, min_date, max_date, 
+        config, locations, min_date, max_date,
         fill_missing_dates=True  # EXPERIMENTAL: fill missing dates with last available value (might not work well for all models)
     )
 
