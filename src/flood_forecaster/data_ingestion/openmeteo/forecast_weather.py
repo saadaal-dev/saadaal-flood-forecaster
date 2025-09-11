@@ -1,17 +1,17 @@
 from typing import Any, Dict, List
 
 import pandas as pd
-from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
+from openmeteo_sdk import WeatherApiResponse
 
-from src.flood_forecaster.data_ingestion.openmeteo.common import (
+from flood_forecaster.data_ingestion.openmeteo.common import (
     fetch_openmeteo_data,
     prepare_weather_locations,
     process_weather_responses,
     persist_weather_data,
     parse_daily_data
 )
-from src.flood_forecaster.data_model.weather import ForecastWeather
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster.data_model.weather import ForecastWeather
+from flood_forecaster.utils.configuration import Config
 
 
 def create_forecast_params(latitudes: List[float], longitudes: List[float]) -> Dict[str, Any]:

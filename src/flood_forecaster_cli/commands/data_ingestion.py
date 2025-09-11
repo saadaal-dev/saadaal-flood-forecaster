@@ -8,11 +8,11 @@ import openmeteo_requests
 import requests_cache
 from retry_requests import retry
 
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.configuration import Config
 
-from src.flood_forecaster_cli.commands.common import common_options
-from src.flood_forecaster.data_ingestion.openmeteo.historical_weather import fetch_historical
-from src.flood_forecaster.data_ingestion.openmeteo.forecast_weather import fetch_forecast
+from flood_forecaster_cli.commands.common import common_options
+from flood_forecaster.data_ingestion.openmeteo.historical_weather import fetch_historical
+from flood_forecaster.data_ingestion.openmeteo.forecast_weather import fetch_forecast
 
 
 # Group for Data Ingestion Operations
@@ -64,7 +64,7 @@ def fetch_openmeteo(configuration: Config, type: str, empty_table: bool = False,
         # INTERNAL: Remove duplicate historical weather entries from the database
         #           This is a quick fix to remove duplicates from the database
         #           [HOTFIX-DUPLICATES-HISTORICAL-WEATHER]
-        from src.flood_forecaster.data_ingestion.openmeteo.historical_weather import remove_duplicates_historical_weather_from_db
+        from flood_forecaster.data_ingestion.openmeteo.historical_weather import remove_duplicates_historical_weather_from_db
         remove_duplicates_historical_weather_from_db(configuration, dry_run=dry_run)
 
 
@@ -80,7 +80,7 @@ def fetch_river_data(configuration: Config):
     :param configuration: Configuration object containing settings.
     """
     click.echo("Fetching river data from SWALIM API...")
-    from src.flood_forecaster.data_ingestion.swalim.river_level_api import fetch_latest_river_data, insert_river_data
+    from flood_forecaster.data_ingestion.swalim.river_level_api import fetch_latest_river_data, insert_river_data
     historical_river_levels = fetch_latest_river_data(configuration)
 
     if historical_river_levels:
@@ -110,7 +110,7 @@ def fetch_river_data_from_csv(configuration: Config, location_name: str, snrfa_f
     :param swalim_file: Path to the SWALIM CSV file.
     :param configuration: Configuration object containing settings.
     """
-    from src.flood_forecaster.data_ingestion.swalim.river_level_api import load_river_data_from_csvs
+    from flood_forecaster.data_ingestion.swalim.river_level_api import load_river_data_from_csvs
     load_river_data_from_csvs(configuration, location_name, snrfa_file, swalim_file)
 
 
@@ -138,7 +138,7 @@ def fetch_river_data_from_chart_api(configuration: Config, location_name: str, o
             swalim_raw_data_dir += '/'
         output = f"{swalim_raw_data_dir}{location_name.lower().replace(' ', '_')}_river_levels_as_at_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
 
-    from src.flood_forecaster.data_ingestion.swalim.river_level_api import fetch_river_data_from_chart_api
+    from flood_forecaster.data_ingestion.swalim.river_level_api import fetch_river_data_from_chart_api
     river_levels = fetch_river_data_from_chart_api(configuration, location_name)
     if not river_levels.empty:
         click.echo(f"Fetched {len(river_levels)} river levels for {location_name}.")
@@ -161,7 +161,7 @@ def show_latest_swalim_river_csv(configuration: Config, location_name: str):
     :param location_name: Name of the river location to fetch data for.
     :param configuration: Configuration object containing settings.
     """
-    from src.flood_forecaster.data_ingestion.swalim.river_level_api import get_latest_swalim_river_csv
+    from flood_forecaster.data_ingestion.swalim.river_level_api import get_latest_swalim_river_csv
     csv_content = get_latest_swalim_river_csv(configuration, location_name)
     click.echo(csv_content)
 
@@ -179,7 +179,7 @@ def show_latest_snrfa_river_csv(configuration: Config, location_name: str):
     :param location_name: Name of the river location to fetch data for.
     :param configuration: Configuration object containing settings.
     """
-    from src.flood_forecaster.data_ingestion.swalim.river_level_api import get_latest_snrfa_river_csv
+    from flood_forecaster.data_ingestion.swalim.river_level_api import get_latest_snrfa_river_csv
     csv_content = get_latest_snrfa_river_csv(configuration, location_name)
     click.echo(csv_content)
 
@@ -197,5 +197,5 @@ def remove_duplicates_historical_weather(configuration: Config, dry_run: bool = 
     :param configuration: Configuration object containing settings.
     :param dry_run: If True, only prints the duplicates without deleting them.
     """
-    from src.flood_forecaster.data_ingestion.openmeteo.historical_weather import remove_duplicates_historical_weather_from_db
+    from flood_forecaster.data_ingestion.openmeteo.historical_weather import remove_duplicates_historical_weather_from_db
     remove_duplicates_historical_weather_from_db(configuration, dry_run=dry_run)

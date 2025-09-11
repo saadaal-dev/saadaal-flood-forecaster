@@ -4,7 +4,7 @@ The CLI entry point
 
 import click
 
-from src.flood_forecaster_cli.commands import (database_model, data_ingestion, ml, run_alert, run_risk_assessment)
+from flood_forecaster_cli.commands import (database_model, data_ingestion, ml, run_alert, run_risk_assessment)
 
 
 @click.group(help="flood_forecaster client tool")

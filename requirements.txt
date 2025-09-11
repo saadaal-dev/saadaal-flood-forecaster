@@ -13,7 +13,9 @@ cattrs==25.2.0
 certifi==2025.8.3
     # via requests
 charset-normalizer==3.4.3
-    # via requests
+    # via
+    #   niquests
+    #   requests
 click==8.1.8
     # via flood-forecaster (pyproject.toml)
 cmdstanpy==1.2.5
@@ -30,6 +32,8 @@ fonttools==4.59.2
     # via matplotlib
 greenlet==3.2.4
     # via sqlalchemy
+h11==0.16.0
+    # via urllib3-future
 holidays==0.80
     # via prophet
 idna==3.10
@@ -38,7 +42,9 @@ idna==3.10
     #   url-normalize
 importlib-resources==6.5.2
     # via prophet
-joblib==1.2.0
+jh2==5.0.9
+    # via urllib3-future
+joblib==1.5.2
     # via
     #   flood-forecaster (pyproject.toml)
     #   scikit-learn
@@ -55,6 +61,8 @@ mypy-extensions==1.1.0
     # via typing-inspect
 narwhals==2.4.0
     # via plotly
+niquests==3.15.2
+    # via openmeteo-requests
 numpy==1.26.4
     # via
     #   flood-forecaster (pyproject.toml)
@@ -71,9 +79,9 @@ numpy==1.26.4
     #   xgboost
 nvidia-nccl-cu12==2.28.3
     # via xgboost
-openmeteo-requests==1.0.0
+openmeteo-requests==1.7.2
     # via flood-forecaster (pyproject.toml)
-openmeteo-sdk==1.0.13
+openmeteo-sdk==1.20.1
     # via
     #   flood-forecaster (pyproject.toml)
     #   openmeteo-requests
@@ -98,12 +106,87 @@ platformdirs==4.4.0
 plotly==6.3.0
     # via flood-forecaster (pyproject.toml)
 prophet==1.1.6
-xgboost~=3.0.2
-click~=8.1.7
-beautifulsoup4~=4.12.3
-python-dotenv~=0.19.2
-joblib~=1.2.0
-numpy>=1.26.0
-openmeteo_sdk~=1.0.0
-openmeteo_requests~=1.0.0
-retry_requests~=1.0.0
+    # via flood-forecaster (pyproject.toml)
+psycopg2-binary==2.9.10
+    # via flood-forecaster (pyproject.toml)
+pydantic==2.11.7
+    # via pandera
+pydantic-core==2.33.2
+    # via pydantic
+pyparsing==3.2.3
+    # via matplotlib
+python-dateutil==2.9.0.post0
+    # via
+    #   holidays
+    #   matplotlib
+    #   pandas
+python-dotenv==0.19.2
+    # via flood-forecaster (pyproject.toml)
+pytz==2025.2
+    # via pandas
+qh3==1.5.4
+    # via urllib3-future
+requests==2.32.5
+    # via
+    #   flood-forecaster (pyproject.toml)
+    #   mailjet-rest
+    #   requests-cache
+    #   retry-requests
+requests-cache==1.2.1
+    # via flood-forecaster (pyproject.toml)
+retry-requests==1.0.1
+    # via flood-forecaster (pyproject.toml)
+scikit-learn==1.5.2
+    # via flood-forecaster (pyproject.toml)
+scipy==1.16.1
+    # via
+    #   scikit-learn
+    #   xgboost
+seaborn==0.13.2
+    # via flood-forecaster (pyproject.toml)
+six==1.17.0
+    # via python-dateutil
+soupsieve==2.8
+    # via beautifulsoup4
+sqlalchemy==2.0.43
+    # via flood-forecaster (pyproject.toml)
+stanio==0.5.1
+    # via cmdstanpy
+tabulate==0.9.0
+    # via flood-forecaster (pyproject.toml)
+threadpoolctl==3.6.0
+    # via scikit-learn
+tqdm==4.67.1
+    # via
+    #   cmdstanpy
+    #   prophet
+typeguard==4.4.4
+    # via pandera
+typing-extensions==4.15.0
+    # via
+    #   cattrs
+    #   pandera
+    #   pydantic
+    #   pydantic-core
+    #   sqlalchemy
+    #   typeguard
+    #   typing-inspect
+    #   typing-inspection
+typing-inspect==0.9.0
+    # via pandera
+typing-inspection==0.4.1
+    # via pydantic
+tzdata==2025.2
+    # via pandas
+url-normalize==2.2.1
+    # via requests-cache
+urllib3==2.5.0
+    # via
+    #   requests
+    #   requests-cache
+urllib3-future==2.13.908
+    # via niquests
+wassima==2.0.1
+    # via niquests
+xgboost==3.0.5
+    # via flood-forecaster (pyproject.toml)

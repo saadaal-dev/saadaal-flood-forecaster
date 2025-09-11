@@ -3,14 +3,14 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 import pandas as pd
-from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
-from openmeteo_sdk.VariablesWithTime import VariablesWithTime
-from openmeteo_sdk.VariableWithValues import VariableWithValues
+from openmeteo_sdk import WeatherApiResponse
+from openmeteo_sdk import VariablesWithTime
+from openmeteo_sdk import VariableWithValues
 from sqlalchemy.orm import Session
 
-from src.flood_forecaster import DatabaseConnection
-from src.flood_forecaster.data_ingestion.openmeteo.weather_location import get_weather_locations
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster import DatabaseConnection
+from flood_forecaster.data_ingestion.openmeteo.weather_location import get_weather_locations
+from flood_forecaster.utils.configuration import Config
 
 
 def fetch_openmeteo_data(openmeteo, url: str, params: Dict[str, Any]) -> List[WeatherApiResponse]:
