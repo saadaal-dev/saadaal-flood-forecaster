@@ -7,6 +7,7 @@ from datetime import datetime
 from tabulate import tabulate
 
 import pandas as pd
+import numpy as np
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
@@ -195,7 +196,7 @@ class DatabaseConnection:
             conn.execute(model.__table__.delete())
             conn.commit()
 
-    def get_max_date(self, model_class, date_column="date") -> Optional[datetime.datetime]:
+    def get_max_date(self, model_class, date_column="date") -> Optional[datetime]:
         """
         Fetch the maximum date from the specified model class and date column.
         :param model_class: Class defined in /data_model, representing the table model (e.g., PredictedRiverLevel)
@@ -243,7 +244,6 @@ class DatabaseConnection:
                 )
                 return
 
-            # Construct SQL query
             # Build SQL query dynamically
             query_str = f'SELECT * FROM "{schema_name}"."{table_name}"'
             if where_clause:
@@ -261,8 +261,8 @@ class DatabaseConnection:
                 print(
                     f"Data from '{schema_name}.{table_name}' downloaded to '{output_file_path}'"
                 )
-                # Pretty-print preview
-                print("\n📊 Preview of downloaded data:")
+
+                print("\nPreview of downloaded data:")
                 print(tabulate(df.head(preview_rows), headers="keys", tablefmt="psql"))
 
         except SQLAlchemyError as e:
@@ -271,3 +271,132 @@ class DatabaseConnection:
             )
         except Exception as e:
             print(f"An unexpected error occurred: {str(e)}")
+
+    def validate_table_data(
+        self, schema_name: str, table_name: str, hard_limit: int = 100000
+    ) -> None:
+        """
+        Validate table data: missing values, invalid values, outliers.
+        Dynamically applies LIMIT if table is very large.
+        """
+        try:
+            with self.engine.connect() as connection:
+                # Count total rows
+                count_query = text(f'SELECT COUNT(*) FROM "{schema_name}"."{table_name}"')
+                total_rows = connection.execute(count_query).scalar()
+
+                print(f"\nValidating table: {schema_name}.{table_name}")
+                print(f"Total rows: {total_rows:,}")
+
+                # Apply LIMIT if needed
+                if total_rows > hard_limit:
+                    query = text(f'SELECT * FROM "{schema_name}"."{table_name}" LIMIT {hard_limit}')
+                    print(f"⚠️ Using LIMIT {hard_limit} for validation (large table)")
+                else:
+                    query = text(f'SELECT * FROM "{schema_name}"."{table_name}"')
+
+                df = pd.read_sql(query, con=connection)
+
+                # --- VALIDATIONS ---
+                print("\n🔍 Validation results:")
+
+                # 1. Missing values
+                nulls = df.isnull().sum()
+                cols_with_nulls = nulls[nulls > 0]
+                if not cols_with_nulls.empty:
+                    print("⚠️ Missing values found:")
+                    for col, n in cols_with_nulls.items():
+                        print(f"   - {col}: {n} missing")
+                else:
+                    print("✅ No missing values detected")
+
+                # 2. Duplicate rows
+                dup_count = df.duplicated().sum()
+                if dup_count > 0:
+                    print(f"⚠️ Duplicate rows: {dup_count}")
+                else:
+                    print("✅ No duplicate rows detected")
+
+                # 3. Outliers (basic numeric range check, e.g., z-score > 3)
+                numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
+                if not numeric_cols.empty:
+                    zscores = (df[numeric_cols] - df[numeric_cols].mean()) / df[numeric_cols].std()
+                    outlier_counts = (zscores.abs() > 3).sum()
+                    if outlier_counts.sum() > 0:
+                        print("⚠️ Outliers detected in numeric columns:")
+                        for col, n in outlier_counts.items():
+                            if n > 0:
+                                print(f"   - {col}: {n} potential outliers")
+                    else:
+                        print("✅ No strong outliers detected")
+                else:
+                    print("\nNo numeric columns for outlier detection")
+
+        except SQLAlchemyError as e:
+            print(f"⚠️ Database error: {str(e)}")
+        except Exception as e:
+            print(f"⚠️ Unexpected error: {str(e)}")
+
+    def validate_sensor_readings(self, schema_name: str = "public", table_name: str = "sensor_readings", hard_limit: int = 100000):
+        """
+        Specific validation for the sensor_readings table.
+        Detects nulls, invalid values like '---', zeros where not expected, and out-of-range timestamps.
+        """
+        try:
+            with self.engine.connect() as connection:
+                # Count total rows
+                count_query = text(f'SELECT COUNT(*) FROM "{schema_name}"."{table_name}"')
+                total_rows = connection.execute(count_query).scalar()
+
+                print(f"\nValidating table: {schema_name}.{table_name}")
+                print(f"Total rows: {total_rows:,}")
+
+                # Apply LIMIT if needed
+                if total_rows > hard_limit:
+                    query = text(f'SELECT * FROM "{schema_name}"."{table_name}" LIMIT {hard_limit}')
+                    print(f"⚠️ Using LIMIT {hard_limit} for validation (large table)")
+                else:
+                    query = text(f'SELECT * FROM "{schema_name}"."{table_name}"')
+
+                df = pd.read_sql(query, con=connection)
+
+                print("\nSensor-specific validation results:")
+
+                # 1. Missing/null values
+                nulls = df.isnull().sum()
+                cols_with_nulls = nulls[nulls > 0]
+                if not cols_with_nulls.empty:
+                    print("⚠️ Missing values found:")
+                    for col, n in cols_with_nulls.items():
+                        print(f"   - {col}: {n} missing")
+                else:
+                    print("✅ No missing values (NULL)")
+
+                # Look for invalidvalues in 'value' column
+                if "value" in df.columns:
+                    bad_values = df[df["value"].isin(["---", "", "NULL"])]
+                    zeros = df[df["value"].astype(str).str.strip() == "0"]
+                    if not bad_values.empty:
+                        print(f"⚠️ Invalid values detected in 'value': {len(bad_values)} rows (---, empty, NULL)")
+                    if not zeros.empty:
+                        print(f"⚠️ '0' readings detected in 'value': {len(zeros)} rows (may be invalid depending on sensor)")
+                    if bad_values.empty and zeros.empty:
+                        print("✅ No invalid values in 'value'")
+
+                # Timestamp sanity check
+                if "reading_ts" in df.columns:
+                    min_ts, max_ts = df["reading_ts"].min(), df["reading_ts"].max()
+                    print(f"\n\tTimestamp range: {min_ts} → {max_ts}")
+                    # if pd.Timestamp("2000-01-01") > min_ts or max_ts > pd.Timestamp("2030-01-01"):
+                    #     print("⚠️ Abnormal timestamps detected")
+
+                # Firmware version presence
+                if "firmware" in df.columns:
+                    firmware_nulls = df["firmware"].isnull().sum()
+                    if firmware_nulls > 0:
+                        print(f"⚠️ Missing firmware versions: {firmware_nulls}")
+                    else:
+                        print("✅ Firmware version present in all rows")
+
+        except Exception as e:
+            print(f"⚠️ Validation failed: {str(e)}")
