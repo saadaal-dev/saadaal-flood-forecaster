@@ -377,10 +377,10 @@ def load_river_level(
         _actual_df = df[df['location'] == location]
 
         if len(_actual_df) == _expected_len:
-            continue
-
-        print(f"WARNING: Missing river level data for location {location}. Expected {len(stations_date_range)} entries, got {len(_actual_df)}. Filling missing dates.")
-        _filled_dfs.append(__river_level_df_without_missing_dates(df, location, date_begin, date_end))
+            _filled_dfs.append(_actual_df)
+        else:
+            print(f"WARNING: Missing river level data for location {location}. Expected {len(stations_date_range)} entries, got {len(_actual_df)}. Filling missing dates.")
+            _filled_dfs.append(__river_level_df_without_missing_dates(df, location, date_begin, date_end))
 
     return pd.concat(_filled_dfs, ignore_index=True).sort_values(by=['location', 'date'])  # type: ignore (ensured by pandera)
 
