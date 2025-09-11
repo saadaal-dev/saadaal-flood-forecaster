@@ -4,10 +4,10 @@ import itertools
 
 import click
 
-from src.flood_forecaster.utils.configuration import Config, DataOutputType
-from src.flood_forecaster.utils import configuration
-from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
-from src.flood_forecaster.ml_model import api
+from flood_forecaster.utils.configuration import Config, DataOutputType
+from flood_forecaster.utils import configuration
+from flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
+from flood_forecaster.ml_model import api
 
 """
 Supports the following commands:

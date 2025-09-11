@@ -11,8 +11,8 @@ from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
 
-from src.flood_forecaster.data_model import Base
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster.data_model import Base
+from flood_forecaster.utils.configuration import Config
 
 
 class DatabaseConnection:

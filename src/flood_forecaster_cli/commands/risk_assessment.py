@@ -1,6 +1,6 @@
 import click
 
-from src.flood_forecaster.risk_assessment.risk_assessment import main
+from flood_forecaster.risk_assessment.risk_assessment import main
 
 
 @click.command()

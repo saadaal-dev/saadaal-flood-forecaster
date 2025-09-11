@@ -27,6 +27,7 @@ The project is organized as follows:
 | `models/`                                        | Serialized trained models and artifacts.                                      |
 | `docs/`                                          | Architecture and design details, API docs, data model details and data flows. |
 | `legacy/data-extractor/`                         | [Obsolete] Scripts to extract raw environmental/hydrological data.            |
+| `pyproject.toml`                                 | Root project configuration defining a workspace                               |
 
 ---
 
@@ -55,6 +56,8 @@ Before submitting a PR, please ensure:
 
 ## 📦 Install the CLI
 
+> [!NOTE]
+> TODO: Simplify install.sh by making use of pyproject.toml and uv packager
 ### Recommended Installation (using install.sh)
 
 The recommended way to install the flood forecaster CLI is using the provided installation script:
@@ -81,12 +84,16 @@ Alternatively, you can install manually:
 
 ```bash
 # Create and activate virtual environment
-python3 -m venv .venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Choose the appropriate Python version
+uv venv --python 3.11
 source .venv/bin/activate
 
-# Install dependencies and CLI package
-pip install -r requirements.txt
-pip install -e .
+# Install dependencies and CLI package from pyproject.toml
+# if needed generate requirements.txt from same pyproject
+uv pip install -e .[dev]
+uv pip install -e .
+uv pip compile pyproject.toml -o requirements.txt
 ```
 
 ### Using the CLI
@@ -94,11 +101,12 @@ pip install -e .
 After installation, activate the virtual environment and use the CLI:
 
 ```bash
-# Activate the virtual environment
-source .venv/bin/activate
+# Use CLI via script exec
+flood-cli --help
 
-# Use the CLI
-flood_forecaster_cli --help
+# Use CLI with direct module call
+python -m flood_forecaster_cli.main ml list-models
+
 ```
 
 The CLI is configured in `setup.py` as a console script entry point, making the `flood_forecaster_cli` command available
@@ -108,13 +116,13 @@ To uninstall, simply run: `python -m pip uninstall flood-forecaster-tool`
 
 ### Configuration Notes
 
-The CLI configuration is managed through `setup.py` and the `install.sh` script. Advanced users can manually adjust the
-`PATH` or create custom shell aliases for convenience.
+The CLI configuration is managed through `pyproject.toml`.
 
+Advanced users can manually adjust the `PATH` or create custom shell aliases for convenience.
 For example, to create a shell alias, you can add the following line to your `.bashrc` or `.zshrc`:
 
 ```bash
-alias flood_forecaster_cli='source /full/path/to/saadaal-flood-forecaster/.venv/bin/activate && flood_forecaster_cli'
+alias my_flood_cli='source /full/path/to/saadaal-flood-forecaster/.venv/bin/activate && flood-cli'
 ```
 
 ---

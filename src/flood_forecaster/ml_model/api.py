@@ -6,17 +6,17 @@ from typing import Optional, Tuple, List
 import numpy as np
 import pandas as pd
 
-from src.flood_forecaster.data_ingestion.load import (
+from flood_forecaster.data_ingestion.load import (
     load_inference_river_levels, load_inference_weather,
     load_modelling_river_levels, load_modelling_weather
 )
-from src.flood_forecaster.data_model.river_station import get_river_station_metadata
-from src.flood_forecaster.ml_model.inference import infer_from_raw_data, store_inference_result
-from src.flood_forecaster.ml_model.modelling import corr_chart, eval_chart
-from src.flood_forecaster.ml_model.preprocess import preprocess_diff
-from src.flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
-from src.flood_forecaster.utils.configuration import Config, DataOutputType
-from src.flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.data_model.river_station import get_river_station_metadata
+from flood_forecaster.ml_model.inference import infer_from_raw_data, store_inference_result
+from flood_forecaster.ml_model.modelling import corr_chart, eval_chart
+from flood_forecaster.ml_model.preprocess import preprocess_diff
+from flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
+from flood_forecaster.utils.configuration import Config, DataOutputType
+from flood_forecaster.utils.database_helper import DatabaseConnection
 
 """
 Functions to interact with the model building pipeline.

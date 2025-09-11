@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from src.flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.utils.database_helper import DatabaseConnection
 
 
 class TestDatabaseHelper(unittest.TestCase):

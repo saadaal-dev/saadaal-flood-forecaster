@@ -4,7 +4,7 @@ The CLI entry point
 
 import click
 
-from src.flood_forecaster_cli.commands import (database_model, data_ingestion, ml, run_alert, run_risk_assessment)
+from flood_forecaster_cli.commands import (database_model, data_ingestion, ml, run_alert, run_risk_assessment)
 
 
 @click.group(help="flood_forecaster client tool")
@@ -20,6 +20,11 @@ cli.add_command(ml, "ml")
 cli.add_command(run_risk_assessment, "risk-assessment")
 cli.add_command(run_alert, "alert")
 # cli.add_command(config)
+
+
+def main():
+    """Main function for console_scripts entry point."""
+    cli()
 
 
 if __name__ == "__main__":

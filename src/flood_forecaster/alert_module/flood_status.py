@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 from sqlalchemy import select, func
 
-from src.flood_forecaster.data_model.river_level import PredictedRiverLevel
+from flood_forecaster.data_model.river_level import PredictedRiverLevel
 
 logger = logging.getLogger(__name__)
 

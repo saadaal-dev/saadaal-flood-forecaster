@@ -7,10 +7,10 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-from src.flood_forecaster.alert_module.flood_status import get_df_by_date
-from src.flood_forecaster.data_model.river_level import PredictedRiverLevel
-from src.flood_forecaster.utils.configuration import Config
-from src.flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.alert_module.flood_status import get_df_by_date
+from flood_forecaster.data_model.river_level import PredictedRiverLevel
+from flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.database_helper import DatabaseConnection
 
 logger = logging.getLogger(__name__)
 config = Config("config/config.ini")

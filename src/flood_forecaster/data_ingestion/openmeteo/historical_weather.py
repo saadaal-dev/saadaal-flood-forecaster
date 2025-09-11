@@ -4,18 +4,18 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 import pandas as pd
-from openmeteo_sdk.WeatherApiResponse import WeatherApiResponse
+from openmeteo_sdk import WeatherApiResponse
 
-from src.flood_forecaster import DatabaseConnection
-from src.flood_forecaster.data_ingestion.openmeteo.common import (
+from flood_forecaster import DatabaseConnection
+from flood_forecaster.data_ingestion.openmeteo.common import (
     fetch_openmeteo_data,
     prepare_weather_locations,
     process_weather_responses,
     persist_weather_data,
     parse_daily_data,
 )
-from src.flood_forecaster.data_model.weather import HistoricalWeather
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster.data_model.weather import HistoricalWeather
+from flood_forecaster.utils.configuration import Config
 
 
 def remove_duplicates_historical_weather_from_db(config: Config, dry_run: bool = True):

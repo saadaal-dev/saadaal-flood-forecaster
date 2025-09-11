@@ -6,10 +6,10 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 import pandera.pandas as pa
 
-from src.flood_forecaster import DatabaseConnection
-from src.flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
-from src.flood_forecaster.data_model.river_station import get_river_station_names, get_river_station_metadata
-from src.flood_forecaster.utils.configuration import Config
+from flood_forecaster import DatabaseConnection
+from flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
+from flood_forecaster.data_model.river_station import get_river_station_names, get_river_station_metadata
+from flood_forecaster.utils.configuration import Config
 
 
 def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
@@ -274,7 +274,8 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
         # swalim_dir = config.load_data_csv_config()["swalim_raw_data_dir"]
         # if not swalim_dir.endswith('/'):
         #     swalim_dir += '/'
-        # with open(f"{swalim_dir}{station_name.lower().replace(' ', '_')}_river_levels_as_at_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "w") as f:
+        # with open(f"{swalim_dir}{station_name.lower().replace(' ', '_')}_river_levels_as_at_" \
+        #           f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "w") as f:
         #     import json
         #     json.dump(data, f, indent=4)
         

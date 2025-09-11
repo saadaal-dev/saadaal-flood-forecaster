@@ -2,10 +2,10 @@ from datetime import datetime
 
 from sqlalchemy import insert
 
-from src.flood_forecaster.data_model.river_level import PredictedRiverLevel
-from src.flood_forecaster.ml_model.preprocess import preprocess_diff
-from src.flood_forecaster.ml_model.registry import ModelManager
-from src.flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.data_model.river_level import PredictedRiverLevel
+from flood_forecaster.ml_model.preprocess import preprocess_diff
+from flood_forecaster.ml_model.registry import ModelManager
+from flood_forecaster.utils.database_helper import DatabaseConnection
 
 
 def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days, forecast_days):

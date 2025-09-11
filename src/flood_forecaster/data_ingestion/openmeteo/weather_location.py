@@ -1,7 +1,7 @@
 import csv
 from typing import List
 
-from src.flood_forecaster.data_model.weather import WeatherLocation
+from flood_forecaster.data_model.weather import WeatherLocation
 
 
 def get_weather_locations(csv_path: str) -> List[WeatherLocation]:
