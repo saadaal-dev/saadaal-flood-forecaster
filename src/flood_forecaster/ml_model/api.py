@@ -142,14 +142,14 @@ def __get_analysis_global_output_path(config, forecast_days, suffix):
     model_config = config.load_model_config()
     analysis_data_path = model_config["analysis_data_path"]
     preprocessor_type = model_config["preprocessor_type"]
-    return analysis_data_path + preprocessor_type + f"-f{forecast_days}-global_analysi-{suffix}"
+    return analysis_data_path + preprocessor_type + f"-f{forecast_days}-global_analysis-{suffix}"
 
 
 def __get_analysis_output_path(config, station, forecast_days, suffix):
     model_config = config.load_model_config()
     analysis_data_path = model_config["analysis_data_path"]
     preprocessor_type = model_config["preprocessor_type"]
-    return analysis_data_path + preprocessor_type + f"-f{forecast_days}-{station}-analysis{suffix}"
+    return analysis_data_path + preprocessor_type + f"-f{forecast_days}-{station}-analysis-{suffix}"
 
 
 def __get_training_data_path(config, station, forecast_days):
@@ -514,7 +514,7 @@ def infer(
             raise ValueError(f"Not enough river level data available for station {station}. "
                              f"Expected at least {_expected_len} days, but found only {_len_actual_df} days. "
                              f"Please check the data source.")
-        
+
     # # Weather data
     for location in station_metadata.weather_locations:
         weather_date_range = pd.date_range(start=weather_min_date, end=weather_max_date)
