@@ -3,6 +3,8 @@ import importlib
 import os
 import pkgutil
 from typing import Optional
+from datetime import datetime
+from tabulate import tabulate
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -207,11 +209,12 @@ class DatabaseConnection:
             return result
 
     def fetch_table_to_csv(
-        self,
-        schema_name: str,
-        table_name: str,
-        data_download_path: str,
-        force_overwrite: bool = False,
+            self,
+            schema_name: str,
+            table_name: str,
+            data_download_path: str,
+            force_overwrite: bool = False,
+            preview_rows: int = 20,  # new: limit rows for screen printing
     ) -> None:
         """
         Fetch data from a table and download it as a CSV file to the specified folder.
@@ -250,6 +253,10 @@ class DatabaseConnection:
                 print(
                     f"Data from '{schema_name}.{table_name}' downloaded to '{output_file_path}'"
                 )
+                # Pretty-print preview
+                print("\n📊 Preview of downloaded data:")
+                print(tabulate(df.head(preview_rows), headers="keys", tablefmt="psql"))
+
         except SQLAlchemyError as e:
             print(
                 f"Error fetching data from table '{schema_name}.{table_name}': {str(e)}"

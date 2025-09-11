@@ -47,3 +47,18 @@ def list_tables_from_schema(
         print(f"Table: {table}")
         for column in columns:
             print(f"  Column: {column['name']} | Type: {column['type']}")
+
+@database_model.command("fetch-table-to-csv", help="Fetch table data to CSV")
+@click.option("--schema-name", "-s", required=True, help="Schema name")
+@click.option("--table-name", "-t", required=True, help="Table name")
+@click.option("--data-download-path", "-d", required=True, help="Data download path")
+@click.option("--force-overwrite", is_flag=True, default=False, help="Overwrite if file exists")
+@click.option("--preview-rows", "-p", default=20, help="Number of rows to pretty-print in the console")
+@common_options
+def fetch_table_to_csv(
+    configuration: Config, schema_name: str, table_name: str, data_download_path: str, force_overwrite: bool, preview_rows: int
+):
+    # Initialize database connection
+    db_conn = DatabaseConnection(configuration)
+    # Fetch table data and write to CSV
+    db_conn.fetch_table_to_csv(schema_name, table_name, data_download_path, force_overwrite, preview_rows)
