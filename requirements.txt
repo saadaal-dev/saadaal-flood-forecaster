@@ -24,6 +24,8 @@ configparser==7.1.0
     # via flood-forecaster (pyproject.toml)
 contourpy==1.3.3
     # via matplotlib
+coverage==7.10.6
+    # via pytest-cov
 cycler==0.12.1
     # via matplotlib
 flatbuffers==25.2.10
@@ -42,6 +44,8 @@ idna==3.10
     #   url-normalize
 importlib-resources==6.5.2
     # via prophet
+iniconfig==2.1.0
+    # via pytest
 jh2==5.0.9
     # via urllib3-future
 joblib==1.5.2
@@ -50,6 +54,8 @@ joblib==1.5.2
     #   scikit-learn
 kiwisolver==1.4.9
     # via matplotlib
+lxml==6.0.1
+    # via flood-forecaster (pyproject.toml)
 mailjet-rest==1.3.4
     # via flood-forecaster (pyproject.toml)
 matplotlib==3.7.5
@@ -90,6 +96,7 @@ packaging==25.0
     #   matplotlib
     #   pandera
     #   plotly
+    #   pytest
 pandas==2.3.2
     # via
     #   flood-forecaster (pyproject.toml)
@@ -105,6 +112,10 @@ platformdirs==4.4.0
     # via requests-cache
 plotly==6.3.0
     # via flood-forecaster (pyproject.toml)
+pluggy==1.6.0
+    # via
+    #   pytest
+    #   pytest-cov
 prophet==1.1.6
     # via flood-forecaster (pyproject.toml)
 psycopg2-binary==2.9.10
@@ -113,8 +124,19 @@ pydantic==2.11.7
     # via pandera
 pydantic-core==2.33.2
     # via pydantic
+pygments==2.19.2
+    # via pytest
 pyparsing==3.2.3
     # via matplotlib
+pytest==8.4.2
+    # via
+    #   flood-forecaster (pyproject.toml)
+    #   pytest-cov
+    #   pytest-mock
+pytest-cov==7.0.0
+    # via flood-forecaster (pyproject.toml)
+pytest-mock==3.15.0
+    # via flood-forecaster (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via
     #   holidays
@@ -180,7 +202,7 @@ tzdata==2025.2
     # via pandas
 url-normalize==2.2.1
     # via requests-cache
-urllib3==2.5.0
+urllib3==1.26.20
     # via
     #   requests
     #   requests-cache

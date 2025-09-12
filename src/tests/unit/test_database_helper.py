@@ -14,8 +14,8 @@ class TestDatabaseHelper(unittest.TestCase):
         }
 
     @patch("os.environ.get", return_value="testpassword")
-    @patch("src.flood_forecaster.utils.database_helper.create_engine")
-    @patch("src.flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
+    @patch("flood_forecaster.utils.database_helper.create_engine")
+    @patch("flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
         "dbname": "testdb",
         "user": "testuser",
         "host": "localhost",
@@ -54,8 +54,8 @@ class TestDatabaseHelper(unittest.TestCase):
         self.assertEqual(args[0].database, "testdb")
 
     @patch("os.environ.get", return_value="testpassword")
-    @patch("src.flood_forecaster.utils.database_helper.create_engine", side_effect=Exception("Mocked error"))
-    @patch("src.flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
+    @patch("flood_forecaster.utils.database_helper.create_engine", side_effect=Exception("Mocked error"))
+    @patch("flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
         "dbname": "testdb",
         "user": "testuser",
         "host": "localhost",

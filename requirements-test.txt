@@ -1,0 +1,22 @@
+# Core testing dependencies
+pytest
+pytest-cov
+pytest-mock
+
+# Essential packages for unit tests
+pandas==2.3.2
+SQLAlchemy==2.0.43
+psycopg2-binary==2.9.10
+requests==2.32.5
+configparser==7.1.0
+click==8.1.8
+pandera==0.24.0
+python-dotenv==0.19.2
+lxml==6.0.1
+
+# These are only needed for integration tests with OpenMeteo API
+# openmeteo_sdk==1.20.1
+# openmeteo_requests==1.7.2
+# retry_requests==1.0.1
+# requests-cache==1.2.1
+# beautifulsoup4==4.12.3

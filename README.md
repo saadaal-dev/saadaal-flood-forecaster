@@ -1,5 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![Linting: flake8](https://img.shields.io/badge/linting-flake8-yellow.svg)](https://flake8.pycqa.org/)
 
 # 📁 Repository Structure
@@ -86,7 +86,7 @@ Alternatively, you can install manually:
 # Create and activate virtual environment
 curl -LsSf https://astral.sh/uv/install.sh | sh
 # Choose the appropriate Python version
-uv venv --python 3.11
+uv venv --python 3.12
 source .venv/bin/activate
 
 # Install dependencies and CLI package from pyproject.toml
@@ -130,7 +130,7 @@ alias my_flood_cli='source /full/path/to/saadaal-flood-forecaster/.venv/bin/acti
 # 🚀 Deployment
 ## Server installation
 ### Prerequisites
-- Python 3.10.x installed
+- Python 3.12.x installed
 - PostgreSQL installed and running
 - Database configured (if not, see [Database Setup](#-database-setup))
 - CRON daemon running:

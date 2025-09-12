@@ -8,7 +8,7 @@ version = "0.1.2"
 description = "Flood forecasting libraries and CLI"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 
 dependencies = [
     "requests~=2.32.3",
@@ -32,8 +32,12 @@ dependencies = [
     "openmeteo_sdk~=1.20.1",
     "openmeteo_requests~=1.7.2",
     "retry_requests~=1.0.0",
+    "lxml>=5.0.2",
     "plotly",
-    "tabulate"
+    "tabulate",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock"
 ]
 
 [project.optional-dependencies]
