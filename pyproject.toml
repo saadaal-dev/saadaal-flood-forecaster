@@ -33,6 +33,7 @@ dependencies = [
     "openmeteo_requests~=1.7.2",
     "retry_requests~=1.0.0",
     "lxml>=5.0.2",
+    "urllib3~=1.26.20",
     "plotly",
     "tabulate",
     "pytest",
