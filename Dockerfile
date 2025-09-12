@@ -31,16 +31,14 @@ RUN mkdir -p $LOGS_PATH
 
 WORKDIR $REPOSITORY_ROOT_PATH
 
-# Create and activate virtual environment
+# Create virtual environment
 ENV VENV_PATH="$REPOSITORY_ROOT_PATH/.venv"
-RUN uv venv --python 3.11 && \
-    chmod +x $VENV_PATH/bin/activate && \
-    $VENV_PATH/bin/activate
+RUN uv venv --python 3.11 $VENV_PATH
+ENV PATH="$VENV_PATH/bin:$PATH" \
+    VIRTUAL_ENV="$VENV_PATH"
 
-# Install Python dependencies
-RUN uv pip install -e .[dev] && \
-    uv pip install -e . && \
-    uv pip compile pyproject.toml -o requirements.txt
+# Install Python dependencies from the lock file
+RUN uv sync --frozen --no-dev
 
 # Ensure the script is executable
 RUN chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster.sh
