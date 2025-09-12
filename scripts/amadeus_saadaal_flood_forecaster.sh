@@ -50,8 +50,8 @@ else
 fi
 echo "Virtual environment activated $VIRTUAL_ENV"
 
-# # Load .env variables
-# source "$REPOSITORY_ROOT_PATH/.env"
+# Load .env variables
+source "$REPOSITORY_ROOT_PATH/.env"
 
 DATA_PROCESSING_COMMAND="flood-cli data-ingestion fetch-openmeteo historical && flood-cli data-ingestion fetch-openmeteo forecast && flood-cli data-ingestion fetch-river-data"
 INFERENCE_COMMAND="flood-cli ml infer -f 7 -m Prophet_001 -o database \"Dollow\""
