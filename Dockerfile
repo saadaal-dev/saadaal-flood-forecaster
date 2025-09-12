@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -33,12 +33,15 @@ WORKDIR $REPOSITORY_ROOT_PATH
 
 # Create virtual environment
 ENV VENV_PATH="$REPOSITORY_ROOT_PATH/.venv"
-RUN uv venv --python 3.11 $VENV_PATH
+RUN uv venv --python 3.12 $VENV_PATH
 ENV PATH="$VENV_PATH/bin:$PATH" \
     VIRTUAL_ENV="$VENV_PATH"
 
 # Install Python dependencies from the lock file
-RUN uv sync --frozen --no-dev
+RUN uv sync \
+        --locked \
+        --no-dev \
+        --no-editable
 
 # Ensure the script is executable
 RUN chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster.sh
