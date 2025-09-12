@@ -16,10 +16,10 @@ class TestConfig(unittest.TestCase):
         [openmeteo]
         api_url=https://api.open-meteo.com/v1/forecast
         """
-        self.mock_file_path = "mock_config.ini"
+        self.mock_file_path = "../mock_config.ini"
 
     @patch("os.path.exists", return_value=True)  # Simulate file existence
-    @patch("builtins.open", new_callable=mock_open, read_data="""[database]
+    @patch("builtins.open", new_callable=mock_open, read_data="""[data.database]
     dbname=testdb
     user=testuser
     host=localhost
