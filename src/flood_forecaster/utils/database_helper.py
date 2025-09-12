@@ -297,9 +297,9 @@ class DatabaseConnection:
                 df = pd.read_sql(query, con=connection)
 
                 # --- VALIDATIONS ---
-                print("\n🔍 Validation results:")
+                print("\nValidation results:")
 
-                # 1. Missing values
+                # Missing values
                 nulls = df.isnull().sum()
                 cols_with_nulls = nulls[nulls > 0]
                 if not cols_with_nulls.empty:
@@ -309,14 +309,14 @@ class DatabaseConnection:
                 else:
                     print("✅ No missing values detected")
 
-                # 2. Duplicate rows
+                # Duplicate rows
                 dup_count = df.duplicated().sum()
                 if dup_count > 0:
                     print(f"⚠️ Duplicate rows: {dup_count}")
                 else:
                     print("✅ No duplicate rows detected")
 
-                # 3. Outliers (basic numeric range check, e.g., z-score > 3)
+                # Outliers (basic numeric range check, e.g., z-score > 3)
                 numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
                 if not numeric_cols.empty:
                     zscores = (df[numeric_cols] - df[numeric_cols].mean()) / df[numeric_cols].std()
@@ -361,7 +361,7 @@ class DatabaseConnection:
 
                 print("\nSensor-specific validation results:")
 
-                # 1. Missing/null values
+                # Missing/null values
                 nulls = df.isnull().sum()
                 cols_with_nulls = nulls[nulls > 0]
                 if not cols_with_nulls.empty:
@@ -371,7 +371,7 @@ class DatabaseConnection:
                 else:
                     print("✅ No missing values (NULL)")
 
-                # Look for invalidvalues in 'value' column
+                # Look for invalid values in 'value' column
                 if "value" in df.columns:
                     bad_values = df[df["value"].isin(["---", "", "NULL"])]
                     zeros = df[df["value"].astype(str).str.strip() == "0"]
@@ -384,10 +384,24 @@ class DatabaseConnection:
 
                 # Timestamp sanity check
                 if "reading_ts" in df.columns:
-                    min_ts, max_ts = df["reading_ts"].min(), df["reading_ts"].max()
-                    print(f"\n\tTimestamp range: {min_ts} → {max_ts}")
-                    # if pd.Timestamp("2000-01-01") > min_ts or max_ts > pd.Timestamp("2030-01-01"):
-                    #     print("⚠️ Abnormal timestamps detected")
+                    # Ensure tz-aware (convert tz-naive to UTC)
+                    if pd.api.types.is_datetime64_any_dtype(df["reading_ts"]):
+                        if df["reading_ts"].dt.tz is None:
+                            df["reading_ts"] = df["reading_ts"].dt.tz_localize("UTC")
+                        else:
+                            df["reading_ts"] = df["reading_ts"].dt.tz_convert("UTC")
+
+                        min_ts, max_ts = df["reading_ts"].min(), df["reading_ts"].max()
+                        print(f"Timestamp range: {min_ts} → {max_ts}")
+
+                        # Define timestamp comparison bounds
+                        lower_bound = pd.Timestamp("1900-01-01", tz="UTC")
+                        upper_bound = pd.Timestamp("2030-01-01", tz="UTC")
+
+                        if min_ts < lower_bound or max_ts > upper_bound:
+                            print("⚠️ Invalid timestamps detected")
+                    else:
+                        print("⚠️ reading_ts column not recognized as datetime")
 
                 # Firmware version presence
                 if "firmware" in df.columns:
