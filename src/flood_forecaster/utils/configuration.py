@@ -3,10 +3,25 @@ import json
 import os
 from configparser import ConfigParser, ExtendedInterpolation
 from enum import Enum
+from pathlib import Path
 
 from flood_forecaster.data_model.weather import StationMapping
 
-DEFAULT_CONFIG_FILE_PATH = os.path.dirname(os.path.realpath(__file__)) + "/../../../config/config.ini"
+# Find the project root by looking for key files
+def _find_project_root():
+    """Find the project root directory by looking for characteristic files."""
+    current_path = Path(__file__).resolve()
+    
+    # Look for project root markers
+    for parent in current_path.parents:
+        if (parent / "config" / "config.ini").exists():
+            return parent / "config" / "config.ini"
+
+    # Fallback to relative path from current file location
+    fallback_path = os.path.dirname(os.path.realpath(__file__)) + "/../../../config/config.ini"
+    return fallback_path
+
+DEFAULT_CONFIG_FILE_PATH = str(_find_project_root())
 
 
 class DataSourceType(Enum):
