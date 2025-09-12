@@ -27,6 +27,6 @@
         "location": "Luuq",
         "river": "Juba",
         "upstream_stations": ["Luuq", "Dollow"],
-        "weather_locations": ["gedo__dollow", "gedo__luuq", "ethiopia__baan_dheer", "ethiopia__ellughena", "ethiopia__cogobbe", "ethiopia__horancia", "ethiopia__welmel_shet_river", "ethiopia__delo_mena", "ethiopia__tullu_dimtu", "ethiopia__magur", "ethiopia__yabelo"]
+        "weather_locations": ["gedo__dollow", "gedo__luuq", "ethiopia__baan_dheer", "ethiopia__ellughena", "ethiopia__cogobbe", "ethiopia__horancia", "ethiopia__welmel_shet_river", "ethiopia__delo_mena", "ethiopia__tullu_dimtu"]
     }
 }
