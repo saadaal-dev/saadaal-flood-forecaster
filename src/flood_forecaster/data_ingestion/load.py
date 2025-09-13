@@ -547,10 +547,10 @@ def load_inference_weather(
         _actual_df = df[df['location'] == location]
 
         if len(_actual_df) == _expected_len:
-            continue
-
-        print(f"WARNING: Missing weather data for location {location}. Expected {_expected_len} entries, got {len(_actual_df)}. Filling missing dates.")
-        _filled_dfs.append(__weather_df_without_missing_dates(df, location, min_date, max_date))
+            _filled_dfs.append(_actual_df)
+        else:
+            print(f"WARNING: Missing weather data for location {location}. Expected {_expected_len} entries, got {len(_actual_df)}. Filling missing dates.")
+            _filled_dfs.append(__weather_df_without_missing_dates(df, location, min_date, max_date))
 
     df = pd.concat(_filled_dfs, ignore_index=True).sort_values(by=['location', 'date'])
 
