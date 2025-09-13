@@ -148,12 +148,12 @@ def infer(station, config_path, forecast_days, date, model_type, output_type):
     The date is the reference date for the forecast is executed.
     The forecast_days parameter indicates how many days ahead the model should predict (1=today).
     """
-    # DATABASE mode is supported only if the date is not provided
+    # DATABASE mode has limitations if the date is not provided
     # Reasoning: the date stored in the DB is a timestamp associated to the moment the prediction is made.
     #            If the date is provided, it is assumed to be the date for which the prediction is made.
     output_type = DataOutputType.from_string(output_type)
     if output_type == DataOutputType.DATABASE and date is not None:
-        raise ValueError("DATABASE output type is supported only when date is not provided. Please use STDOUT or other output types.")
+        print("WARNING: date in DATABASE won't contain the time component, only the date part. This can generate misleading data.")
 
     # If date is not provided, use the current datetime
     # Will be used as the reference date for the forecast
