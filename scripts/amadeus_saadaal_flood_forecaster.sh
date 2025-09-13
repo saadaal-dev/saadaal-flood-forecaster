@@ -53,9 +53,9 @@ echo "Virtual environment activated $VIRTUAL_ENV"
 # Load .env variables
 source "$REPOSITORY_ROOT_PATH/.env"
 
-DATA_PROCESSING_COMMAND="python -m src.flood_forecaster_cli data-ingestion fetch-openmeteo historical && python -m src.flood_forecaster_cli data-ingestion fetch-openmeteo forecast && python -m src.flood_forecaster_cli data-ingestion fetch-river-data"
-INFERENCE_COMMAND="python -m src.flood_forecaster_cli ml infer -f 7 -m Prophet_001 -o database \"Dollow\""
-RISK_ASSESSMENT_COMMAND=$"python -m src.flood_forecaster_cli risk-assessment"
+DATA_PROCESSING_COMMAND="flood-cli data-ingestion fetch-openmeteo historical && flood-cli data-ingestion fetch-openmeteo forecast && flood-cli data-ingestion fetch-river-data"
+INFERENCE_COMMAND="flood-cli ml infer -f 7 -m Prophet_001 -o database \"Dollow\""
+RISK_ASSESSMENT_COMMAND="flood-cli risk-assessment"
 ALERT_COMMAND=$"echo 'Put here the alert command'"
 
 # List of commands to run (edit as needed)
