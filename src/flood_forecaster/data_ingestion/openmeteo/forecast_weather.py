@@ -38,7 +38,7 @@ def fetch_forecast(config: Config, openmeteo):
     location_labels, latitudes, longitudes = prepare_weather_locations(config)
     forecast_df = get_weather_forecast(location_labels, latitudes, longitudes, config, openmeteo)
 
-    persist_weather_data(config, forecast_df, "forecast_weather_daily", ForecastWeather, clear_existing=True)
+    persist_weather_data(config, forecast_df, "forecast_weather_daily", ForecastWeather, clear_existing=False)
     return forecast_df
 
 
