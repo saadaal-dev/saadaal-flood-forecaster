@@ -3,9 +3,9 @@ Data modelling Commands
 """
 
 import click
+
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.database_helper import DatabaseConnection
-
 from .common import common_options
 
 
@@ -84,3 +84,47 @@ def validate_table_data(configuration: Config, schema_name: str, table_name: str
     db_conn = DatabaseConnection(configuration)
     issues = db_conn.validate_table_data(schema_name, table_name)
     print("\nValidation issues:", issues)
+
+
+@database_model.command("insert-missing-historical-into-forecast",
+                        help="Insert historical weather rows since 2024-01-01 not present in forecast_weather for the same date and location into forecast_weather table")
+@click.option("--schema-name", default="flood_forecaster", help="Schema name")
+@click.option("--historical-table", default="historical_weather", help="Historical weather table name")
+@click.option("--forecast-table", default="forecast_weather", help="Forecast weather table name")
+@common_options
+def insert_missing_historical_into_forecast(
+        configuration: Config,
+        schema_name: str,
+        historical_table: str,
+        forecast_table: str,
+):
+    db_conn = DatabaseConnection(configuration)
+    # Only insert columns that exist in both tables
+    columns = [
+        "location_name",
+        "date",
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "precipitation_sum",
+        "rain_sum",
+        "precipitation_hours"
+    ]
+    columns_str = ", ".join(columns)
+    query = f'''
+        INSERT INTO {schema_name}.{forecast_table} ({columns_str})
+        SELECT {columns_str}
+        FROM {schema_name}.{historical_table} hw
+        WHERE hw.date >= '2024-01-01'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM {schema_name}.{forecast_table} fw
+            WHERE fw.date = hw.date
+              AND fw.location_name = hw.location_name
+          )
+        RETURNING {columns_str};
+    '''
+    results = db_conn.execute_query(query)
+    print(
+        f"Inserted rows into {schema_name}.{forecast_table} from {schema_name}.{historical_table} since 2024-01-01 (missing in forecast for same date/location):")
+    for row in results:
+        print(row)
