@@ -3,7 +3,6 @@ import importlib
 import os
 import pkgutil
 from typing import Optional
-from tabulate import tabulate
 
 import pandas as pd
 # import numpy as np
@@ -12,6 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.schema import CreateSchema
+from tabulate import tabulate
 
 from flood_forecaster.data_model import Base
 from flood_forecaster.utils.configuration import Config
@@ -41,7 +41,7 @@ class DatabaseConnection:
                 database=self.dbname
             )
             self.engine = create_engine(url)
-            print(f"Connected to database '{self.dbname}'")
+            print(f"Connected to database '{self.dbname}' in {self.host}")
         except SQLAlchemyError as e:
             print(f"Failed to connect to database: {str(e)}")
             raise

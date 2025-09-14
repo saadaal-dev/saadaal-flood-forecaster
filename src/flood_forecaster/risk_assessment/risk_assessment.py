@@ -41,7 +41,8 @@ def create_update_statement(river_station: RiverStation, risk_level: str) -> upd
                 .where(PredictedRiverLevel.location_name == str(river_station.name))\
                 .where(PredictedRiverLevel.risk_level.is_(None))\
                 .where(PredictedRiverLevel.level_m >= river_station.full_threshold)
-        
+    return None
+
 
 def execute_sql_update(river_station: RiverStation, risk_level: str, database_connection: DatabaseConnection):
     """
