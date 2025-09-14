@@ -153,7 +153,8 @@ def main():
     api_secret = os.getenv('MAILJET_API_SECRET')
 
     if not api_key or not api_secret:
-        raise EnvironmentError("MAILJET_API_KEY and MAILJET_API_SECRET must be set as environment variables.")
+        raise EnvironmentError(
+            "Check that Mailjet is configured for the email alerts. MAILJET_API_KEY and MAILJET_API_SECRET must be set as environment variables.")
 
     # Set up clients
     db_client = DatabaseConnection(config)
