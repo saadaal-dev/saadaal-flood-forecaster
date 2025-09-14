@@ -1,10 +1,10 @@
 import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 import pandas as pd
 from openmeteo_sdk import WeatherApiResponse
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 from flood_forecaster import DatabaseConnection
 from flood_forecaster.data_ingestion.openmeteo.common import (
@@ -108,7 +108,7 @@ def fetch_historical(config: Config, openmeteo):
     historical_df = get_historical_weather(location_labels, latitudes, longitudes, config, openmeteo, max_date)
 
     if historical_df is None:
-        print("No historical weather data to fetch.")
+        print("No historical weather data fetched.")
         return None
 
     persist_weather_data(config, historical_df, "historical_weather_daily", HistoricalWeather)
