@@ -3,9 +3,9 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 import pandas as pd
-from openmeteo_sdk import WeatherApiResponse
-from openmeteo_sdk import VariablesWithTime
 from openmeteo_sdk import VariableWithValues
+from openmeteo_sdk import VariablesWithTime
+from openmeteo_sdk import WeatherApiResponse
 from sqlalchemy.orm import Session
 
 from flood_forecaster import DatabaseConnection
@@ -34,10 +34,10 @@ def process_weather_responses(responses: List[WeatherApiResponse], location_labe
     daily_dfs = []
 
     for i, response in enumerate(responses):
-        print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
-        print(f"Elevation {response.Elevation()} m asl")
-        print(f"Timezone {response.Timezone()} {response.TimezoneAbbreviation()}")
-        print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
+        # print(f"Coordinates {response.Latitude()}°N {response.Longitude()}°E")
+        # print(f"Elevation {response.Elevation()} m asl")
+        # print(f"Timezone {response.Timezone()} {response.TimezoneAbbreviation()}")
+        # print(f"Timezone difference to GMT+0 {response.UtcOffsetSeconds()} s")
 
         # Parse response using the provided parsing function
         daily_data = parse_function(response)

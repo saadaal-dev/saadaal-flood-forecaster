@@ -56,7 +56,7 @@ def execute_sql_update(river_station: RiverStation, risk_level: str, database_co
     with database_connection.engine.connect() as conn:
         result = conn.execute(update_stmt)
         conn.commit()
-        print(f"Row(s) updated for station {river_station.id} with risk level {risk_level}: {result.rowcount}")
+        # print(f"Row(s) updated for station {river_station.id} with risk level {risk_level}: {result.rowcount}")
 
 
 def main():

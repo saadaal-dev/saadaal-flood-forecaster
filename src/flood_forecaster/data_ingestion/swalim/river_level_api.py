@@ -1,10 +1,10 @@
 from typing import Generator, List, Optional
 
 import pandas as pd
+import pandera.pandas as pa
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
-import pandera.pandas as pa
 
 from flood_forecaster import DatabaseConnection
 from flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
@@ -42,6 +42,7 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
         print(f"Error occurred: {err}")
         print("Couldn't fetch the latest river data")
 
+    print("Error: No river data found")
     return []
 
 
@@ -62,6 +63,7 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
                 # TODO: station_number=resolve_station_number(data_dict["Station"]),
             )
             new_level_data.append(station_level)
+    print("Fetched latest river levels for stations: " + ", ".join([level.location_name for level in new_level_data]))
     return new_level_data
 
 
