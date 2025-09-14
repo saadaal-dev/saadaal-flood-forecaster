@@ -1,6 +1,6 @@
+import json
 import os
 from datetime import datetime
-import json
 from typing import Optional, Tuple, List
 
 import numpy as np
@@ -178,7 +178,7 @@ def preprocess(station, config: Config, forecast_days=None):
     model_config = config.load_model_config()
 
     station_metadata = config.load_station_mapping()[station]
-    print(f"Station mapping:\n{json.dumps(station_metadata.__dict__, indent=2)}")
+    # print(f"Station mapping:\n{json.dumps(station_metadata.__dict__, indent=2)}")
 
     if forecast_days is None:
         forecast_days = int(model_config["forecast_days"])
@@ -470,7 +470,7 @@ def infer(
 
     print("Running inference...")
     station_metadata = config.load_station_mapping()[station]
-    print(f"Station mapping:\n{json.dumps(station_metadata.__dict__, indent=2)}")
+    # print(f"Station mapping:\n{json.dumps(station_metadata.__dict__, indent=2)}")
     station_lag_days = json.loads(model_config["river_station_lag_days"])
     weather_lag_days = json.loads(model_config["weather_lag_days"])
 
@@ -549,14 +549,14 @@ def infer(
         raise RuntimeError("Inference DataFrame is empty. Please check the input data and preprocessing steps.")
     
     # print first entry of inference_df as a JSON
-    print("Inference DataFrame:")
+    # print("Inference DataFrame:")
     # Convert Timestamp objects to strings to avoid serialization errors
     inference_record = inference_df.head(1).to_dict(orient='records')[0]
     for key, value in inference_record.items():
         if isinstance(value, pd.Timestamp) or isinstance(value, datetime):
             inference_record[key] = value.isoformat()
-    print(json.dumps(inference_record, indent=2))
-    print()
+    # print(json.dumps(inference_record, indent=2))
+    # print()
 
     y_diff = inference_df['y'].values[0]
     y = inference_df['lag01__level__m'].values[0] + y_diff
