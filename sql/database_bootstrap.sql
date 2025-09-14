@@ -77,6 +77,9 @@ CREATE TABLE IF NOT EXISTS forecast_weather
     wind_speed_10m_max            DOUBLE PRECISION
 );
 
+ALTER TABLE flood_forecaster.forecast_weather
+    ADD CONSTRAINT uq_forecast_location_date UNIQUE (location_name, date);
+
 -- =========================================
 -- Table: river_station_metadata
 -- =========================================
