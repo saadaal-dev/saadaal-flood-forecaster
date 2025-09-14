@@ -4,7 +4,7 @@ from typing import List
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from sqlalchemy import Column, Float, String, DateTime, Integer
+from sqlalchemy import Column, Float, String, DateTime, Integer, UniqueConstraint
 
 from . import Base
 
@@ -35,7 +35,10 @@ class HistoricalWeather(Base):
 @dataclass
 class ForecastWeather(Base):
     __tablename__ = 'forecast_weather'
-    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
+    __table_args__ = (
+        UniqueConstraint('location_name', 'date', name='uq_forecast_location_date'),
+        {"schema": "flood_forecaster"}  # Specify the schema
+    )
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))

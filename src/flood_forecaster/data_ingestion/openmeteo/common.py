@@ -6,6 +6,7 @@ import pandas as pd
 from openmeteo_sdk import VariableWithValues
 from openmeteo_sdk import VariablesWithTime
 from openmeteo_sdk import WeatherApiResponse
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from flood_forecaster import DatabaseConnection
@@ -94,12 +95,27 @@ def save_dataframe_to_db(
             # Convert DataFrame to weather objects
             df = df.drop(columns=["forecast_latitude"])
             df = df.drop(columns=["forecast_longitude"])
-            weather_objects = weather_model_class.from_dataframe(df)
 
             # Persist to database
-            session.add_all(weather_objects)
-            session.commit()
-            print(f"Inserted {len(weather_objects)} {weather_model_class.__name__} values into the database.")
+            if weather_model_class.__name__ == "ForecastWeather":
+                # Upsert for forecast data to avoid duplicates
+                table = weather_model_class.__table__
+                data = df.to_dict(orient="records")
+                insert_stmt = insert(table).values(data)
+                update_dict = {c.name: insert_stmt.excluded[c.name] for c in table.columns if c.name != "id"}
+                upsert_stmt = insert_stmt.on_conflict_do_update(
+                    index_elements=["location_name", "date"],
+                    set_=update_dict
+                )
+                session.execute(upsert_stmt)
+                session.commit()
+                print(f"Upserted {len(df)} {weather_model_class.__name__} values into the database.")
+            else:
+                # Direct insert for historical data
+                weather_objects = weather_model_class.from_dataframe(df)
+                session.add_all(weather_objects)
+                session.commit()
+                print(f"Inserted {len(weather_objects)} {weather_model_class.__name__} values into the database.")
 
 
 def save_dataframe_to_csv(config, df, filename) -> None:
