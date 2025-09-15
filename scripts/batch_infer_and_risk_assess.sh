@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 # Usage: $0 <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
 
