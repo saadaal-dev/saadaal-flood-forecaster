@@ -172,3 +172,6 @@ data/raw
 # Interim files (ML pipeline)
 # Those files are generated during the ML pipeline and should not be committed as they can be reproduced.
 data/interim
+
+# requests cache
+.cache.sqlite
