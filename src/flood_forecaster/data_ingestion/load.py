@@ -57,6 +57,12 @@ def load_history_weather_db(
         "precipitation_sum": 0.0,  # fill NaN with 0.0 for precipitation_sum
         "precipitation_hours": 0.0,  # fill NaN with 0.0 for precipitation_hours
     })
+    
+    # RESILIENCY: drop duplicate entries (if any)
+    df_count = len(df)
+    df = df.drop_duplicates(subset=["location", "date"], keep="last")
+    if len(df) < df_count:
+        print(f"Dropped {df_count - len(df)} duplicate weather entries")
 
     # Validate that we have data for all locations
     if not set(locations).issubset(set(df['location'].unique())):
@@ -107,6 +113,12 @@ def load_forecast_weather_db(
     })
     # Keep only relevant columns
     df = df[["location", "date", "precipitation_sum", "precipitation_hours"]]
+    
+    # RESILIENCY: drop forecast duplicate entries (if any)
+    df_count = len(df)
+    df = df.drop_duplicates(subset=["location", "date"], keep="last")
+    if len(df) < df_count:
+        print(f"Dropped {df_count - len(df)} duplicate forecast weather entries")
 
     # Validate that we have data for all locations
     if not set(locations).issubset(set(df['location'].unique())):
@@ -143,6 +155,12 @@ def load_river_level_db(
         "location_name": "location",
     })
     df = df.drop(columns=["id"])  # drop id column, not needed for the analysis
+
+    # RESILIENCY: drop duplicate entries (if any)
+    df_count = len(df)
+    df = df.drop_duplicates(subset=["location", "date"], keep="last")
+    if len(df) < df_count:
+        print(f"Dropped {df_count - len(df)} duplicate river level entries")
 
     # Validate that we have data for all locations
     if not set(locations).issubset(set(df['location'].unique())):
