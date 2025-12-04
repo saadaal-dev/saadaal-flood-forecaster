@@ -6,13 +6,12 @@ from typing import Iterable, Optional
 import numpy as np
 import pandas as pd
 import pandera.pandas as pa
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
 from flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather, WeatherDataFrameSchema
 from flood_forecaster.utils.configuration import Config, DataSourceType
 from flood_forecaster.utils.database_helper import DatabaseConnection
-
 
 pat = pa.typing
 
@@ -123,6 +122,21 @@ def load_forecast_weather_db(
     # Validate that we have data for all locations
     if not set(locations).issubset(set(df['location'].unique())):
         missing_locations = set(locations) - set(df['location'].unique())
+        print(f"ERROR: Missing weather forecast data for locations: {missing_locations}")
+        print(f"DEBUG: Requested locations: {sorted(locations)}")
+        print(f"DEBUG: Available locations in DB: {sorted(df['location'].unique().tolist())}")
+        print(f"DEBUG: Query date range: {date_begin} to {date_end}")
+        print(
+            f"DEBUG: Available date range in results: {df['date'].min() if len(df) > 0 else 'N/A'} to {df['date'].max() if len(df) > 0 else 'N/A'}")
+
+        # Check what data exists for these missing locations
+        db = DatabaseConnection(config)
+        with db.engine.connect() as conn:
+            for loc in missing_locations:
+                stmt = select(func.max(ForecastWeather.date)).where(ForecastWeather.location_name == loc)
+                max_date = conn.execute(stmt).scalar()
+                print(f"DEBUG: Last forecast date for '{loc}': {max_date}")
+
         raise ValueError(f"Missing weather forecast data for locations: {missing_locations}")
     
     # Validate that we have data for all dates in the range
@@ -130,7 +144,20 @@ def load_forecast_weather_db(
     unique_dates = df['date'].unique()
     if not set(all_dates).issubset(set(unique_dates)):
         missing_dates = set(all_dates) - set(unique_dates)
-        raise ValueError(f"Missing weather forecast data for dates: {missing_dates}")
+
+        # Changed from ERROR to WARNING - allow fill logic to handle missing dates
+        print(f"WARNING: Missing weather forecast data for dates: {sorted(missing_dates)}")
+        print(f"DEBUG: Expected {len(all_dates)} dates from {date_begin} to {date_end}")
+        print(f"DEBUG: Got {len(unique_dates)} unique dates")
+        print(f"DEBUG: Data by location:")
+        for loc in locations:
+            loc_data = df[df['location'] == loc]
+            if len(loc_data) > 0:
+                print(f"  - {loc}: {len(loc_data)} rows, dates {loc_data['date'].min()} to {loc_data['date'].max()}")
+            else:
+                print(f"  - {loc}: NO DATA")
+        print(f"WARNING: Missing dates will be filled by interpolation in load_inference_weather()")
+        # Don't raise - let the fill logic handle it
 
     return df  # type: ignore (ensured by pandera)
 
