@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from flood_forecaster.data_model.river_level import PredictedRiverLevel
 from flood_forecaster.ml_model.preprocess import preprocess_diff
@@ -42,27 +42,44 @@ def create_inference_insert_statement(
         forecast_days: int,
         date: datetime,
         level_m: float,
-) -> insert:
+):
     """
-    Create an SQL insert statement to store inference results.
-    
+    Create an SQL UPSERT statement to store inference results.
+    Uses INSERT ... ON CONFLICT UPDATE to update existing predictions instead of creating duplicates.
+
     Args:
         location: The location of the station.
         model_name: The name of the model used for inference.
         forecast_days: how many days ahead the prediction is made for (1=today).
-        date: The timestamp of the inference.
+        date: The datetime of the inference (will be converted to date only).
         level_m: The predicted river level in meters.
     
     Returns:
-        An SQLAlchemy insert statement.
+        An SQLAlchemy PostgreSQL insert statement with ON CONFLICT UPDATE.
     """
-    return insert(PredictedRiverLevel).values(
+    # Convert datetime to date only (strip time component)
+    date_only = date.date() if isinstance(date, datetime) else date
+
+    # Create PostgreSQL-specific insert statement with UPSERT capability
+    stmt = pg_insert(PredictedRiverLevel).values(
         location_name=location,
         ml_model_name=model_name,
         forecast_days=forecast_days,
-        date=date,
+        date=date_only,
         level_m=level_m
     )
+
+    # On conflict (duplicate location_name, date, ml_model_name), update the existing row
+    stmt = stmt.on_conflict_do_update(
+        constraint='uq_prediction_location_date_model',
+        set_={
+            'level_m': stmt.excluded.level_m,
+            'forecast_days': stmt.excluded.forecast_days,
+            'updated_at': datetime.now()
+        }
+    )
+
+    return stmt
 
 
 def store_inference_result(db_connection: DatabaseConnection, location, model_name, forecast_days, date, level_m):
