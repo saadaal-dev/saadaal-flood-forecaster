@@ -58,7 +58,7 @@ STATIONS=("Belet Weyne" "Bulo Burti" "Jowhar" "Dollow" "Luuq")
 
 DATA_PROCESSING_COMMAND="flood-cli data-ingestion fetch-openmeteo historical && flood-cli data-ingestion fetch-openmeteo forecast && flood-cli data-ingestion fetch-river-data"
 RISK_ASSESSMENT_COMMAND="flood-cli risk-assessment"
-ALERT_COMMAND="flood-cli alerts run-alert"
+ALERT_COMMAND="flood-cli alert"
 
 # List of commands to run (edit as needed)
 COMMANDS=(
