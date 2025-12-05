@@ -28,11 +28,18 @@ if [ ! -d "$VENV_PATH" ]; then
 fi
 
 # Activate the virtual environment for package installation
-source "$VENV_PATH"/bin/activate
+echo "Activating virtual environment..."
+if [ -f "$VENV_PATH/bin/activate" ]; then
+    source "$VENV_PATH/bin/activate"
+elif [ -f "$VENV_PATH/Scripts/activate" ]; then
+    source "$VENV_PATH/Scripts/activate"
+else
+    echo "Could not find activation script in $VENV_PATH"
+    exit 1
+fi
 echo "Virtual environment activated $VIRTUAL_ENV"
 
-# Install the required packages
-pip3 install -r $REPOSITORY_ROOT_PATH/requirements.txt
+
 
 # Clean up any previous builds
 echo "Cleaning up previous builds..."
@@ -49,4 +56,4 @@ chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster.sh
 echo "Installation completed successfully!"
 echo "To use the CLI, activate the virtual environment first:"
 echo "  source .venv/bin/activate"
-echo "Then try: flood_forecaster_cli --help"
+echo "Then try: flood-cli --help"
