@@ -6,8 +6,12 @@ Run this on the server to understand why forecast data is missing.
 
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import select, func
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from flood_forecaster.data_model.weather import ForecastWeather
 from flood_forecaster.utils.configuration import Config
@@ -57,19 +61,22 @@ def main():
             print(f"{row.location_name:<40} {str(row.min_date):<20} {str(row.max_date):<20} {row.count:<10}")
         print()
 
-        # Check for expected locations
-        expected_locations = [
-            'hiran__belet_weyne',
-            'ethiopia__tullu_dimtu',
-            'ethiopia__shabelle_gode',
-            'ethiopia__fafen_haren',
-            'ethiopia__debre_selam_arsi',
-            'ethiopia__fafen_gebredarre'
-        ]
+        # Load all weather locations from all stations in station-mapping.json
+        print("Loading weather locations from station-mapping.json...")
+        station_mapping = config.load_station_mapping()
+        all_weather_locations = set()
 
-        print("Status of critical locations:")
+        for station_name, station_metadata in station_mapping.items():
+            weather_locs = station_metadata.weather_locations
+            all_weather_locations.update(weather_locs)
+            print(f"  {station_name}: {len(weather_locs)} weather location(s)")
+
+        print(f"\nTotal unique weather locations across all stations: {len(all_weather_locations)}")
+        print()
+
+        print("Status of all weather locations:")
         print("-" * 80)
-        for loc in expected_locations:
+        for loc in sorted(all_weather_locations):
             loc_stmt = select(
                 func.count(),
                 func.max(ForecastWeather.date)

@@ -104,40 +104,32 @@ def save_dataframe_to_db(
                 df = df.drop(columns=["forecast_latitude"])
                 df = df.drop(columns=["forecast_longitude"])
 
-                # Persist to database
-                if weather_model_class.__name__ == "ForecastWeather":
-                    # Upsert for forecast data to avoid duplicates
-                    table = weather_model_class.__table__
-                    data = df.to_dict(orient="records")
+                # Persist to database - Use UPSERT for both historical and forecast to handle unique constraints
+                table = weather_model_class.__table__
+                data = df.to_dict(orient="records")
 
-                    print(f"DEBUG: Preparing upsert for {len(data)} records")
+                print(f"DEBUG: Preparing upsert for {len(data)} records")
 
-                    insert_stmt = insert(table).values(data)
-                    update_dict = {c.name: insert_stmt.excluded[c.name] for c in table.columns if c.name != "id"}
-                    upsert_stmt = insert_stmt.on_conflict_do_update(
-                        index_elements=["location_name", "date"],
-                        set_=update_dict
-                    )
-                    result = session.execute(upsert_stmt)
-                    session.commit()
+                insert_stmt = insert(table).values(data)
+                update_dict = {c.name: insert_stmt.excluded[c.name] for c in table.columns if c.name != "id"}
+                upsert_stmt = insert_stmt.on_conflict_do_update(
+                    index_elements=["location_name", "date"],
+                    set_=update_dict
+                )
+                result = session.execute(upsert_stmt)
+                session.commit()
 
-                    print(f"DEBUG: Upsert executed, rows affected: {result.rowcount}")
-                    print(f"Upserted {len(df)} {weather_model_class.__name__} values into the database.")
+                print(f"DEBUG: Upsert executed, rows affected: {result.rowcount}")
+                print(f"Upserted {len(df)} {weather_model_class.__name__} values into the database.")
 
-                    # Verify the data was actually written
-                    from sqlalchemy import select, func
-                    verify_stmt = select(func.count()).select_from(table).where(
-                        table.c.date >= df['date'].min()
-                    )
-                    count_result = session.execute(verify_stmt).scalar()
-                    print(f"DEBUG: Verification - Found {count_result} total rows with date >= {df['date'].min()}")
+                # Verify the data was actually written
+                from sqlalchemy import select, func
+                verify_stmt = select(func.count()).select_from(table).where(
+                    table.c.date >= df['date'].min()
+                )
+                count_result = session.execute(verify_stmt).scalar()
+                print(f"DEBUG: Verification - Found {count_result} total rows with date >= {df['date'].min()}")
 
-                else:
-                    # Direct insert for historical data
-                    weather_objects = weather_model_class.from_dataframe(df)
-                    session.add_all(weather_objects)
-                    session.commit()
-                    print(f"Inserted {len(weather_objects)} {weather_model_class.__name__} values into the database.")
 
             except Exception as e:
                 print(f"ERROR: Failed to save {weather_model_class.__name__} to database: {e}")
