@@ -37,17 +37,3 @@ def get_df_by_date(db_client, date_begin: datetime, risk_level='full') -> pd.Dat
     })
 
     return alert_table
-
-# def get_latest_date(db_client, last_x_days = 1) -> datetime:
-#     """
-#     Reads postgres database and returns the latest date from the river level table.
-#     Returns:
-#         datetime: The latest date found in the river level table.
-#     """
-#     query = select(PredictedRiverLevel.date).order_by(PredictedRiverLevel.date.desc()).limit(last_x_days)
-#     with db_client.engine.connect() as conn:
-#         result = conn.execute(query).fetchone()
-#     if result:
-#         return result[0]
-#     else:
-#         raise ValueError("No dates found in the river level table.")

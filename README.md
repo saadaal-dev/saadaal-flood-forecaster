@@ -6,28 +6,28 @@
 
 The project is organized as follows:
 
-| Path                                             | Description                                                                   |
-|--------------------------------------------------|-------------------------------------------------------------------------------|
-| `src/flood_forecaster/data_model/`               | Utility functions (e.g., alert dispatch, time helpers).                       |
-| `src/flood_forecaster/data_ingestion/`           | Ingestion modules for external APIs.                                          |
-| `src/flood_forecaster/data_ingestion/openmeteo/` | API integration for weather data from `Open-Meteo`.                           |
-| `src/flood_forecaster/data_ingestion/swalim/`    | API integration for weather data from `Open-Meteo`.                           |
-| `src/flood_forecaster/utils/`                    | Common helper modules (e.g., alert dispatch).                                 |
-| `src/flood_forecaster/prediction/`               | ML models and training logic for flood prediction.                            |
-| `src/flood_forecaster/recommendation_algorithm/` | Generates actionable alerts based on predictions.                             |
-| `src/flood_forecaster_cli/`                      | Command-line client for flood_forecaster.                                     |
-| `src/tests`                                      | Unit and integration tests.                                                   |
-| `install/`                                       | Environment setup scripts (Python dependencies).                              |
-| `scripts/`                                       | Cron-scheduled automation jobs for running models.                            |
-| `sql/`                                           | Database schema and setup scripts for PostgreSQL.                             |
-| `data/interim`                                   | Data used for ML model training and validation.                               |
-| `data/raw`                                       | Sample environmental data from exploration phase.                             |
-| `data/static`                                    | Static metadata of stations and locations for weather and river data.         |
-| `config/`                                        | Configuration files: model paths, thresholds, env vars.                       |
-| `models/`                                        | Serialized trained models and artifacts.                                      |
-| `docs/`                                          | Architecture and design details, API docs, data model details and data flows. |
-| `legacy/data-extractor/`                         | [Obsolete] Scripts to extract raw environmental/hydrological data.            |
-| `pyproject.toml`                                 | Root project configuration defining a workspace                               |
+| Path                                             | Description                                                                                                        |
+|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `src/flood_forecaster/data_model/`               | Utility functions (e.g., alert dispatch, time helpers).                                                            |
+| `src/flood_forecaster/data_ingestion/`           | Ingestion modules for external APIs.                                                                               |
+| `src/flood_forecaster/data_ingestion/openmeteo/` | API integration for weather data from `Open-Meteo`.                                                                |
+| `src/flood_forecaster/data_ingestion/swalim/`    | API integration for weather data from `Open-Meteo`.                                                                |
+| `src/flood_forecaster/utils/`                    | Common helper modules (e.g., alert dispatch).                                                                      |
+| `src/flood_forecaster/prediction/`               | ML models and training logic for flood prediction.                                                                 |
+| `src/flood_forecaster/recommendation_algorithm/` | Generates actionable alerts based on predictions.                                                                  |
+| `src/flood_forecaster_cli/`                      | Command-line client for flood_forecaster.                                                                          |
+| `src/tests`                                      | Unit and integration tests.                                                                                        |
+| `install/`                                       | Environment setup scripts (Python dependencies).                                                                   |
+| `scripts/`                                       | Cron-scheduled automation jobs for running models. See [Scripts Reference](docs/SCRIPTS_REFERENCE.md) for details. |
+| `sql/`                                           | Database schema and setup scripts for PostgreSQL.                                                                  |
+| `data/interim`                                   | Data used for ML model training and validation.                                                                    |
+| `data/raw`                                       | Sample environmental data from exploration phase.                                                                  |
+| `data/static`                                    | Static metadata of stations and locations for weather and river data.                                              |
+| `config/`                                        | Configuration files: model paths, thresholds, env vars.                                                            |
+| `models/`                                        | Serialized trained models and artifacts.                                                                           |
+| `docs/`                                          | Architecture and design details, API docs, data model details and data flows.                                      |
+| `legacy/data-extractor/`                         | [Obsolete] Scripts to extract raw environmental/hydrological data.                                                 |
+| `pyproject.toml`                                 | Root project configuration defining a workspace                                                                    |
 
 ---
 
@@ -171,6 +171,9 @@ Checkout the alert README.md here: `src/flood_forecaster/alert_module/README.md`
 The script to be set up in the CRON is the following: [amadeus_saadaal_flood_forecaster.sh](scripts/amadeus_saadaal_flood_forecaster.sh).
 The goal of this file is to run sequentially all the modules from data ingestion to alert sending.
 The logs of the CRON app will be stored in this folder: `logs/`. The creation of this folder is managed by the [install.sh](install.sh) script.
+
+📖 **For detailed information about all available scripts, see the [Scripts Reference Guide](docs/SCRIPTS_REFERENCE.md)
+**.
 ```bash
 crontab -e
 # Add the last line to the crontab

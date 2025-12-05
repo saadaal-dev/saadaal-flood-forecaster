@@ -36,7 +36,16 @@ def create_forecast_params(latitudes: List[float], longitudes: List[float]) -> D
 def fetch_forecast(config: Config, openmeteo):
     """Fetch weather forecast for all locations defined in the config file."""
     location_labels, latitudes, longitudes = prepare_weather_locations(config)
+    print(f"DEBUG: Fetching forecast for {len(location_labels)} locations")
+
     forecast_df = get_weather_forecast(location_labels, latitudes, longitudes, config, openmeteo)
+
+    print(f"DEBUG: Received forecast DataFrame with {len(forecast_df)} rows")
+    if len(forecast_df) > 0:
+        print(f"DEBUG: Forecast date range: {forecast_df['date'].min()} to {forecast_df['date'].max()}")
+        print(f"DEBUG: Locations in forecast: {forecast_df['location_name'].unique().tolist()}")
+    else:
+        print("WARNING: Forecast DataFrame is empty!")
 
     persist_weather_data(config, forecast_df, "forecast_weather_daily", ForecastWeather, clear_existing=False)
     return forecast_df

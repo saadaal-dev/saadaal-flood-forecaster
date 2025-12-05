@@ -86,7 +86,7 @@ def validate_table_data(configuration: Config, schema_name: str, table_name: str
     print("\nValidation issues:", issues)
 
 
-# NOTE: This command has been never used and it's only as a utility if needed
+# NOTE: This command has never been used and it's only as a utility if needed
 @database_model.command("insert-missing-historical-into-forecast",
                         help="Insert historical weather rows since 2024-01-01 not present in forecast_weather for the same date and location into forecast_weather table")
 @click.option("--schema-name", default="flood_forecaster", help="Schema name")

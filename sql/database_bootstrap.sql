@@ -30,18 +30,23 @@ CREATE TABLE IF NOT EXISTS historical_river_level
 CREATE TABLE IF NOT EXISTS predicted_river_level
 (
     id             SERIAL PRIMARY KEY,
-    location_name  VARCHAR(100),
-    date           TIMESTAMP,
+    location_name VARCHAR(100) NOT NULL,
+    date          DATE         NOT NULL,
     level_m        DOUBLE PRECISION,
     station_number VARCHAR(50),
-    ml_model_name  VARCHAR(100),
+    ml_model_name VARCHAR(100) NOT NULL,
     forecast_days  INTEGER,
-    risk_level     VARCHAR(50)
+    risk_level    VARCHAR(50),
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_prediction_location_date_model UNIQUE (location_name, date, ml_model_name)
 );
 
 -- Add comment to explain forecast_days column
 COMMENT ON COLUMN predicted_river_level.forecast_days IS 'Number of days into the future the forecast is for';
 COMMENT ON COLUMN predicted_river_level.risk_level IS 'Risk level of the forecasted river level, e.g., ''Low'', ''Medium'', ''High''';
+COMMENT ON COLUMN predicted_river_level.created_at IS 'Timestamp when the prediction was first created';
+COMMENT ON COLUMN predicted_river_level.updated_at IS 'Timestamp when the prediction was last updated';
 
 -- =========================================
 -- Table: historical_weather

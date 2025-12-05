@@ -118,13 +118,29 @@ def preprocess_weather(weather_df: pa.typing.DataFrame[WeatherDataFrameSchema], 
 
 
 def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDataFrameSchema]], lag_days=DEFAULT_WEATHER_LAG_DAYS):
-    # ensure index has unique values
+    # RESILIENCY: Remove any duplicate entries in the index before checking
+    # This handles edge cases where duplicates made it through the load process
+    deduplicated_weather_dfs = {}
+    for weather_location, weather_df in weather_dfs.items():
+        if weather_df.index.has_duplicates:
+            print(
+                f"WARNING: Found duplicate index values in weather data for {weather_location}, removing duplicates...")
+            # Keep last duplicate based on the original order (most recent data)
+            weather_df = weather_df[~weather_df.index.duplicated(keep='last')]
+            print(f"  Removed {weather_dfs[weather_location].index.duplicated().sum()} duplicate(s)")
+        deduplicated_weather_dfs[weather_location] = weather_df
+
+    # Use deduplicated data for processing
+    weather_dfs = deduplicated_weather_dfs
+
+    # Verify index has unique values after deduplication
     # Otherwise the merge will fail (dataframe will grow larger than expected)
     for weather_location, weather_df in weather_dfs.items():
         if weather_df.index.has_duplicates:
-            # Get duplicate index entries in weather_df
+            # This should never happen after deduplication, but keep as safety check
             duplicate_values = weather_df[weather_df.index.duplicated(keep='first')].index.unique().tolist()
-            raise ValueError(f"Weather data for {weather_location} has non-unique index values: {duplicate_values}. Please ensure the data is unique by date and location.")
+            raise ValueError(
+                f"Weather data for {weather_location} STILL has non-unique index values after deduplication: {duplicate_values}. This is a bug.")
 
     acc_df = None
     for weather_location, weather_df in weather_dfs.items():
