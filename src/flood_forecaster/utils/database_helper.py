@@ -5,7 +5,6 @@ import pkgutil
 from typing import Optional
 
 import pandas as pd
-# import numpy as np
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
@@ -15,6 +14,9 @@ from tabulate import tabulate
 
 from flood_forecaster.data_model import Base
 from flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class DatabaseConnection:
@@ -41,9 +43,9 @@ class DatabaseConnection:
                 database=self.dbname
             )
             self.engine = create_engine(url)
-            print(f"Connected to database '{self.dbname}' in {self.host}")
+            logger.debug(f"Connected to database '{self.dbname}' in {self.host}")
         except SQLAlchemyError as e:
-            print(f"Failed to connect to database: {str(e)}")
+            logger.error(f"Failed to connect to database: {str(e)}")
             raise
 
     @staticmethod
@@ -64,9 +66,9 @@ class DatabaseConnection:
             with self.engine.connect() as connection:
                 connection.execute(CreateSchema(schema_name, if_not_exists=True))
                 connection.commit()
-                print(f"Schema '{schema_name}' created (or already exists).")
+                logger.info(f"Schema '{schema_name}' created (or already exists).")
         except SQLAlchemyError as e:
-            print(f"Error creating schema '{schema_name}': {str(e)}")
+            logger.error(f"Error creating schema '{schema_name}': {str(e)}")
 
     def create_tables_from_data_model(self, schema_name: str, data_model_package: str) -> None:
         """
@@ -86,11 +88,11 @@ class DatabaseConnection:
                 connection.execute(text(f"SET search_path TO {schema_name};"))
                 # Create all tables using metadata from imported models
                 data_model.Base.metadata.create_all(bind=connection)
-                print(f"Tables created in schema '{schema_name}'.")
+                logger.info(f"Tables created in schema '{schema_name}'.")
                 Base.metadata.drop_all(bind=connection)
 
         except SQLAlchemyError as e:
-            print(f"Error creating tables in schema '{schema_name}': {str(e)}")
+            logger.error(f"Error creating tables in schema '{schema_name}': {str(e)}")
 
     def list_all_schemas(self) -> list:
         """
@@ -101,10 +103,10 @@ class DatabaseConnection:
         try:
             inspector = inspect(self.engine)  # Use SQLAlchemy Inspector
             schemas = inspector.get_schema_names()
-            print(f"Available schemas: {schemas}")
+            logger.info(f"Available schemas: {schemas}")
             return schemas
         except SQLAlchemyError as e:
-            print(f"Error fetching schemas: {str(e)}")
+            logger.error(f"Error fetching schemas: {str(e)}")
             return []
 
     def list_schemas_stats(self) -> list:
@@ -115,22 +117,22 @@ class DatabaseConnection:
         """
         try:
             query = """
-                SELECT n.nspname AS schema_name,
-                       pg_catalog.pg_get_userbyid(n.nspowner) AS schema_owner,
-                       pg_size_pretty(pg_catalog.pg_total_relation_size(c.oid)) AS schema_size,
-                       COUNT(t.tablename) AS table_count
-                FROM pg_catalog.pg_namespace n
-                LEFT JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid
-                LEFT JOIN pg_catalog.pg_tables t ON t.schemaname = n.nspname
-                WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
-                GROUP BY n.nspname, n.nspowner, c.oid
-                ORDER BY n.nspname
-            """
+                    SELECT n.nspname                                                AS schema_name,
+                           pg_catalog.pg_get_userbyid(n.nspowner)                   AS schema_owner,
+                           pg_size_pretty(pg_catalog.pg_total_relation_size(c.oid)) AS schema_size,
+                           COUNT(t.tablename)                                       AS table_count
+                    FROM pg_catalog.pg_namespace n
+                             LEFT JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid
+                             LEFT JOIN pg_catalog.pg_tables t ON t.schemaname = n.nspname
+                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+                    GROUP BY n.nspname, n.nspowner, c.oid
+                    ORDER BY n.nspname \
+                    """
             with self.engine.connect() as connection:
                 result = connection.execute(text(query))
                 return [row for row in result]
         except SQLAlchemyError as e:
-            print(f"Error listing schemas: {str(e)}")
+            logger.error(f"Error listing schemas: {str(e)}")
             return []
 
     def list_tables(self, schema_name: str) -> list:
@@ -151,12 +153,12 @@ class DatabaseConnection:
                 ]
                 result.append((table, columns))
             for table, columns in result:
-                print(f"Table: {table}")
+                logger.info(f"Table: {table}")
                 for column in columns:
-                    print(f"  Column: {column['name']} | Type: {column['type']}")
+                    logger.info(f"  Column: {column['name']} | Type: {column['type']}")
             return result
         except SQLAlchemyError as e:
-            print(f"Error listing tables in schema '{schema_name}': {str(e)}")
+            logger.error(f"Error listing tables in schema '{schema_name}': {str(e)}")
             return []
 
     def list_catalog_info(self) -> list:
@@ -167,27 +169,26 @@ class DatabaseConnection:
         """
         try:
             query = """
-            SELECT
-            n.nspname AS schema_name,
-            pg_catalog.PG_GET_USERBYID(n.nspowner) AS schema_owner,
-            (
-                SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = n.nspname
-            ) AS table_count,
-            (
-                SELECT count(*) FROM pg_catalog.pg_views WHERE schemaname = n.nspname
-            ) AS view_count,
-            (
-                SELECT count(*) FROM pg_catalog.pg_proc WHERE pronamespace = n.oid
-            ) AS function_count
-            FROM pg_catalog.pg_namespace n
-            WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
-            ORDER BY schema_name
-            """
+                    SELECT n.nspname                              AS schema_name,
+                           pg_catalog.PG_GET_USERBYID(n.nspowner) AS schema_owner,
+                           (SELECT count(*)
+                            FROM pg_catalog.pg_tables
+                            WHERE schemaname = n.nspname)         AS table_count,
+                           (SELECT count(*)
+                            FROM pg_catalog.pg_views
+                            WHERE schemaname = n.nspname)         AS view_count,
+                           (SELECT count(*)
+                            FROM pg_catalog.pg_proc
+                            WHERE pronamespace = n.oid)           AS function_count
+                    FROM pg_catalog.pg_namespace n
+                    WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+                    ORDER BY schema_name \
+                    """
             with self.engine.connect() as connection:
                 result = connection.execute(text(query))
                 return [row for row in result]
         except SQLAlchemyError as e:
-            print(f"Error listing schemas: {str(e)}")
+            logger.error(f"Error listing schemas: {str(e)}")
             return []
 
     def empty_table(self, model):
@@ -230,7 +231,7 @@ class DatabaseConnection:
         try:
             # Ensure the download path exists
             if not os.path.exists(data_download_path):
-                print(f"Directory '{data_download_path}' does not exist. Creating it...")
+                logger.info(f"Directory '{data_download_path}' does not exist. Creating it...")
                 os.makedirs(data_download_path)
 
             # Build the output file path
@@ -238,7 +239,7 @@ class DatabaseConnection:
 
             # Check if the file already exists
             if os.path.exists(output_file_path) and not force_overwrite:
-                print(
+                logger.warning(
                     f"File '{output_file_path}' already exists. Use force_overwrite=True to overwrite it."
                 )
                 return
@@ -249,7 +250,7 @@ class DatabaseConnection:
                 query_str += f" WHERE {where_clause}"
 
             query = text(query_str)
-            print(f"Executing query: {query.text}")
+            logger.info(f"Executing query: {query.text}")
 
             with self.engine.connect() as connection:
                 # Fetch data using Pandas
@@ -257,22 +258,22 @@ class DatabaseConnection:
 
                 # Save the DataFrame to a CSV file
                 df.to_csv(output_file_path, index=False)
-                print(
+                logger.info(
                     f"Data from '{schema_name}.{table_name}' downloaded to '{output_file_path}'"
                 )
 
-                print("\nPreview of downloaded data:")
-                print(tabulate(df.head(preview_rows), headers="keys", tablefmt="psql"))
+                logger.debug("\nPreview of downloaded data:")
+                logger.debug(tabulate(df.head(preview_rows), headers="keys", tablefmt="psql"))
 
         except SQLAlchemyError as e:
-            print(
+            logger.error(
                 f"Error fetching data from table '{schema_name}.{table_name}': {str(e)}"
             )
         except Exception as e:
-            print(f"An unexpected error occurred: {str(e)}")
+            logger.error(f"An unexpected error occurred: {str(e)}")
 
     def validate_table_data(
-        self, schema_name: str, table_name: str, hard_limit: int = 100000
+            self, schema_name: str, table_name: str, hard_limit: int = 100000
     ) -> None:
         """
         Validate table data: missing values, invalid values, outliers.
@@ -284,37 +285,37 @@ class DatabaseConnection:
                 count_query = text(f'SELECT COUNT(*) FROM "{schema_name}"."{table_name}"')
                 total_rows = connection.execute(count_query).scalar()
 
-                print(f"\nValidating table: {schema_name}.{table_name}")
-                print(f"Total rows: {total_rows:,}")
+                logger.info(f"\nValidating table: {schema_name}.{table_name}")
+                logger.info(f"Total rows: {total_rows:,}")
 
                 # Apply LIMIT if needed
                 if total_rows > hard_limit:
                     query = text(f'SELECT * FROM "{schema_name}"."{table_name}" LIMIT {hard_limit}')
-                    print(f"⚠️ Using LIMIT {hard_limit} for validation (large table)")
+                    logger.debug(f"⚠️ Using LIMIT {hard_limit} for validation (large table)")
                 else:
                     query = text(f'SELECT * FROM "{schema_name}"."{table_name}"')
 
                 df = pd.read_sql(query, con=connection)
 
                 # --- VALIDATIONS ---
-                print("\nValidation results:")
+                logger.info("\nValidation results:")
 
                 # Missing values
                 nulls = df.isnull().sum()
                 cols_with_nulls = nulls[nulls > 0]
                 if not cols_with_nulls.empty:
-                    print("⚠️ Missing values found:")
+                    logger.info("⚠️ Missing values found:")
                     for col, n in cols_with_nulls.items():
-                        print(f"   - {col}: {n} missing")
+                        logger.info(f"   - {col}: {n} missing")
                 else:
-                    print("✅ No missing values detected")
+                    logger.info("✅ No missing values detected")
 
                 # Duplicate rows
                 dup_count = df.duplicated().sum()
                 if dup_count > 0:
-                    print(f"⚠️ Duplicate rows: {dup_count}")
+                    logger.info(f"⚠️ Duplicate rows: {dup_count}")
                 else:
-                    print("✅ No duplicate rows detected")
+                    logger.info("✅ No duplicate rows detected")
 
                 # Outliers (basic numeric range check, e.g., z-score > 3)
                 numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
@@ -322,21 +323,22 @@ class DatabaseConnection:
                     zscores = (df[numeric_cols] - df[numeric_cols].mean()) / df[numeric_cols].std()
                     outlier_counts = (zscores.abs() > 3).sum()
                     if outlier_counts.sum() > 0:
-                        print("⚠️ Outliers detected in numeric columns:")
+                        logger.info("⚠️ Outliers detected in numeric columns:")
                         for col, n in outlier_counts.items():
                             if n > 0:
-                                print(f"   - {col}: {n} potential outliers")
+                                logger.info(f"   - {col}: {n} potential outliers")
                     else:
-                        print("✅ No strong outliers detected")
+                        logger.info("✅ No strong outliers detected")
                 else:
-                    print("\nNo numeric columns for outlier detection")
+                    logger.info("\nNo numeric columns for outlier detection")
 
         except SQLAlchemyError as e:
-            print(f"⚠️ Database error: {str(e)}")
+            logger.error(f"⚠️ Database error: {str(e)}")
         except Exception as e:
-            print(f"⚠️ Unexpected error: {str(e)}")
+            logger.error(f"⚠️ Unexpected error: {str(e)}")
 
-    def validate_sensor_readings(self, schema_name: str = "public", table_name: str = "sensor_readings", hard_limit: int = 100000):
+    def validate_sensor_readings(self, schema_name: str = "public", table_name: str = "sensor_readings",
+                                 hard_limit: int = 100000):
         """
         Specific validation for the sensor_readings table.
         Detects nulls, invalid values like '---', zeros where not expected, and out-of-range timestamps.
@@ -347,40 +349,42 @@ class DatabaseConnection:
                 count_query = text(f'SELECT COUNT(*) FROM "{schema_name}"."{table_name}"')
                 total_rows = connection.execute(count_query).scalar()
 
-                print(f"\nValidating table: {schema_name}.{table_name}")
-                print(f"Total rows: {total_rows:,}")
+                logger.info(f"\nValidating table: {schema_name}.{table_name}")
+                logger.info(f"Total rows: {total_rows:,}")
 
                 # Apply LIMIT if needed
                 if total_rows > hard_limit:
                     query = text(f'SELECT * FROM "{schema_name}"."{table_name}" LIMIT {hard_limit}')
-                    print(f"⚠️ Using LIMIT {hard_limit} for validation (large table)")
+                    logger.debug(f"⚠️ Using LIMIT {hard_limit} for validation (large table)")
                 else:
                     query = text(f'SELECT * FROM "{schema_name}"."{table_name}"')
 
                 df = pd.read_sql(query, con=connection)
 
-                print("\nSensor-specific validation results:")
+                logger.info("\nSensor-specific validation results:")
 
                 # Missing/null values
                 nulls = df.isnull().sum()
                 cols_with_nulls = nulls[nulls > 0]
                 if not cols_with_nulls.empty:
-                    print("⚠️ Missing values found:")
+                    logger.warning("⚠️ Missing values found:")
                     for col, n in cols_with_nulls.items():
-                        print(f"   - {col}: {n} missing")
+                        logger.warning(f"   - {col}: {n} missing")
                 else:
-                    print("✅ No missing values (NULL)")
+                    logger.info("✅ No missing values (NULL)")
 
                 # Look for invalid values in 'value' column
                 if "value" in df.columns:
                     bad_values = df[df["value"].isin(["---", "", "NULL"])]
                     zeros = df[df["value"].astype(str).str.strip() == "0"]
                     if not bad_values.empty:
-                        print(f"⚠️ Invalid values detected in 'value': {len(bad_values)} rows (---, empty, NULL)")
+                        logger.warning(
+                            f"⚠️ Invalid values detected in 'value': {len(bad_values)} rows (---, empty, NULL)")
                     if not zeros.empty:
-                        print(f"⚠️ '0' readings detected in 'value': {len(zeros)} rows (may be invalid depending on sensor)")
+                        logger.warning(
+                            f"⚠️ '0' readings detected in 'value': {len(zeros)} rows (may be invalid depending on sensor)")
                     if bad_values.empty and zeros.empty:
-                        print("✅ No invalid values in 'value'")
+                        logger.info("✅ No invalid values in 'value'")
 
                 # Timestamp sanity check
                 if "reading_ts" in df.columns:
@@ -392,24 +396,24 @@ class DatabaseConnection:
                             df["reading_ts"] = df["reading_ts"].dt.tz_convert("UTC")
 
                         min_ts, max_ts = df["reading_ts"].min(), df["reading_ts"].max()
-                        print(f"Timestamp range: {min_ts} → {max_ts}")
+                        logger.info(f"Timestamp range: {min_ts} → {max_ts}")
 
                         # Define timestamp comparison bounds
                         lower_bound = pd.Timestamp("1900-01-01", tz="UTC")
                         upper_bound = pd.Timestamp("2030-01-01", tz="UTC")
 
                         if min_ts < lower_bound or max_ts > upper_bound:
-                            print("⚠️ Invalid timestamps detected")
+                            logger.warning("⚠️ Invalid timestamps detected")
                     else:
-                        print("⚠️ reading_ts column not recognized as datetime")
+                        logger.warning("⚠️ reading_ts column not recognized as datetime")
 
                 # Firmware version presence
                 if "firmware" in df.columns:
                     firmware_nulls = df["firmware"].isnull().sum()
                     if firmware_nulls > 0:
-                        print(f"⚠️ Missing firmware versions: {firmware_nulls}")
+                        logger.warning(f"⚠️ Missing firmware versions: {firmware_nulls}")
                     else:
-                        print("✅ Firmware version present in all rows")
+                        logger.info("✅ Firmware version present in all rows")
 
         except Exception as e:
-            print(f"⚠️ Validation failed: {str(e)}")
+            logger.error(f"⚠️ Validation failed: {str(e)}")

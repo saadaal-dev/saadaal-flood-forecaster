@@ -27,9 +27,9 @@ def list_db_schemas(
     schemas = db_conn.list_all_schemas()
 
     # Print list of schemas
-    print("Schemas in the database:")
+    click.echo("Schemas in the database:")
     for schema in schemas:
-        print(f"- {schema}")
+        click.echo(f"- {schema}")
 
 
 @database_model.command("list-tables-from-schema", help="List all tables from given schema")
@@ -42,11 +42,11 @@ def list_tables_from_schema(
     db_conn = DatabaseConnection(configuration)
     # List all tables from a given schema
     tables = db_conn.list_tables(schema_name)
-    print(f"Tables in schema {schema_name}:")
+    click.echo(f"Tables in schema {schema_name}:")
     for table, columns in tables:
-        print(f"Table: {table}")
+        click.echo(f"Table: {table}")
         for column in columns:
-            print(f"  Column: {column['name']} | Type: {column['type']}")
+            click.echo(f"  Column: {column['name']} | Type: {column['type']}")
 
 
 @database_model.command("fetch-table-to-csv", help="Fetch table data to CSV")
@@ -72,8 +72,7 @@ def fetch_table_to_csv(
 @common_options
 def validate_sensor_readings(configuration: Config, schema_name: str, table_name: str):
     db_conn = DatabaseConnection(configuration)
-    issues = db_conn.validate_sensor_readings(schema_name, table_name)
-    print("\nValidation issues:", issues)
+    db_conn.validate_sensor_readings(schema_name, table_name)
 
 
 @database_model.command("validate-table-data", help="Validate table data")
@@ -82,50 +81,4 @@ def validate_sensor_readings(configuration: Config, schema_name: str, table_name
 @common_options
 def validate_table_data(configuration: Config, schema_name: str, table_name: str):
     db_conn = DatabaseConnection(configuration)
-    issues = db_conn.validate_table_data(schema_name, table_name)
-    print("\nValidation issues:", issues)
-
-
-# NOTE: This command has never been used and it's only as a utility if needed
-@database_model.command("insert-missing-historical-into-forecast",
-                        help="Insert historical weather rows since 2024-01-01 not present in forecast_weather for the same date and location into forecast_weather table")
-@click.option("--schema-name", default="flood_forecaster", help="Schema name")
-@click.option("--historical-table", default="historical_weather", help="Historical weather table name")
-@click.option("--forecast-table", default="forecast_weather", help="Forecast weather table name")
-@common_options
-def insert_missing_historical_into_forecast(
-        configuration: Config,
-        schema_name: str,
-        historical_table: str,
-        forecast_table: str,
-):
-    db_conn = DatabaseConnection(configuration)
-    # Only insert columns that exist in both tables
-    columns = [
-        "location_name",
-        "date",
-        "temperature_2m_max",
-        "temperature_2m_min",
-        "precipitation_sum",
-        "rain_sum",
-        "precipitation_hours"
-    ]
-    columns_str = ", ".join(columns)
-    query = f'''
-        INSERT INTO {schema_name}.{forecast_table} ({columns_str})
-        SELECT {columns_str}
-        FROM {schema_name}.{historical_table} hw
-        WHERE hw.date >= '2024-01-01'
-          AND NOT EXISTS (
-            SELECT 1
-            FROM {schema_name}.{forecast_table} fw
-            WHERE fw.date = hw.date
-              AND fw.location_name = hw.location_name
-          )
-        RETURNING {columns_str};
-    '''
-    results = db_conn.execute_query(query)
-    print(
-        f"Inserted rows into {schema_name}.{forecast_table} from {schema_name}.{historical_table} since 2024-01-01 (missing in forecast for same date/location):")
-    for row in results:
-        print(row)
+    db_conn.validate_table_data(schema_name, table_name)

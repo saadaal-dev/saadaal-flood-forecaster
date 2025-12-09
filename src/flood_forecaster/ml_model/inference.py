@@ -6,9 +6,13 @@ from flood_forecaster.data_model.river_level import PredictedRiverLevel
 from flood_forecaster.ml_model.preprocess import preprocess_diff
 from flood_forecaster.ml_model.registry import ModelManager
 from flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
-def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, station_metadata, stations_df, weather_df, station_lag_days, weather_lag_days, forecast_days):
+def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, station_metadata, stations_df, weather_df,
+                        station_lag_days, weather_lag_days, forecast_days):
     """
     Infer a prediction from raw data.
     
@@ -30,7 +34,7 @@ def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, sta
         forecast_days=forecast_days,
         infer=True,
     )
-    
+
     model = model_manager.load(model_path, model_name)
 
     return model_manager.infer(model, df)
@@ -98,4 +102,5 @@ def store_inference_result(db_connection: DatabaseConnection, location, model_na
         insert_stmt = create_inference_insert_statement(location, model_name, forecast_days, date, level_m)
         conn.execute(insert_stmt)
         conn.commit()
-        print(f"Inserted inference result for {location} with model {model_name} for {forecast_days} days ahead on {date} with level {level_m} m.")
+        logger.debug(
+            f"Inserted inference result for {location} with model {model_name} for {forecast_days} days ahead on {date} with level {level_m} m.")

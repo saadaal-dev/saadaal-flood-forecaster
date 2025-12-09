@@ -1,13 +1,13 @@
+import itertools
 from datetime import datetime
 from typing import List
-import itertools
 
 import click
 
-from flood_forecaster.utils.configuration import Config, DataOutputType
-from flood_forecaster.utils import configuration
-from flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
 from flood_forecaster.ml_model import api
+from flood_forecaster.ml_model.registry import MODEL_MANAGER_REGISTRY
+from flood_forecaster.utils import configuration
+from flood_forecaster.utils.configuration import Config, DataOutputType
 
 """
 Supports the following commands:
@@ -153,7 +153,8 @@ def infer(station, config_path, forecast_days, date, model_type, output_type):
     #            If the date is provided, it is assumed to be the date for which the prediction is made.
     output_type = DataOutputType.from_string(output_type)
     if output_type == DataOutputType.DATABASE and date is not None:
-        print("WARNING: date in DATABASE won't contain the time component, only the date part. This can generate misleading data.")
+        click.echo(
+            "WARNING: date in DATABASE won't contain the time component, only the date part. This can generate misleading data.")
 
     # If date is not provided, use the current datetime
     # Will be used as the reference date for the forecast
@@ -184,18 +185,19 @@ def bulk_infer(stations: List[str], forecast_days: List[int], model_types: List[
     # an insert will be made for each combination of station, forecast_days and model_type
     # NOTE: infer actually returns the predicted river level so we could externalize the database insert logic here
     for station, forecast_day, model_type in itertools.product(stations, forecast_days, model_types):
-        print(f"Running inference for station: {station}, forecast_days: {forecast_day}, model_type: {model_type}")
+        click.echo(f"Running inference for station: {station}, forecast_days: {forecast_day}, model_type: {model_type}")
         try:
             api.infer(station, config, forecast_day, None, model_type, _output_type)
         except Exception as e:
-            print(f"Error during inference for station {station}, forecast_days {forecast_day}, model_type {model_type}: {e}")
+            click.echo(
+                f"Error during inference for station {station}, forecast_days {forecast_day}, model_type {model_type}: {e}")
 
 
 @cli.command()
 def list_model_types():
-    print("Supported model types:")
+    click.echo("Supported model types:")
     for model_key in MODEL_MANAGER_REGISTRY.keys():
-        print(" - " + model_key)
+        click.echo(" - " + model_key)
 
 
 @cli.command()
@@ -206,9 +208,9 @@ def list_stations(config_path):
     """
     config = Config(config_path)
     stations = __get_stations(config)
-    print("Supported stations:")
+    click.echo("Supported stations:")
     for station in stations:
-        print(" - " + station)
+        click.echo(" - " + station)
 
 
 @cli.command()
@@ -221,10 +223,10 @@ def list_models(config_path):
     model_path = config.load_model_config().get("model_path", None)
 
     if model_path is None:
-        print("No model path configured. Please check your configuration file.")
+        click.echo("No model path configured. Please check your configuration file.")
         return
-    
-    print("Available pretrained models:")
+
+    click.echo("Available pretrained models:")
     model_params = api.list_model_params_from_model_path(model_path)
 
     # QICKFIX: replace forecast_days=None with * to make more explicit the wildcard
@@ -234,11 +236,11 @@ def list_models(config_path):
     ]
 
     if not model_params:
-        print("No pretrained models found.")
+        click.echo("No pretrained models found.")
         return
     
     # sort models by station, forecast_days and model_type
     model_params.sort(key=lambda x: (x[3], x[1], x[2]))
 
     for preprocessor_type, forecast_days, model_type, station in model_params:
-        print(f" - Station: \"{station}\", Forecast Days: {forecast_days}, Model Type: {model_type}")
+        click.echo(f" - Station: \"{station}\", Forecast Days: {forecast_days}, Model Type: {model_type}")

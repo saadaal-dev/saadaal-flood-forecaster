@@ -38,7 +38,8 @@ dependencies = [
     "tabulate",
     "pytest",
     "pytest-cov",
-    "pytest-mock"
+    "pytest-mock",
+    "sentry-sdk~=2.0",
 ]
 
 [project.optional-dependencies]

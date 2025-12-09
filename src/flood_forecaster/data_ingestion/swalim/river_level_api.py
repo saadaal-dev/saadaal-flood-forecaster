@@ -10,7 +10,9 @@ from flood_forecaster import DatabaseConnection
 from flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
 from flood_forecaster.data_model.river_station import get_river_station_names, get_river_station_metadata
 from flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.logging_config import get_logger
 
+logger = get_logger(__name__)
 
 def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
     """
@@ -35,14 +37,14 @@ def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
         return _get_new_river_levels(config, df)
 
     except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
-        print("Couldn't fetch the latest river data")
+        logger.error(f"HTTP error occurred: {http_err}")
+        logger.error("Couldn't fetch the latest river data")
 
     except requests.exceptions.RequestException as err:
-        print(f"Error occurred: {err}")
-        print("Couldn't fetch the latest river data")
+        logger.error(f"Error occurred: {err}")
+        logger.error("Couldn't fetch the latest river data")
 
-    print("Error: No river data found")
+    logger.error("Error: No river data found")
     return []
 
 
@@ -63,7 +65,8 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
                 # TODO: station_number=resolve_station_number(data_dict["Station"]),
             )
             new_level_data.append(station_level)
-    print("Fetched latest river levels for stations: " + ", ".join([level.location_name for level in new_level_data]))
+    logger.debug(
+        "Fetched latest river levels for stations: " + ", ".join([level.location_name for level in new_level_data]))
     return new_level_data
 
 
@@ -80,9 +83,11 @@ def __filter_river_data_exists(river_levels: List[HistoricalRiverLevel], session
             HistoricalRiverLevel.date == level.date
         ).first()
         if existing_entry:
-            print(f"River level for {level.location_name} on {level.date} already exists in the database. Skipping insertion.")
+            logger.debug(
+                f"River level for {level.location_name} on {level.date} already exists in the database. Skipping insertion.")
             if existing_entry.level_m != level.level_m:
-                print(f"WARNING: Existing level {existing_entry.level_m} does not match new level {level.level_m}.")
+                logger.warning(
+                    f"WARNING: Existing level {existing_entry.level_m} does not match new level {level.level_m}.")
         else:
             yield level
 
@@ -99,7 +104,7 @@ def insert_river_data(river_levels: List[HistoricalRiverLevel], config: Config, 
                 # keep all river levels, even if they already exist in the database
                 _river_levels = river_levels
 
-            print(f"Inserting {len(_river_levels)} river levels into the database...")
+            logger.debug(f"Inserting {len(_river_levels)} river levels into the database...")
             session.add_all(_river_levels)
             session.commit()
     
@@ -176,7 +181,7 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
     # get the station ID from the station name
     station = get_river_station_metadata(config, station_name)
     station_id = station.id
-    print(f"Fetching river data for station: {station_name} (ID: {station_id})")
+    logger.debug(f"Fetching river data for station: {station_name} (ID: {station_id})")
 
     # Fetch river data from the SWALIM API
     # This request returns a JSON with the river data for the given station.
@@ -259,7 +264,7 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
         # Parse the response
         data = response.json()
         if not data:
-            print(f"No data found for station: {station_name}")
+            logger.warning(f"No data found for station: {station_name}")
             return pd.DataFrame(
                 columns=[
                     "date",
@@ -283,7 +288,7 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
         
         if "gaugeReadingList" not in data and "previous_year" not in data and "gaugeReadingList" not in data["previous_year"]:
             # If the expected keys are not present, print an error message and raise an exception
-            print(f"Unexpected data format for station: {station_name}")
+            logger.error(f"Unexpected data format for station: {station_name}")
             raise ValueError(f"Unexpected data format for station: {station_name}")
         current_year_data_by_date = {entry["dateOfReadingStr"]: entry for entry in data["gaugeReadingList"]}
         previous_year_data_by_date = data["previous_year"]["gaugeReadingList"]
@@ -342,8 +347,8 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
             ]
         )
     except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
-        print("Couldn't fetch the river data from the API")
+        logger.error(f"HTTP error occurred: {http_err}")
+        logger.error("Couldn't fetch the river data from the API")
         raise RuntimeError(f"HTTP error occurred: {http_err}") from http_err
 
 
@@ -367,17 +372,18 @@ def load_river_data_from_csvs(config: Config, location_name: str, snrfa_file_pat
     :param config: Configuration object containing settings.
     """
     if not snrfa_file_path and not swalim_file_path:
+        logger.error("Must provide either snrfa_file_path or swalim_file_path")
         raise ValueError("Either snrfa_file_path or swalim_file_path must be provided.")
     
     snrfa_df = __load_snrfa_river_data(snrfa_file_path, location_name) if snrfa_file_path else StationDataFrameSchema.empty()
     swalim_df = __load_swalim_river_data(swalim_file_path, location_name) if swalim_file_path else StationDataFrameSchema.empty()
 
-    print(f"Loaded SNRFA data for {location_name}: {len(snrfa_df)} records")
-    print(f"Loaded SWALIM data for {location_name}: {len(swalim_df)} records")
+    logger.debug(f"Loaded SNRFA data for {location_name}: {len(snrfa_df)} records")
+    logger.debug(f"Loaded SWALIM data for {location_name}: {len(swalim_df)} records")
     
     # Check if both DataFrames are empty
     if snrfa_df.empty and swalim_df.empty:
-        print(f"No data found for location: {location_name}")
+        logger.error(f"No data found for location: {location_name}")
         raise ValueError(f"No valid data found for location: {location_name}")
     
     # Data reconciliation: Combine the two DataFrames
@@ -389,27 +395,27 @@ def load_river_data_from_csvs(config: Config, location_name: str, snrfa_file_pat
     df = df.sort_values(by=["date", "location"]).reset_index(drop=True)
 
     # Give metrics before and after reconciliation
-    print(f"Total records after reconciliation for {location_name}: {len(df)}")
-    print(f"Total dates in SNRFA data: {snrfa_df['date'].nunique()}")
-    print(f"Total dates in SWALIM data: {swalim_df['date'].nunique()}")
-    print(f"Missing dates in SNRFA data: {snrfa_df['date'].nunique() - df['date'].nunique()}")
-    print(f"Missing dates in SWALIM data: {swalim_df['date'].nunique() - df['date'].nunique()}")
-    print(f"Date range in SNRFA data: {snrfa_df['date'].dt.date.min()} to {snrfa_df['date'].dt.date.max()}")
-    print(f"Date range in SWALIM data: {swalim_df['date'].dt.date.min()} to {swalim_df['date'].dt.date.max()}")
-    print(f"Date range after reconciliation: {df['date'].dt.date.min()} to {df['date'].dt.date.max()}")
+    logger.debug(f"Total records after reconciliation for {location_name}: {len(df)}")
+    logger.debug(f"Total dates in SNRFA data: {snrfa_df['date'].nunique()}")
+    logger.debug(f"Total dates in SWALIM data: {swalim_df['date'].nunique()}")
+    logger.debug(f"Missing dates in SNRFA data: {snrfa_df['date'].nunique() - df['date'].nunique()}")
+    logger.debug(f"Missing dates in SWALIM data: {swalim_df['date'].nunique() - df['date'].nunique()}")
+    logger.debug(f"Date range in SNRFA data: {snrfa_df['date'].dt.date.min()} to {snrfa_df['date'].dt.date.max()}")
+    logger.debug(f"Date range in SWALIM data: {swalim_df['date'].dt.date.min()} to {swalim_df['date'].dt.date.max()}")
+    logger.debug(f"Date range after reconciliation: {df['date'].dt.date.min()} to {df['date'].dt.date.max()}")
     # Data availability in current year, past year, year before that
     current_year = pd.Timestamp.now().year
     df["year"] = df["date"].dt.year
     current_year_data = df[df["year"] == current_year]
     past_year_data = df[df["year"] == current_year - 1]
     year_before_data = df[df["year"] == current_year - 2]
-    print(f"Data available for {current_year}: {len(current_year_data)} records")
-    print(f"Data available for {current_year - 1}: {len(past_year_data)} records")
-    print(f"Data available for {current_year - 2}: {len(year_before_data)} records")
+    logger.info(f"Data available for {current_year}: {len(current_year_data)} records")
+    logger.info(f"Data available for {current_year - 1}: {len(past_year_data)} records")
+    logger.info(f"Data available for {current_year - 2}: {len(year_before_data)} records")
     
     # Check if there are any new river levels to insert
     if df.empty:
-        print(f"No new river levels found for {location_name}.")
+        logger.warning(f"No new river levels found for {location_name}.")
         return
 
     # Convert DataFrame to list of HistoricalRiverLevel objects

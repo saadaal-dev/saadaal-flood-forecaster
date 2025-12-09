@@ -1,8 +1,12 @@
 from math import ceil
 
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+
+from flood_forecaster.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def make_eval_df(test_df, test_y, pred_y):
@@ -27,7 +31,8 @@ def eval(model, test_df, predict_fn=__default_predict_fn):
     count_test_df_no_na = len(test_df.index)
 
     if count_test_df_no_na < count_test_df_raw:
-        print(f"WARNING: drop NA rows effect: {count_test_df_no_na}/{count_test_df_raw} ({count_test_df_no_na / count_test_df_raw:.2%})")
+        logger.warning(
+            f"WARNING: drop NA rows effect: {count_test_df_no_na}/{count_test_df_raw} ({count_test_df_no_na / count_test_df_raw:.2%})")
 
     test_X = test_df[[c for c in test_df.columns if c not in ["y", "date", "level__m"]]]
     test_y = test_df["y"]
@@ -43,12 +48,12 @@ def corr_chart(df, store_path=None, show=False):
     dfs = []
     for station in df["location"].unique():
         station_df = df[df["location"] == station].select_dtypes('number')
-        
+
         # plot the correlation between y (river level variation) and each numerical feature
         dfs.append(station_df.corr()["y"].drop(["y"]).to_frame(name="corr").assign(station=station))
-    
+
     corr_df = pd.concat(dfs, axis=0)
-    
+
     # plot heatmap (with correlation values) for each station, y is implicit.
     fig, ax = plt.subplots(1, 1, figsize=(24, 40))
     ax.set_title("Correlation between river level variations and input features per each station")

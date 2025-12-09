@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 from flood_forecaster import DatabaseConnection
 from flood_forecaster.data_ingestion.openmeteo.weather_location import get_weather_locations
 from flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def fetch_openmeteo_data(openmeteo, url: str, params: Dict[str, Any]) -> List[WeatherApiResponse]:
@@ -50,11 +53,11 @@ def process_weather_responses(responses: List[WeatherApiResponse], location_labe
 
 
 def persist_weather_data(
-    config: Config,
-    df: pd.DataFrame,
-    filename: str,
-    weather_model_class,
-    clear_existing: bool = False
+        config: Config,
+        df: pd.DataFrame,
+        filename: str,
+        weather_model_class,
+        clear_existing: bool = False
 ) -> None:
     """Common function to persist weather data to database or CSV"""
     if config.use_database_weather():
@@ -64,10 +67,10 @@ def persist_weather_data(
 
 
 def save_dataframe_to_db(
-    config: Config,
-    df: pd.DataFrame,
-    weather_model_class,
-    clear_existing: bool = False
+        config: Config,
+        df: pd.DataFrame,
+        weather_model_class,
+        clear_existing: bool = False
 ) -> None:
     """
     Save DataFrame to database, optionally clearing existing data.
@@ -83,21 +86,22 @@ def save_dataframe_to_db(
     db_client = DatabaseConnection(config)
 
     if getattr(weather_model_class, "__name__") not in ["HistoricalWeather", "ForecastWeather"]:
-        raise ValueError(f"weather_model_class must be either HistoricalWeather or ForecastWeather, got {weather_model_class.__name__}")
+        raise ValueError(
+            f"weather_model_class must be either HistoricalWeather or ForecastWeather, got {weather_model_class.__name__}")
 
     # Log DataFrame info before persisting
-    print(f"DEBUG: Attempting to save {len(df)} rows to {weather_model_class.__name__}")
+    logger.debug(f"DEBUG: Attempting to save {len(df)} rows to {weather_model_class.__name__}")
     if len(df) > 0:
-        print(f"DEBUG: Date range: {df['date'].min()} to {df['date'].max()}")
-        print(f"DEBUG: Unique locations: {df['location_name'].unique().tolist()}")
-        print(f"DEBUG: Sample data:\n{df.head(3)}")
+        logger.debug(f"DEBUG: Date range: {df['date'].min()} to {df['date'].max()}")
+        logger.debug(f"DEBUG: Unique locations: {df['location_name'].unique().tolist()}")
+        logger.debug(f"DEBUG: Sample data:\n{df.head(3)}")
 
     with db_client.engine.connect() as conn:
         with Session(bind=conn) as session:
             try:
                 if clear_existing:
                     # Empty the table for forecast data to replace it with new data
-                    print(f"Emptying the table for {weather_model_class.__name__} data...")
+                    logger.debug(f"Emptying the table for {weather_model_class.__name__} data...")
                     session.query(weather_model_class).delete()
 
                 # Convert DataFrame to weather objects
@@ -108,7 +112,7 @@ def save_dataframe_to_db(
                 table = weather_model_class.__table__
                 data = df.to_dict(orient="records")
 
-                print(f"DEBUG: Preparing upsert for {len(data)} records")
+                logger.debug(f"DEBUG: Preparing upsert for {len(data)} records")
 
                 insert_stmt = insert(table).values(data)
                 update_dict = {c.name: insert_stmt.excluded[c.name] for c in table.columns if c.name != "id"}
@@ -119,8 +123,8 @@ def save_dataframe_to_db(
                 result = session.execute(upsert_stmt)
                 session.commit()
 
-                print(f"DEBUG: Upsert executed, rows affected: {result.rowcount}")
-                print(f"Upserted {len(df)} {weather_model_class.__name__} values into the database.")
+                logger.debug(f"DEBUG: Upsert executed, rows affected: {result.rowcount}")
+                logger.info(f"Upserted {len(df)} {weather_model_class.__name__} values into the database.")
 
                 # Verify the data was actually written
                 from sqlalchemy import select, func
@@ -128,12 +132,12 @@ def save_dataframe_to_db(
                     table.c.date >= df['date'].min()
                 )
                 count_result = session.execute(verify_stmt).scalar()
-                print(f"DEBUG: Verification - Found {count_result} total rows with date >= {df['date'].min()}")
+                logger.debug(f"DEBUG: Verification - Found {count_result} total rows with date >= {df['date'].min()}")
 
 
             except Exception as e:
-                print(f"ERROR: Failed to save {weather_model_class.__name__} to database: {e}")
-                print(f"ERROR: Exception type: {type(e).__name__}")
+                logger.critical(f"ERROR: Failed to save {weather_model_class.__name__} to database: {e}")
+                logger.critical(f"ERROR: Exception type: {type(e).__name__}")
                 import traceback
                 traceback.print_exc()
                 session.rollback()
@@ -150,13 +154,15 @@ def save_dataframe_to_csv(config, df, filename) -> None:
     df.to_csv(file, index=False)
 
 
-def __get_variable_values_as_numpy(daily: VariablesWithTime, variable_index: int, variable_name: Optional[str]) -> np.ndarray:
+def __get_variable_values_as_numpy(daily: VariablesWithTime, variable_index: int,
+                                   variable_name: Optional[str]) -> np.ndarray:
     """
     Helper function to extract variable values as numpy array from daily data.
     """
     variable: Optional[VariableWithValues] = daily.Variables(variable_index)
     if variable is None:
-        raise ValueError(f"Variable index {variable_index} {' (' + variable_name + ')' if variable_name else ''} not found in daily data.")
+        raise ValueError(
+            f"Variable index {variable_index} {' (' + variable_name + ')' if variable_name else ''} not found in daily data.")
     return variable.ValuesAsNumpy()
 
 
@@ -171,9 +177,9 @@ def parse_daily_data(response: WeatherApiResponse, forecast: bool) -> Optional[d
     """
     daily = response.Daily()
     if daily is None:
-        print("No daily data available in the response.")
+        logger.warning("No daily data available in the response.")
         return None
-    
+
     # Extract variables as numpy arrays
     # NOTE: the order of variables needs to be the same as requested.
     res = {
@@ -195,5 +201,5 @@ def parse_daily_data(response: WeatherApiResponse, forecast: bool) -> Optional[d
     if forecast:
         res["precipitation_probability_max"] = __get_variable_values_as_numpy(daily, 5, "precipitation_probability_max")
         res["wind_speed_10m_max"] = __get_variable_values_as_numpy(daily, 6, "wind_speed_10m_max")
-    
+
     return res

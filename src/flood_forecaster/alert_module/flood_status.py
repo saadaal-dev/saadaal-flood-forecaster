@@ -1,12 +1,12 @@
-import logging
 from datetime import datetime
 
 import pandas as pd
 from sqlalchemy import select, func
 
 from flood_forecaster.data_model.river_level import PredictedRiverLevel
+from flood_forecaster.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def get_df_by_date(db_client, date_begin: datetime, risk_level='full') -> pd.DataFrame:
