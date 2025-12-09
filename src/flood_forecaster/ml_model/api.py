@@ -170,7 +170,7 @@ def __get_eval_output_path(config, station, forecast_days, model_type, suffix):
     model_config = config.load_model_config()
     evaluation_data_path = model_config["evaluation_data_path"]
     preprocessor_type = model_config["preprocessor_type"]
-    return evaluation_data_path + preprocessor_type + f"-f{forecast_days}-{station}-{model_type}{suffix}.png"
+    return evaluation_data_path + preprocessor_type + f"-f{forecast_days}-{station}-{model_type}{suffix}"
 
 
 def preprocess(station, config: Config, forecast_days=None):
@@ -276,11 +276,15 @@ def split(station, config, forecast_days=None):
     weather_lag_days = json.loads(model_config["weather_lag_days"])
     test_df = test_df.iloc[max([max(station_lag_days), max(weather_lag_days)]):, :]
 
+    # add error message if train or test set is empty (not enough data or wrong split date)
+    if train_df.empty:
+        raise RuntimeError(f"Training data is empty after split. Please check the split date '{split_date}' and the available data.")
+    if test_df.empty:
+        raise RuntimeError(f"Evaluation data is empty after split. Please check the split date '{split_date}' and the available data.")
+
     # print boundaries
-    print(json.dumps({
-        "train_df": (train_df["date"].min(), train_df["date"].max()),
-        "test_df": (test_df["date"].min(), test_df["date"].max())
-    }, indent=2))
+    print(f"Training data from {train_df['date'].min()} to {train_df['date'].max()} ({len(train_df):,.0f} entries).")
+    print(f"Evaluation data from {test_df['date'].min()} to {test_df['date'].max()} ({len(test_df):,.0f} entries).")
 
     # print % splits
     print("Training data split: {:.2%} ({:,.0f} entries)".format(len(train_df) / len(df), len(train_df)))
@@ -311,6 +315,107 @@ def train(station, config, forecast_days=None, model_type=None):
     model, model_full_path = model_manager.train_and_serialize(df, model_path=model_path, model_name=__get_model_name(config, station, forecast_days, model_type))
 
     print(f"Model training complete, stored in {model_full_path}.")
+
+
+def rmse(a, b):
+    """
+    Calculate the Root Mean Square Error between two arrays.
+    The RMSE is a measure of the differences between predicted and actual values where larger errors are penalized more heavily.
+    It is calculated as the square root of the average of the squared differences between predicted and actual values.
+
+    :param a: First array.
+    :param b: Second array.
+    :return: The RMSE value.
+    """
+    return ((a - b)**2).mean()**0.5
+
+
+def weighted_rmse(a, b, weights):
+    """
+    Calculate the Weighted Root Mean Square Error between two arrays.
+    The Weighted RMSE is a measure of the differences between predicted and actual values where larger errors are penalized more heavily,
+    with additional weights applied to each error term.
+    It is calculated as the square root of the weighted average of the squared differences between predicted and actual values.
+
+    :param a: First array.
+    :param b: Second array.
+    :param weights: Weights to apply to each error term.
+    :return: The Weighted RMSE value.
+    """
+    return (weights * (a - b)**2).sum() / weights.sum()**0.5
+
+
+def plateau_sigmoid_weight(x, threshold, max_threshold=None, steepness=2.0):
+    """
+    Function for calculating sigmoid weights based on 2 thresholds:
+    - threshold: the level at which the weight starts increasing
+    - max_threshold: the river level at which the weight reaches its maximum and remains constant thereafter
+
+    The sigmoid function is defined as:
+    weight = 1 / (1 + exp(-steepness * (x - threshold)))
+    where steepness controls how quickly the weight increases as x approaches the threshold.
+    Above max_threshold, the weight is set to 1.0 (maximum weight).
+
+    :param x: Input value or array of values.
+    :param threshold: The level at which the weight starts increasing.
+    :param max_threshold: The river level at which the weight reaches its maximum and remains constant thereafter.
+    :param steepness: Controls how quickly the weight increases as x approaches the threshold.
+    :return: The calculated weight(s).
+    """
+    if max_threshold is not None:
+        if hasattr(x, 'values'):
+            x_values = x.values
+        else:
+            x_values = x
+        above_max = x_values >= max_threshold
+        result = 1 / (1 + np.exp(-steepness * (x_values - threshold)))
+        result[above_max] = 1.0
+        return result
+    else:
+        return 1 / (1 + np.exp(-steepness * (x - threshold)))
+
+
+def get_weights(levels, level_moderate, level_high):
+    """
+    This weighting scheme is designed to put more emphasis on higher river levels where accurate predictions are critical.
+
+    Calculate weights based on river levels using a progressive sigmoid function until level_moderate,
+    and adds a constant weight above level_high (all events are considered equally important above this threshold,
+    a discontinuity is introduced here to highlight the criticality of these events).
+    The weights increase as the river level approaches and exceeds the moderate and high thresholds.
+
+    The weights are calculated as follows:
+    1. Base weight of 1.0 for all levels.
+    2. Additional weight of up to 4.0 as levels approach the moderate threshold (smoothened using a sigmoid function).
+    3. Additional weight of 5.0 for levels exceeding the high threshold (on top of the base and moderate weights).
+
+    Example weights:
+    - Level 0 (low): Weight = 1.0
+    - Level at moderate threshold: Weight = 1.0 + 4.0 = 5.0
+    - Level at high threshold: Weight = 1.0 + 4.0 + 5.0 = 10.0
+    - Level above high threshold: Weight = 1.0 + 4.0 + 5.0 = 10.0
+    
+    :param levels: Array of river levels.
+    :param level_moderate: Moderate threshold for river levels.
+    :param level_high: High threshold for river levels.
+    :return: Array of weights corresponding to the input river levels.
+    """
+    base_weight = 1.0
+    moderate_addition = 4.0
+    high_addition = 5.0
+
+    moderate_component = plateau_sigmoid_weight(
+        levels,
+        threshold=level_moderate,
+        max_threshold=level_high,  # same always at high river levels
+        steepness=2.0
+    ) * moderate_addition
+
+    high_mask = levels >= level_high
+    high_component = np.zeros(len(levels))
+    high_component[high_mask] = high_addition
+    weights = base_weight + moderate_component + high_component
+    return weights
 
 
 def eval(station_name: str, config: Config, forecast_days=None, model_type=None):
@@ -344,16 +449,20 @@ def eval(station_name: str, config: Config, forecast_days=None, model_type=None)
 
     pred_df = model_manager.eval(model, eval_df.drop(columns=["location"])).reset_index()
 
+    pred_df_path = __get_eval_output_path(config, station_name, forecast_days, model_type, "-predictions.csv")
+    print(f"Storing predictions in {pred_df_path}.")
+    pred_df.to_csv(pred_df_path, index=False)
+
     def __plot_eval_chart(df: pd.DataFrame, abs: bool, start_date: Optional[str] = None, end_date: Optional[str] = None,
                           suffix: str = ""):
-        suffix = ("" if abs else "_diff") + suffix
+        suffix = ("-abs" if abs else "-diff") + suffix
 
         if start_date is not None:
             df = df[df["date"] >= start_date]
         if end_date is not None:
             df = df[df["date"] < end_date]
 
-        eval_chart_path = __get_eval_output_path(config, station_name, forecast_days, model_type, suffix)
+        eval_chart_path = __get_eval_output_path(config, station_name, forecast_days, model_type, suffix + ".png")
 
         fig, ax = eval_chart(
             df,
@@ -368,59 +477,41 @@ def eval(station_name: str, config: Config, forecast_days=None, model_type=None)
 
     for abs in [True, False]:
         __plot_eval_chart(pred_df, abs=abs)
-        __plot_eval_chart(pred_df, abs=abs, start_date="2023-10", end_date="2023-12", suffix="_zoom_1")
-        __plot_eval_chart(pred_df, abs=abs, start_date="2024-04", end_date="2024-06", suffix="_zoom_2")
-        __plot_eval_chart(pred_df, abs=abs, start_date="2024-07", end_date="2024-10", suffix="_zoom_3")
+        __plot_eval_chart(pred_df, abs=abs, start_date="2023-10", end_date="2023-12", suffix="-zoom_1")
+        __plot_eval_chart(pred_df, abs=abs, start_date="2024-04", end_date="2024-06", suffix="-zoom_2")
+        __plot_eval_chart(pred_df, abs=abs, start_date="2024-07", end_date="2024-10", suffix="-zoom_3")
 
     # print evaluation metrics
     print("Evaluation metrics:")
     print("Diff pred vs test")
     print((pred_df["abs_pred_y"] - pred_df["abs_test_y"]).describe())
 
-    print("RMSE: {:.2f}".format(((pred_df["abs_pred_y"] - pred_df["abs_test_y"])**2).mean()**0.5))
+    print(pred_df[["abs_pred_y", "abs_test_y"]])
+    print(eval_df["y"].describe())
 
-    # Baseline RMSE:
-    # replicate previous day's river level as prediction
-    # TODO: should it be forecast_days instead of 1?
-    baseline_pred_y = eval_df["y"].shift(1).dropna()
-    print("Baseline RMSE: {:.2f}".format(((baseline_pred_y - eval_df["y"].dropna())**2).mean()**0.5))
+    # NOTE: shift by <forecast_days> to replicate previous river level as prediction
+    # FIXME: this should target the diff, not the absolute level
+    baseline_pred_y = eval_df[f"lag{forecast_days:02}__level__m"]
 
-    # Weighted RMSE using progressive sigmoid function with weights based on river level thresholds
-    errors = (pred_df["abs_pred_y"] - pred_df["abs_test_y"])**2
-    base_weight = 1.0
-    moderate_addition = 4.0
-    high_addition = 5.0
+    baseline_rmse_value = rmse(baseline_pred_y, eval_df["y"])
+    print("Baseline RMSE: {:.2f}".format(baseline_rmse_value))
 
-    def plateau_sigmoid_weight(x, threshold, max_threshold=None, steepness=2.0):
-        """function for calculating sigmoid weights based on river level thresholds"""
+    baseline_weighted_rmse_value = weighted_rmse(
+        baseline_pred_y,
+        eval_df["y"],
+        get_weights(eval_df["y"], level_moderate, level_high)
+    )
+    print("Baseline Weighted RMSE: {:.2f}".format(baseline_weighted_rmse_value))
 
-        if max_threshold is not None:
-            if hasattr(x, 'values'):
-                x_values = x.values
-            else:
-                x_values = x
-            above_max = x_values >= max_threshold
-            result = 1 / (1 + np.exp(-steepness * (x_values - threshold)))
-            result[above_max] = 1.0
-            return result
-        else:
-            return 1 / (1 + np.exp(-steepness * (x - threshold)))
+    rmse_value = rmse(pred_df["abs_pred_y"], pred_df["abs_test_y"])
+    print("Model RMSE: {:.2f}".format(rmse_value))
 
-    moderate_component = plateau_sigmoid_weight(
+    weighted_rmse_value = weighted_rmse(
+        pred_df["abs_pred_y"],
         pred_df["abs_test_y"],
-        threshold=level_moderate,
-        max_threshold=level_high,  # same always at high river levels
-        steepness=2.0
-    ) * moderate_addition
-
-    high_mask = pred_df["abs_test_y"] >= level_high
-    high_component = np.zeros(len(pred_df))
-    high_component[high_mask] = high_addition
-    weights = base_weight + moderate_component + high_component
-    weighted_errors = errors * weights
-    weighted_rmse = (weighted_errors.sum() / weights.sum())**0.5
-    
-    print(f"Plateau Sigmoid Weighted RMSE: {weighted_rmse:.2f}")
+        get_weights(pred_df["abs_test_y"], level_moderate, level_high)
+    )
+    print("Model Weighted RMSE: {:.2f}".format(weighted_rmse_value))
 
 
 def build_model(station, config, forecast_days=None, model_type=None):
