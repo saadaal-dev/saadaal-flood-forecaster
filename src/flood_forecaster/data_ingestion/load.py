@@ -12,8 +12,10 @@ from flood_forecaster.data_model.river_level import HistoricalRiverLevel, Statio
 from flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather, WeatherDataFrameSchema
 from flood_forecaster.utils.configuration import Config, DataSourceType
 from flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.utils.logging_config import get_logger
 
 pat = pa.typing
+logger = get_logger(__name__)
 
 
 # TODO: make date_begin and date_end optional, so that it is uniform with __load_csv
@@ -29,7 +31,8 @@ def load_history_weather_db(
     :param date_end:
     :return: pandas dataframe
     """
-    print(f"Loading history weather data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
+    logger.info(
+        f"Loading history weather data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
 
     # QUICKFIX: transform dates into datetimes for DB interaction
     #           ignoring time information in date_begin and date_end
@@ -42,7 +45,7 @@ def load_history_weather_db(
             .where(HistoricalWeather.date <= _date_end))
     database = DatabaseConnection(config)
     df = pd.read_sql(stmt, database.engine)  # type: ignore (ensured by pandera)
-    print(f"Loaded {len(df)} rows from the database")
+    logger.info(f"Loaded {len(df)} rows from the database")
 
     df['date'] = pd.to_datetime(df['date'], utc=True)  # TODO: verify UTC / timezone management
     df['date'] = df['date'].dt.date  # convert datetime to date
@@ -61,7 +64,7 @@ def load_history_weather_db(
     df_count = len(df)
     df = df.drop_duplicates(subset=["location", "date"], keep="last")
     if len(df) < df_count:
-        print(f"Dropped {df_count - len(df)} duplicate weather entries")
+        logger.warning(f"Dropped {df_count - len(df)} duplicate weather entries")
 
     # Validate that we have data for all locations
     if not set(locations).issubset(set(df['location'].unique())):
@@ -76,12 +79,12 @@ def load_history_weather_db(
 
         # # FIXME: missing values
         # raise ValueError(f"Missing history weather data for dates: {missing_dates}")
-        print("WARNING: Missing history weather data for dates:")
+        logger.warning("WARNING: Missing history weather data for dates:")
         for missing_date in sorted(missing_dates):
-            print(f"  - {missing_date}")
+            logger.warning(f"  - {missing_date}")
 
         if date_end not in unique_dates:
-            print(f"WARNING: Last date ({date_end}) is missing, it will be filled with forecast data later")
+            logger.warning(f"WARNING: Last date ({date_end}) is missing, it will be filled with forecast data later")
 
     return df  # type: ignore (ensured by pandera)
 
@@ -90,7 +93,8 @@ def load_history_weather_db(
 def load_forecast_weather_db(
     config: Config, locations: Iterable[str], date_begin: date, date_end: date
 ) -> pat.DataFrame[WeatherDataFrameSchema]:
-    print(f"Loading forecast weather data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
+    logger.info(
+        f"Loading forecast weather data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
 
     # QUICKFIX: transform dates into datetimes for DB interaction
     #           ignoring time information in date_begin and date_end
@@ -103,8 +107,8 @@ def load_forecast_weather_db(
             .where(ForecastWeather.date < _date_end))
     database = DatabaseConnection(config)
     df = pd.read_sql(stmt, database.engine)  # type: ignore (ensured by pandera)
-    print(f"Loaded {len(df)} rows from the database")
-    
+    logger.info(f"Loaded {len(df)} rows from the database")
+
     df['date'] = pd.to_datetime(df['date'], utc=True)  # TODO: verify UTC / timezone management
     df['date'] = df['date'].dt.date  # convert datetime to date
     df = df.rename(columns={
@@ -117,16 +121,16 @@ def load_forecast_weather_db(
     df_count = len(df)
     df = df.drop_duplicates(subset=["location", "date"], keep="last")
     if len(df) < df_count:
-        print(f"Dropped {df_count - len(df)} duplicate forecast weather entries")
+        logger.warning(f"Dropped {df_count - len(df)} duplicate forecast weather entries")
 
     # Validate that we have data for all locations
     if not set(locations).issubset(set(df['location'].unique())):
         missing_locations = set(locations) - set(df['location'].unique())
-        print(f"ERROR: Missing weather forecast data for locations: {missing_locations}")
-        print(f"DEBUG: Requested locations: {sorted(locations)}")
-        print(f"DEBUG: Available locations in DB: {sorted(df['location'].unique().tolist())}")
-        print(f"DEBUG: Query date range: {date_begin} to {date_end}")
-        print(
+        logger.error(f"ERROR: Missing weather forecast data for locations: {missing_locations}")
+        logger.debug(f"DEBUG: Requested locations: {sorted(locations)}")
+        logger.debug(f"DEBUG: Available locations in DB: {sorted(df['location'].unique().tolist())}")
+        logger.debug(f"DEBUG: Query date range: {date_begin} to {date_end}")
+        logger.debug(
             f"DEBUG: Available date range in results: {df['date'].min() if len(df) > 0 else 'N/A'} to {df['date'].max() if len(df) > 0 else 'N/A'}")
 
         # Check what data exists for these missing locations
@@ -135,7 +139,7 @@ def load_forecast_weather_db(
             for loc in missing_locations:
                 stmt = select(func.max(ForecastWeather.date)).where(ForecastWeather.location_name == loc)
                 max_date = conn.execute(stmt).scalar()
-                print(f"DEBUG: Last forecast date for '{loc}': {max_date}")
+                logger.debug(f"DEBUG: Last forecast date for '{loc}': {max_date}")
 
         raise ValueError(f"Missing weather forecast data for locations: {missing_locations}")
     
@@ -146,17 +150,18 @@ def load_forecast_weather_db(
         missing_dates = set(all_dates) - set(unique_dates)
 
         # Changed from ERROR to WARNING - allow fill logic to handle missing dates
-        print(f"WARNING: Missing weather forecast data for dates: {sorted(missing_dates)}")
-        print(f"DEBUG: Expected {len(all_dates)} dates from {date_begin} to {date_end}")
-        print(f"DEBUG: Got {len(unique_dates)} unique dates")
-        print(f"DEBUG: Data by location:")
+        logger.warning(f"WARNING: Missing weather forecast data for dates: {sorted(missing_dates)}")
+        logger.debug(f"DEBUG: Expected {len(all_dates)} dates from {date_begin} to {date_end}")
+        logger.debug(f"DEBUG: Got {len(unique_dates)} unique dates")
+        logger.debug(f"DEBUG: Data by location:")
         for loc in locations:
             loc_data = df[df['location'] == loc]
             if len(loc_data) > 0:
-                print(f"  - {loc}: {len(loc_data)} rows, dates {loc_data['date'].min()} to {loc_data['date'].max()}")
+                logger.debug(
+                    f"  - {loc}: {len(loc_data)} rows, dates {loc_data['date'].min()} to {loc_data['date'].max()}")
             else:
-                print(f"  - {loc}: NO DATA")
-        print(f"WARNING: Missing dates will be filled by interpolation in load_inference_weather()")
+                logger.debug(f"  - {loc}: NO DATA")
+        logger.warning(f"WARNING: Missing dates will be filled by interpolation in load_inference_weather()")
         # Don't raise - let the fill logic handle it
 
     return df  # type: ignore (ensured by pandera)
@@ -166,7 +171,8 @@ def load_forecast_weather_db(
 def load_river_level_db(
     config: Config, locations: Iterable[str], date_begin: date, date_end: date
 ) -> pat.DataFrame[StationDataFrameSchema]:
-    print(f"Loading river level data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
+    logger.debug(
+        f"Loading river level data from database for locations {locations} from {date_begin} to {date_end} (inclusives)")
 
     stmt = (select(HistoricalRiverLevel)
             .where(HistoricalRiverLevel.location_name.in_(locations))
@@ -174,7 +180,7 @@ def load_river_level_db(
             .where(HistoricalRiverLevel.date <= date_end))
     database = DatabaseConnection(config)
     df = pd.read_sql(stmt, database.engine)  # type: ignore (ensured by pandera)
-    print(f"Loaded {len(df)} rows from the database")
+    logger.info(f"Loaded {len(df)} rows from the database")
     df['date'] = pd.to_datetime(df['date'], utc=True)  # TODO: verify UTC / timezone management
     df['date'] = df['date'].dt.date  # convert datetime to date
     df = df.rename(columns={
@@ -187,7 +193,7 @@ def load_river_level_db(
     df_count = len(df)
     df = df.drop_duplicates(subset=["location", "date"], keep="last")
     if len(df) < df_count:
-        print(f"Dropped {df_count - len(df)} duplicate river level entries")
+        logger.debug(f"Dropped {df_count - len(df)} duplicate river level entries")
 
     # Validate that we have data for all locations
     if not set(locations).issubset(set(df['location'].unique())):
@@ -201,9 +207,9 @@ def load_river_level_db(
         
         # # FIXME: missing values
         # raise ValueError(f"Missing river level data for dates: {missing_dates}")
-        print("WARNING: Missing river level data for dates:")
+        logger.warning("WARNING: Missing river level data for dates:")
         for missing_date in sorted(missing_dates):
-            print(f"  - {missing_date}")
+            logger.warning(f"  - {missing_date}")
 
     return df  # type: ignore (ensured by pandera)
 
@@ -259,7 +265,8 @@ def load_history_weather_csv(
         - precipitation_sum: float
         - precipitation_hours: float
     """
-    print(f"Loading history weather data from database for locations {locations} from {start_date} to {end_date} (inclusives)")
+    logger.debug(
+        f"Loading history weather data from database for locations {locations} from {start_date} to {end_date} (inclusives)")
     path = config.load_data_csv_config()["weather_history_data_path"]
     return load_weather_csv(path, start_date, end_date).loc[lambda df: df["location"].isin(locations)]
 
@@ -268,7 +275,8 @@ def load_history_weather_csv(
 def load_forecast_weather_csv(
     config: Config, locations: Iterable[str], start_date: Optional[date] = None, end_date: Optional[date] = None
 ) -> pat.DataFrame[WeatherDataFrameSchema]:
-    print(f"Loading weather forecast data from database for locations {locations} from {start_date} to {end_date} (inclusives)")
+    logger.debug(
+        f"Loading weather forecast data from database for locations {locations} from {start_date} to {end_date} (inclusives)")
     path = config.load_data_csv_config()["weather_forecast_data_path"]
     return load_weather_csv(path, start_date, end_date).loc[lambda df: df["location"].isin(locations)]
 
@@ -285,7 +293,8 @@ def load_river_level_csv(
         - date: datetime
         - level__m: float
     """
-    print(f"Loading river level data from database for locations {locations} from {start_date} to {end_date} (inclusives)")
+    logger.debug(
+        f"Loading river level data from database for locations {locations} from {start_date} to {end_date} (inclusives)")
     path = config.load_data_csv_config()["river_stations_data_path"]
     df = __load_csv(path, start_date, end_date, datefmt="%d/%m/%Y").loc[lambda df: df["location"].isin(locations)]  # type: ignore (ensured by pandera)
     df = df[["location", "date", "level__m"]]
@@ -424,7 +433,8 @@ def load_river_level(
         if len(_actual_df) == _expected_len:
             _filled_dfs.append(_actual_df)
         else:
-            print(f"WARNING: Missing river level data for location {location}. Expected {len(stations_date_range)} entries, got {len(_actual_df)}. Filling missing dates.")
+            logger.warning(
+                f"WARNING: Missing river level data for location {location}. Expected {len(stations_date_range)} entries, got {len(_actual_df)}. Filling missing dates.")
             _filled_dfs.append(__river_level_df_without_missing_dates(df, location, date_begin, date_end))
 
     return pd.concat(_filled_dfs, ignore_index=True).sort_values(by=['location', 'date'])  # type: ignore (ensured by pandera)
@@ -562,7 +572,7 @@ def load_inference_weather(
     df = None
     # load historical weather data for the last max(WEATHER_LAG) days if necessary
     if min_date < today:
-        print("Loading inference data (history) from", min_date, "to", history_max_date)
+        logger.debug("Loading inference data (history) from", min_date, "to", history_max_date)
         history_df = load_history_weather(config, locations, min_date, history_max_date)
         if locations is not None:
             acc.append(history_df[history_df["location"].isin(locations)])
@@ -572,7 +582,7 @@ def load_inference_weather(
 
     # load forecast weather data for the next min(WEATHER_LAG) days (forecast are negative lag) if necessary
     if max_date >= today:
-        print("Loading inference data (forecast) from", date, "to", max_date)
+        logger.debug("Loading inference data (forecast) from", date, "to", max_date)
         forecast_df = load_forecast_weather(config, locations, date, max_date)
 
         # filter locations
@@ -594,7 +604,8 @@ def load_inference_weather(
         if len(_actual_df) == _expected_len:
             _filled_dfs.append(_actual_df)
         else:
-            print(f"WARNING: Missing weather data for location {location}. Expected {_expected_len} entries, got {len(_actual_df)}. Filling missing dates.")
+            logger.warning(
+                f"WARNING: Missing weather data for location {location}. Expected {_expected_len} entries, got {len(_actual_df)}. Filling missing dates.")
             _filled_dfs.append(__weather_df_without_missing_dates(df, location, min_date, max_date))
 
     df = pd.concat(_filled_dfs, ignore_index=True).sort_values(by=['location', 'date'])

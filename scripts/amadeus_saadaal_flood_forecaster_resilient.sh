@@ -16,6 +16,14 @@ SUCCESS_COUNT=0
 FAILURE_COUNT=0
 SKIPPED_COUNT=0
 
+# flood-cli commands
+FETCH_RIVER_LEVEL_DATA_COMMAND="flood-cli data-ingestion fetch-river-data"
+FETCH_HISTORICAL_WEATHER_DATA_COMMAND="flood-cli data-ingestion fetch-openmeteo historical"
+FETCH_FORECAST_WEATHER_DATA_COMMAND="flood-cli data-ingestion fetch-openmeteo forecast"
+ML_INFER_COMMAND="flood-cli ml infer -f 7 -m Prophet_001 -o database \"$STATION\""
+RISK_ASSESSMENT_COMMAND="flood-cli risk-assessment"
+ALERT_COMMAND="flood-cli alert"
+
 # Get the current datetime
 current_datetime=$(date '+%Y-%m-%d %H:%M:%S')
 echo "============================================================================"
@@ -51,7 +59,7 @@ VENV_PATH=$2
 echo "VENV_PATH: $VENV_PATH"
 
 # Move to the repository root path
-cd "$REPOSITORY_ROOT_PATH"
+cd "$REPOSITORY_ROOT_PATH" || exit
 
 # Activate the virtual environment
 if [ ! -d "$VENV_PATH" ]; then
@@ -175,12 +183,12 @@ echo "🚀 PHASE 1: DATA INGESTION"
 echo "============================================================================"
 
 # Historical weather (retry with backoff)
-retry_command "flood-cli data-ingestion fetch-openmeteo historical" "Fetch historical weather data" || {
+retry_command "$FETCH_HISTORICAL_WEATHER_DATA_COMMAND" "Fetch historical weather data" || {
     echo -e "${YELLOW}⚠️  Historical weather fetch failed, will use existing data${NC}"
 }
 
 # Forecast weather (retry with backoff) - CRITICAL
-if ! retry_command "flood-cli data-ingestion fetch-openmeteo forecast" "Fetch forecast weather data"; then
+if ! retry_command "$FETCH_FORECAST_WEATHER_DATA_COMMAND" "Fetch forecast weather data"; then
     echo -e "${YELLOW}⚠️  Forecast weather fetch failed, checking existing data...${NC}"
     if check_forecast_freshness; then
         echo -e "${GREEN}✅ Existing forecast data is sufficient for predictions${NC}"
@@ -197,7 +205,7 @@ if ! retry_command "flood-cli data-ingestion fetch-openmeteo forecast" "Fetch fo
 fi
 
 # River data (retry with backoff)
-retry_command "flood-cli data-ingestion fetch-river-data" "Fetch river level data" || {
+retry_command "$FETCH_RIVER_LEVEL_DATA_COMMAND" "Fetch river level data" || {
     echo -e "${YELLOW}⚠️  River data fetch failed, will use existing data${NC}"
 }
 
@@ -210,7 +218,7 @@ echo "==========================================================================
 STATIONS=("Belet Weyne" "Bulo Burti" "Jowhar" "Dollow" "Luuq")
 
 for STATION in "${STATIONS[@]}"; do
-    run_command "flood-cli ml infer -f 7 -m Prophet_001 -o database \"$STATION\"" "Inference for $STATION" || {
+    run_command "$ML_INFER_COMMAND" "Inference for $STATION" || {
         echo -e "${YELLOW}⚠️  Inference failed for $STATION, continuing with other stations${NC}"
     }
 done
@@ -220,7 +228,7 @@ echo "==========================================================================
 echo "📊 PHASE 3: RISK ASSESSMENT"
 echo "============================================================================"
 
-run_command "flood-cli risk-assessment" "Risk assessment for all stations" || {
+run_command "$RISK_ASSESSMENT_COMMAND" "Risk assessment for all stations" || {
     echo -e "${YELLOW}⚠️  Risk assessment failed, alerts may not be accurate${NC}"
 }
 
@@ -229,7 +237,7 @@ echo "==========================================================================
 echo "🔔 PHASE 4: ALERTING"
 echo "============================================================================"
 
-run_command "flood-cli alerts run-alert" "Send alerts" || {
+run_command "$ALERT_COMMAND" "Send alerts" || {
     echo -e "${YELLOW}⚠️  Alert sending failed${NC}"
 }
 

@@ -2,8 +2,11 @@
 The CLI entry point
 """
 
+import os
+
 import click
 
+from flood_forecaster.utils.logging_config import setup_logging
 from flood_forecaster_cli.commands import (database_model, data_ingestion, ml, run_alert, run_risk_assessment)
 
 
@@ -12,6 +15,9 @@ def cli():
     """
     Entrypoint
     """
+    # Initialize logging and Sentry at CLI startup
+    log_level = os.getenv('LOG_LEVEL', 'INFO')
+    setup_logging(level=log_level)
 
 
 cli.add_command(database_model)

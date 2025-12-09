@@ -6,6 +6,9 @@ import pandera.pandas as pa
 
 from flood_forecaster.data_ingestion.load import StationDataFrameSchema, WeatherDataFrameSchema
 from flood_forecaster.data_model.weather import StationMapping
+from flood_forecaster.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 DEFAULT_STATION_LAG_DAYS = [1, 3, 7, 14]
 DEFAULT_WEATHER_LAG_DAYS = [1, 3, 7, 14] + [0, -2, -6]
@@ -123,11 +126,11 @@ def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDat
     deduplicated_weather_dfs = {}
     for weather_location, weather_df in weather_dfs.items():
         if weather_df.index.has_duplicates:
-            print(
+            logger.warning(
                 f"WARNING: Found duplicate index values in weather data for {weather_location}, removing duplicates...")
             # Keep last duplicate based on the original order (most recent data)
             weather_df = weather_df[~weather_df.index.duplicated(keep='last')]
-            print(f"  Removed {weather_dfs[weather_location].index.duplicated().sum()} duplicate(s)")
+            logger.warning(f"  Removed {weather_dfs[weather_location].index.duplicated().sum()} duplicate(s)")
         deduplicated_weather_dfs[weather_location] = weather_df
 
     # Use deduplicated data for processing
@@ -259,7 +262,7 @@ def preprocess_diff(
         df = df.dropna()
     count_na = count_total - len(df.index)
     if count_na > 0:
-        print(f"WARNING: {count_na} rows with NA values were removed from the dataset.")
+        logger.warning(f"WARNING: {count_na} rows with NA values were removed from the dataset.")
 
     if infer:
         InferenceDataFrameSchema.validate(df)

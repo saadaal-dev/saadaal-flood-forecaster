@@ -98,9 +98,9 @@ def deploy_alert(mailjet_client, html_template_path: str, alert_status_table: pd
         ]
     }
     if send_alert(mailjet_client, data):
-        print("Alert sent successfully.")
+        logger.info("Alert sent successfully.")
     else:
-        print("Failed to send alert. Saving alert message as file.")
+        logger.warning("Failed to send alert. Saving alert message as file.")
         save_alert_as_file(final_html)
 
 
@@ -143,9 +143,9 @@ def main():
    
     prerequisites:
     - Ensure the following environment variables are set:
-        export MAILJET_API_KEY="mailjet_key": The Mailjet API key for sending emails.
-        export MAILJET_API_SECRET="mailjet_secret": The Mailjet API secret for authentication.
-        export POSTGRES_PASSWORD="db-password": The password for the PostgreSQL database as environment variable.
+        export MAILJET_API_KEY="mailjet_key": The Mailjet API key for sending emails. // pragma: allowlist secret
+        export MAILJET_API_SECRET="mailjet_secret": The Mailjet API secret for authentication. // pragma: allowlist secret
+        export POSTGRES_PASSWORD="db-password": The password for the PostgreSQL database as environment variable. // pragma: allowlist secret
     """
     # Mailing module
     load_dotenv()

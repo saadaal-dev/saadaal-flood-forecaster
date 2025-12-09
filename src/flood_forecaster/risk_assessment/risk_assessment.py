@@ -4,6 +4,9 @@ from flood_forecaster.data_model.river_level import PredictedRiverLevel
 from flood_forecaster.data_model.river_station import get_river_stations_static, RiverStation
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def create_update_statement(river_station: RiverStation, risk_level: str) -> update:
@@ -75,8 +78,9 @@ def main():
     
     # Process each river station
     for river_station in river_stations:
-        print(f"Processing station: {river_station.name}")
-        print(f"Moderate threshold: {river_station.moderate_threshold}, High threshold: {river_station.high_threshold}, Full threshold: {river_station.full_threshold}")
+        logger.info(f"Processing station: {river_station.name}")
+        logger.debug(
+            f"Moderate threshold: {river_station.moderate_threshold}, High threshold: {river_station.high_threshold}, Full threshold: {river_station.full_threshold}")
         for threshold in thresholds:
             execute_sql_update(river_station, threshold, database_connection)
 

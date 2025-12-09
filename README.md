@@ -53,6 +53,29 @@ Before submitting a PR, please ensure:
 * To detect new secrets, compared with the previously created baseline run the command: `tox -e detect-secrets`.
 * To run all validations from `tox.ini` just run `tox`
 
+## 📊 Logging and Monitoring
+
+The application uses **Sentry** for centralized logging, error tracking, and performance monitoring.
+
+### Quick Setup
+
+1. Get your Sentry DSN from https://sentry.io
+2. Add environment variables:
+   ```bash
+   export SENTRY_DSN="your-sentry-dsn-here"
+   export SENTRY_ENVIRONMENT="production"
+   export LOG_LEVEL="INFO"
+   ```
+3. Deploy - logs will automatically be sent to Sentry
+
+### Documentation
+
+- **Full Guide**: [docs/SENTRY_INTEGRATION.md](docs/SENTRY_INTEGRATION.md) - Complete integration details
+- **Test**: Run `python scripts/test_sentry_integration.py` to verify setup
+
+All `print()` statements in `/src` (excluding tests) have been replaced with proper `logging` calls that integrate with
+Sentry.
+
 ---
 
 ## 📦 Install the CLI

@@ -3,14 +3,16 @@ Data ingestion Commands
 """
 
 from typing import Optional
+
 import click
 
-from flood_forecaster.utils.configuration import Config
-
-from flood_forecaster_cli.commands.common import common_options, create_openmeteo_client
-from flood_forecaster.data_ingestion.openmeteo.historical_weather import fetch_historical
 from flood_forecaster.data_ingestion.openmeteo.forecast_weather import fetch_forecast
+from flood_forecaster.data_ingestion.openmeteo.historical_weather import fetch_historical
+from flood_forecaster.utils.configuration import Config
+from flood_forecaster.utils.logging_config import get_logger
+from flood_forecaster_cli.commands.common import common_options, create_openmeteo_client
 
+logger = get_logger(__name__)
 
 # Group for Data Ingestion Operations
 @click.group()
@@ -79,7 +81,7 @@ def fetch_river_data(configuration: Config):
 
     if historical_river_levels:
         new_river_levels_count = insert_river_data(historical_river_levels, configuration, avoid_duplicates=True)
-        print(f"Inserted {new_river_levels_count} river levels into the database.")
+        click.echo(f"Inserted {new_river_levels_count} river levels into the database.")
     else:
         click.echo("No new river data fetched.")
 
