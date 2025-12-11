@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS historical_weather
     precipitation_hours DOUBLE PRECISION
 );
 
+ALTER TABLE flood_forecaster.historical_weather
+    ADD CONSTRAINT uq_historical_weather_location_date UNIQUE (location_name, date);
+
 -- =========================================
 -- Table: forecast_weather
 -- =========================================

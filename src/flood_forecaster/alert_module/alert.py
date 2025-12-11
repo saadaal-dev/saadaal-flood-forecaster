@@ -165,7 +165,7 @@ def main():
     today = datetime.now().date()
     # today = today.replace(day=10,month=6,year=2025)  # Normalize to midnight for testing purposes
     latest_db_date = db_client.get_max_date(PredictedRiverLevel)
-    if latest_db_date.date() < today - timedelta(days=2):
+    if latest_db_date < today - timedelta(days=2):
         logger.warning("### Exiting process: predicted_river_level has not been updated in the last 2 days")
         exit(1)
 
