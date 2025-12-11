@@ -41,6 +41,7 @@ The project is organized as follows:
 ## ✅ Pull Request Checklist
 
 Before submitting a PR, please ensure:
+
 - [ ] The code runs correctly locally.
 - [ ] All tests pass and the code is linted.
 - [ ] Documentation is updated if needed.
@@ -58,6 +59,7 @@ Before submitting a PR, please ensure:
 
 > [!NOTE]
 > TODO: Simplify install.sh by making use of pyproject.toml and uv packager
+
 ### Recommended Installation (using install.sh)
 
 The recommended way to install the flood forecaster CLI is using the provided installation script:
@@ -74,9 +76,17 @@ bash install.sh
 The `install.sh` script will:
 
 - Create a virtual environment in `.venv/`
-- Install all required dependencies from `requirements.txt`
+- Install all required dependencies from `pyproject.toml`
 - Install the CLI package in editable mode
 - Set up the necessary permissions for scripts
+
+Create a file `.env` at the root of the project to set the passwords (such file will stay local as part of .gitignore):
+
+- POSTGRES_PASSWORD is required to connect to the Shaqodoon database.
+
+```txt
+POSTGRES_PASSWORD="XXX"
+```
 
 ### Manual Installation
 
