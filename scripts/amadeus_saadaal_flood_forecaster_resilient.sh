@@ -20,7 +20,7 @@ SKIPPED_COUNT=0
 FETCH_RIVER_LEVEL_DATA_COMMAND="flood-cli data-ingestion fetch-river-data"
 FETCH_HISTORICAL_WEATHER_DATA_COMMAND="flood-cli data-ingestion fetch-openmeteo historical"
 FETCH_FORECAST_WEATHER_DATA_COMMAND="flood-cli data-ingestion fetch-openmeteo forecast"
-ML_INFER_COMMAND="flood-cli ml infer -f 7 -m Prophet_001 -o database \"$STATION\""
+# ML_INFER_COMMAND is built per-station in the loop
 RISK_ASSESSMENT_COMMAND="flood-cli risk-assessment"
 ALERT_COMMAND="flood-cli alert"
 
@@ -218,6 +218,7 @@ echo "==========================================================================
 STATIONS=("Belet Weyne" "Bulo Burti" "Jowhar" "Dollow" "Luuq")
 
 for STATION in "${STATIONS[@]}"; do
+    ML_INFER_COMMAND="flood-cli ml infer -f 7 -m Prophet_001 -o database \"$STATION\""
     run_command "$ML_INFER_COMMAND" "Inference for $STATION" || {
         echo -e "${YELLOW}⚠️  Inference failed for $STATION, continuing with other stations${NC}"
     }
