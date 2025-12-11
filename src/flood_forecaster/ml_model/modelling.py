@@ -75,7 +75,7 @@ def eval_chart(eval_df, level_moderate, level_high, level_full, store_path=None,
     eval_df = eval_df.reset_index()
     fig, ax = plt.subplots(1, 1, figsize=(15, 7))
     ax.set_title("Validation data (green) vs Forecasted (blue)")
-    eval_df.plot(x="date", y=pred_y_col, ax=ax)
+    eval_df.plot(x="date", y=pred_y_col, ax=ax, marker='1')
     eval_df.plot(x="date", y=test_y_col, ax=ax, color='green', alpha=0.3, marker='o')
     ax.set_xlabel("date")
     if abs:

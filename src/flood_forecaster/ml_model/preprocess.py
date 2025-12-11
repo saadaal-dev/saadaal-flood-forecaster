@@ -16,9 +16,12 @@ ModellingDataFrameSchema = pa.DataFrameSchema({
     "location": pa.Column(str),
     "date": pa.Column(pa.DateTime),
     "level__m": pa.Column(float),
-    r"[a-zA-Z0-9_]+__lag\d+__level__m": pa.Column(pa.Float, regex=True, required=False),
-    r"[a-zA-Z0-9_]+__lag\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
-    r"[a-zA-Z0-9_]+__lag\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lagabs\d+__level__m": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lagabs\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lagabs\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lagdiff\d+__level__m": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lagdiff\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
+    r"[a-zA-Z0-9_]+__lagdiff\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
     r"[a-zA-Z0-9_]+__forecast\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
     r"[a-zA-Z0-9_]+__forecast\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
     "month_sin": pa.Column(float),
@@ -35,9 +38,12 @@ Summary:
  - location: str,
  - date: datetime,
  - level__m: float,
- - {location}__lag{day}__level__m: float,
- - {location}__lag{day}__precipitation_sum: float,
- - {location}__lag{day}__precipitation_hours: float,
+ - {location}__lagabs{day}__level__m: float,
+ - {location}__lagabs{day}__precipitation_sum: float,
+ - {location}__lagabs{day}__precipitation_hours: float,
+ - {location}__lagdiff{day}__level__m: float,
+ - {location}__lagdiff{day}__precipitation_sum: float,
+ - {location}__lagdiff{day}__precipitation_hours: float,
  - {location}__forecast{day}__precipitation_sum: float,
  - {location}__forecast{day}__precipitation_hours: float
  - y: float
@@ -58,6 +64,7 @@ def preprocess_station(station_df: pa.typing.DataFrame[StationDataFrameSchema], 
     """
     Preprocess a single station dataframe:
      - add lagged values for the level__m column
+     - add lagdiff values for the level__m column (difference between lagabs01 and lagN)
     """
 
     if only_lag_columns:
@@ -65,9 +72,23 @@ def preprocess_station(station_df: pa.typing.DataFrame[StationDataFrameSchema], 
     else:
         df = station_df[["level__m"]]
 
-    for lag_days in lag_days:
-        df = df.merge(station_df[["level__m"]].shift(lag_days).add_prefix(f"lag{lag_days:02d}__"), left_index=True, right_index=True)
+    # add lagged values for the level__m column
+    # i.e., lagabs01__level__m = level__m shifted by 1 day (data of yesterday)
+    #       lagabs03__level__m = level__m shifted by 3 days (data of 3 days ago)
+    for lag in lag_days:
+        df = df.merge(station_df[["level__m"]].shift(lag).add_prefix(f"lagabs{lag:02d}__"), left_index=True, right_index=True)
     
+    # Add lagdiff columns if at least lag01 and more lagN are present
+    # It will be the difference between the lag01 and lagN values.
+    # This will help the model to learn the trend better than absolute values.
+    # Example:
+    # If we have lagabs01__level__m = 10 and lag03__level__m = 2, then lagdiff03__level__m = 10 - 2 = 8
+    # This will help the model to learn that the level is sharply increasing.
+    if 1 in lag_days and any(lag > 1 for lag in lag_days):
+        for lag in lag_days:
+            if lag > 1:
+                df = df.assign(**{f"lagdiff{lag:02d}__level__m": df["lagabs01__level__m"] - df[f"lagabs{lag:02d}__level__m"]})
+
     return df
 
 
@@ -96,6 +117,7 @@ def preprocess_all_stations(ref_station_df: pa.typing.DataFrame[StationDataFrame
 def preprocess_weather(weather_df: pa.typing.DataFrame[WeatherDataFrameSchema], lag_days=DEFAULT_WEATHER_LAG_DAYS):
     """
     Preprocess a single station dataframe:
+     - add cumulative values for the precipitation_sum and precipitation_hours columns over lag days
      - add lagged values for the precipitation_sum and precipitation_hours columns
 
     NOTE: negative values are forecasts
@@ -104,6 +126,21 @@ def preprocess_weather(weather_df: pa.typing.DataFrame[WeatherDataFrameSchema], 
     # df = weather_df[["precipitation_sum", "precipitation_hours"]]
     df = weather_df[[]]  # keep only lag values in the final dataframe
 
+    # add cumulative precipitation over last / coming N lag days
+    # TODO: handle missing values
+    for lag in lag_days:
+        if lag > 1:
+            # add cumulative values for past days only
+            cum_df = weather_df[["precipitation_sum", "precipitation_hours"]].rolling(window=lag).sum().shift(1)
+            cum_df = cum_df.add_prefix(f"lagcum{lag:02d}__")
+            df = df.merge(cum_df, left_index=True, right_index=True)
+        else:
+            # add cumulative values for forecast days only
+            cum_df = weather_df[["precipitation_sum", "precipitation_hours"]].rolling(window=-lag + 1).sum().shift(lag)
+            cum_df = cum_df.add_prefix(f"forecastcum{-lag + 1:02d}__")
+            df = df.merge(cum_df, left_index=True, right_index=True)
+
+    # add precipitation lag/forecast values (individual days)
     for lag in lag_days:
         shift_df = weather_df[["precipitation_sum", "precipitation_hours"]].shift(lag)
         if lag <= 0:
@@ -156,7 +193,7 @@ def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS) -> pd.Da
         df = df[:shift]
         
     # apply final structure
-    df = df.assign(y=(df['level__m'] - df['lag01__level__m']))
+    df = df.assign(y=(df['level__m'] - df['lagabs01__level__m']))
 
     return df
 

@@ -130,6 +130,8 @@ def load_forecast_weather_db(
     unique_dates = df['date'].unique()
     if not set(all_dates).issubset(set(unique_dates)):
         missing_dates = set(all_dates) - set(unique_dates)
+        # TODO: relax this constraint, as forecast data might not be available for all dates
+        #       see load_history_weather_db for a similar case
         raise ValueError(f"Missing weather forecast data for dates: {missing_dates}")
 
     return df  # type: ignore (ensured by pandera)
@@ -545,8 +547,10 @@ def load_inference_weather(
 
     # load forecast weather data for the next min(WEATHER_LAG) days (forecast are negative lag) if necessary
     if max_date >= today:
-        print("Loading inference data (forecast) from", date, "to", max_date)
-        forecast_df = load_forecast_weather(config, locations, date, max_date)
+        # FIXME: date (min in range to fetch) should be today, not the original date
+        #        otherwise, if date is in the past we won't have forecast data available
+        print("Loading inference data (forecast) from", today, "to", max_date)
+        forecast_df = load_forecast_weather(config, locations, today, max_date)
 
         # filter locations
         if locations is not None:
@@ -554,7 +558,7 @@ def load_inference_weather(
 
         df = pd.concat(acc, axis=0, ignore_index=True)
     
-    # remove PyLance warning about df possibly being None
+    # removes PyLance warning about df possibly being None
     if df is None:
         raise ValueError("No weather data, this should never happen")
     

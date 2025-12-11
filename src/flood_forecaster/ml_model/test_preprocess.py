@@ -63,10 +63,10 @@ class TestPreprocessDiff(unittest.TestCase):
             "location": ["S1", "S1"],
             "date": [pd.Timestamp("2021-01-02"), pd.Timestamp("2021-01-03")],
             "level__m": [11.0, 13.0],
-            "lag01__level__m": [10.0, 11.0],
-            "s1__lag01__level__m": [10.0, 11.0],
-            "w1__lag01__precipitation_sum": [0.1, 0.2],
-            "w1__lag01__precipitation_hours": [1.0, 2.0],
+            "lagabs01__level__m": [10.0, 11.0],
+            "s1__lagabs01__level__m": [10.0, 11.0],
+            "w1__lagabs01__precipitation_sum": [0.1, 0.2],
+            "w1__lagabs01__precipitation_hours": [1.0, 2.0],
             "w1__forecast01__precipitation_sum": [0.2, 0.3],
             "w1__forecast01__precipitation_hours": [2.0, 3.0],
             "y": [1.0, 2.0],
@@ -120,10 +120,10 @@ class TestPreprocessDiff(unittest.TestCase):
             "location": ["S1"],
             "date": [pd.Timestamp("2021-01-02")],
             "level__m": [11.0],
-            "lag01__level__m": [10.0],
-            "s1__lag01__level__m": [10.0],
-            "w1__lag01__precipitation_sum": [0.1],
-            "w1__lag01__precipitation_hours": [1.0],
+            "lagabs01__level__m": [10.0],
+            "s1__lagabs01__level__m": [10.0],
+            "w1__lagabs01__precipitation_sum": [0.1],
+            "w1__lagabs01__precipitation_hours": [1.0],
             "w1__forecast01__precipitation_sum": [0.2],
             "w1__forecast01__precipitation_hours": [2.0],
             "w1__forecast02__precipitation_sum": [0.3],
@@ -184,13 +184,13 @@ class TestPreprocessDiff(unittest.TestCase):
         # (implicit) pd.Timestamp("2021-01-02").add(pd.Timedelta(days=(forecast_days-1))) = pd.Timestamp("2021-01-03")
         #   is the date where the prediction is made for
         # level__m: 13.0 is the absolute level at pd.Timestamp("2021-01-03") (prediction)
-        # y: 1.0 is the difference between level__m (prediction) and lag01__level__m (last known observation) = 13.0 - 10.0 = 1.0
+        # y: 1.0 is the difference between level__m (prediction) and lagabs01__level__m (last known observation) = 13.0 - 10.0 = 1.0
         expected_df = pd.DataFrame({
             "location": ["S1"],
             "date": [pd.Timestamp("2021-01-02")],
             "level__m": [13.0],
-            "lag01__level__m": [10.0],
-            "s1__lag01__level__m": [10.0],
+            "lagabs01__level__m": [10.0],
+            "s1__lagabs01__level__m": [10.0],
             "w1__forecast01__precipitation_sum": [0.2],
             "w1__forecast01__precipitation_hours": [2.0],
             "w1__forecast02__precipitation_sum": [0.3],

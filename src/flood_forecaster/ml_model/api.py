@@ -491,7 +491,7 @@ def eval(station_name: str, config: Config, forecast_days=None, model_type=None)
 
     # NOTE: shift by <forecast_days> to replicate previous river level as prediction
     # FIXME: this should target the diff, not the absolute level
-    baseline_pred_y = eval_df[f"lag{forecast_days:02}__level__m"]
+    baseline_pred_y = eval_df[f"lagabs{forecast_days:02}__level__m"]
 
     baseline_rmse_value = rmse(baseline_pred_y, eval_df["y"])
     print("Baseline RMSE: {:.2f}".format(baseline_rmse_value))
@@ -650,7 +650,7 @@ def infer(
     # print()
 
     y_diff = inference_df['y'].values[0]
-    y = inference_df['lag01__level__m'].values[0] + y_diff
+    y = inference_df['lagabs01__level__m'].values[0] + y_diff
     if pd.isna(y):
         raise RuntimeError("Predicted river level is NaN. Please check the input data and preprocessing steps.")
 

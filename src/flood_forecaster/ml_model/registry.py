@@ -3,6 +3,7 @@ from .modelling import eval
 from .RandomForestRegressor001.model import (
     train as RandomForestRegressor001_train,
     train_and_serialize as RandomForestRegressor001_train_and_serialize,
+    eval_preprocess as RandomForestRegressor001_eval_preprocess,
     infer as RandomForestRegressor001_infer,
     load as RandomForestRegressor001_load,
 )
@@ -35,7 +36,7 @@ MODEL_MANAGER_REGISTRY = {
         "train": RandomForestRegressor001_train,
         "train_and_serialize": RandomForestRegressor001_train_and_serialize,
         "load": RandomForestRegressor001_load,
-        "eval": eval,
+        "eval": lambda model, df: eval(model, RandomForestRegressor001_eval_preprocess(df), lambda model, df: model.predict(df)),
         "infer": RandomForestRegressor001_infer,
     }),
     "XGBoost_001": ModelManager(**{
