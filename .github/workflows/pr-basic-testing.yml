@@ -1,6 +1,6 @@
 ---
 name: "CI — Lint, Test & Build"
-on:
+"on":
   pull_request:
     paths:
       - "src/**"
@@ -63,8 +63,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --extra dev
       - name: Run mypy
-        run: uv run mypy src/flood_forecaster --ignore-missing-imports --no-strict-optional
-        continue-on-error: true  # advisory for now, remove once codebase is clean
+        run: >
+          uv run mypy src/flood_forecaster
+          --ignore-missing-imports
+          --no-strict-optional
+        continue-on-error: true
 
   unit-tests:
     needs: lint
