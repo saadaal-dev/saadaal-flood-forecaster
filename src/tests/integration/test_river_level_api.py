@@ -8,7 +8,6 @@ from flood_forecaster.utils.configuration import Config
 
 
 class TestConfig(unittest.TestCase):
-
     def test_fetch_latest_river_data(self):
         # Mock configuration
         config = Config("src/tests/mock_config.ini")
@@ -23,24 +22,29 @@ class TestConfig(unittest.TestCase):
 
         # Mock data
         river_levels = [
-            HistoricalRiverLevel(location_name="test", date=datetime.date(3000, 10, 1), level_m=5.0, ),
-            HistoricalRiverLevel(location_name="test", date=datetime.date(3000, 10, 1), level_m=4.5, )
+            HistoricalRiverLevel(
+                location_name="test",
+                date=datetime.date(3000, 10, 1),
+                level_m=5.0,
+            ),
+            HistoricalRiverLevel(
+                location_name="test",
+                date=datetime.date(3000, 10, 1),
+                level_m=4.5,
+            ),
         ]
 
         # Insert data into the database
         insert_river_data(river_levels, config)
 
-        from sqlalchemy import select, delete
+        from sqlalchemy import delete, select
+
         with database_connection.engine.connect() as conn:
             # Read rows
-            rows_to_delete = conn.execute(
-                select(HistoricalRiverLevel).where(HistoricalRiverLevel.location_name == "test")
-            ).all()
+            rows_to_delete = conn.execute(select(HistoricalRiverLevel).where(HistoricalRiverLevel.location_name == "test")).all()
 
             # Delete rows
-            conn.execute(
-                delete(HistoricalRiverLevel).where(HistoricalRiverLevel.location_name == "test")
-            )
+            conn.execute(delete(HistoricalRiverLevel).where(HistoricalRiverLevel.location_name == "test"))
             conn.commit()
 
             # Print deleted rows

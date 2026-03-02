@@ -8,11 +8,12 @@ from sqlalchemy.orm import Session
 
 from flood_forecaster import DatabaseConnection
 from flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
-from flood_forecaster.data_model.river_station import get_river_station_names, get_river_station_metadata
+from flood_forecaster.data_model.river_station import get_river_station_metadata, get_river_station_names
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
 
 def fetch_latest_river_data(config: Config) -> List[HistoricalRiverLevel]:
     """
@@ -65,8 +66,7 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
                 # TODO: station_number=resolve_station_number(data_dict["Station"]),
             )
             new_level_data.append(station_level)
-    logger.debug(
-        "Fetched latest river levels for stations: " + ", ".join([level.location_name for level in new_level_data]))
+    logger.debug("Fetched latest river levels for stations: " + ", ".join([level.location_name for level in new_level_data]))
     return new_level_data
 
 
@@ -78,16 +78,15 @@ def __filter_river_data_exists(river_levels: List[HistoricalRiverLevel], session
     :return: Generator yielding HistoricalRiverLevel objects that do not exist in the database.
     """
     for level in river_levels:
-        existing_entry = session.query(HistoricalRiverLevel.date, HistoricalRiverLevel.level_m).filter(
-            HistoricalRiverLevel.location_name == level.location_name,
-            HistoricalRiverLevel.date == level.date
-        ).first()
+        existing_entry = (
+            session.query(HistoricalRiverLevel.date, HistoricalRiverLevel.level_m)
+            .filter(HistoricalRiverLevel.location_name == level.location_name, HistoricalRiverLevel.date == level.date)
+            .first()
+        )
         if existing_entry:
-            logger.debug(
-                f"River level for {level.location_name} on {level.date} already exists in the database. Skipping insertion.")
+            logger.debug(f"River level for {level.location_name} on {level.date} already exists in the database. Skipping insertion.")
             if existing_entry.level_m != level.level_m:
-                logger.warning(
-                    f"WARNING: Existing level {existing_entry.level_m} does not match new level {level.level_m}.")
+                logger.warning(f"WARNING: Existing level {existing_entry.level_m} does not match new level {level.level_m}.")
         else:
             yield level
 
@@ -96,18 +95,17 @@ def __filter_river_data_exists(river_levels: List[HistoricalRiverLevel], session
 def insert_river_data(river_levels: List[HistoricalRiverLevel], config: Config, avoid_duplicates: bool = True) -> int:
     database_connection = DatabaseConnection(config)
 
-    with database_connection.engine.connect() as conn:
-        with Session(bind=conn) as session:
-            if avoid_duplicates:
-                _river_levels = list(__filter_river_data_exists(river_levels, session))
-            else:
-                # keep all river levels, even if they already exist in the database
-                _river_levels = river_levels
+    with database_connection.engine.connect() as conn, Session(bind=conn) as session:
+        if avoid_duplicates:
+            _river_levels = list(__filter_river_data_exists(river_levels, session))
+        else:
+            # keep all river levels, even if they already exist in the database
+            _river_levels = river_levels
 
-            logger.debug(f"Inserting {len(_river_levels)} river levels into the database...")
-            session.add_all(_river_levels)
-            session.commit()
-    
+        logger.debug(f"Inserting {len(_river_levels)} river levels into the database...")
+        session.add_all(_river_levels)
+        session.commit()
+
     return len(_river_levels)
 
 
@@ -153,9 +151,7 @@ def __load_swalim_river_data(file_path: str, location_name: str) -> pa.typing.Da
     river_level_current_year = df[["date", "level__m"]].copy()
     river_level_current_year["location"] = location_name
 
-    river_level_previous_year = df[["date", "previous_year_level_m"]].copy().rename(
-        columns={"previous_year_level_m": "level__m"}
-    )
+    river_level_previous_year = df[["date", "previous_year_level_m"]].copy().rename(columns={"previous_year_level_m": "level__m"})
     river_level_previous_year["location"] = location_name
     river_level_previous_year["date"] = river_level_previous_year["date"].apply(lambda d: d - pd.DateOffset(years=1))
 
@@ -247,17 +243,13 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
     try:
         response = requests.post(
             url,
-            data={
-                "station_id": station_id,
-                "start_timestamp": 0,
-                "end_timestamp": 0
-            },
+            data={"station_id": station_id, "start_timestamp": 0, "end_timestamp": 0},
             headers={
                 "Accept": "*/*",
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                 "Referer": "https://frrims.faoswalim.org/rivers/levels",
             },
-            verify=False  # Disable SSL verification
+            verify=False,  # Disable SSL verification
         )
         response.raise_for_status()
 
@@ -266,17 +258,9 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
         if not data:
             logger.warning(f"No data found for station: {station_name}")
             return pd.DataFrame(
-                columns=[
-                    "date",
-                    "bankfull",
-                    "highfloodrisk",
-                    "moderatefloodrisk",
-                    "longtermmean",
-                    "previousreadingvalue",
-                    "readingvalue"
-                ]
+                columns=["date", "bankfull", "highfloodrisk", "moderatefloodrisk", "longtermmean", "previousreadingvalue", "readingvalue"]
             )
-        
+
         # # DEBUG: store raw json data for debugging
         # swalim_dir = config.load_data_csv_config()["swalim_raw_data_dir"]
         # if not swalim_dir.endswith('/'):
@@ -285,7 +269,7 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
         #           f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "w") as f:
         #     import json
         #     json.dump(data, f, indent=4)
-        
+
         if "gaugeReadingList" not in data and "previous_year" not in data and "gaugeReadingList" not in data["previous_year"]:
             # If the expected keys are not present, print an error message and raise an exception
             logger.error(f"Unexpected data format for station: {station_name}")
@@ -307,7 +291,7 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
             current_year_date = entry["dateOfReadingStr"].split("-")
             current_year_date[2] = current_year  # Replace the year with the current year
             current_year_date = "-".join(current_year_date)
-            
+
             current_year_entry = current_year_data_by_date.get(current_year_date, {})
 
             try:
@@ -324,27 +308,11 @@ def fetch_river_data_from_chart_api(config: Config, station_name: str) -> pd.Dat
             longtermmean = current_year_entry.get("longtermMean", None)
             previousreadingvalue = entry["readingValue"]
             readingvalue = current_year_entry.get("readingValue", None)
-            river_levels.append((
-                date,
-                bankfull,
-                highfloodrisk,
-                moderatefloodrisk,
-                longtermmean,
-                previousreadingvalue,
-                readingvalue
-            ))
+            river_levels.append((date, bankfull, highfloodrisk, moderatefloodrisk, longtermmean, previousreadingvalue, readingvalue))
 
         return pd.DataFrame(
             river_levels,
-            columns=[
-                "date",
-                "bankfull",
-                "highfloodrisk",
-                "moderatefloodrisk",
-                "longtermmean",
-                "previousreadingvalue",
-                "readingvalue"
-            ]
+            columns=["date", "bankfull", "highfloodrisk", "moderatefloodrisk", "longtermmean", "previousreadingvalue", "readingvalue"],
         )
     except requests.exceptions.HTTPError as http_err:
         logger.error(f"HTTP error occurred: {http_err}")
@@ -374,18 +342,18 @@ def load_river_data_from_csvs(config: Config, location_name: str, snrfa_file_pat
     if not snrfa_file_path and not swalim_file_path:
         logger.error("Must provide either snrfa_file_path or swalim_file_path")
         raise ValueError("Either snrfa_file_path or swalim_file_path must be provided.")
-    
+
     snrfa_df = __load_snrfa_river_data(snrfa_file_path, location_name) if snrfa_file_path else StationDataFrameSchema.empty()
     swalim_df = __load_swalim_river_data(swalim_file_path, location_name) if swalim_file_path else StationDataFrameSchema.empty()
 
     logger.debug(f"Loaded SNRFA data for {location_name}: {len(snrfa_df)} records")
     logger.debug(f"Loaded SWALIM data for {location_name}: {len(swalim_df)} records")
-    
+
     # Check if both DataFrames are empty
     if snrfa_df.empty and swalim_df.empty:
         logger.error(f"No data found for location: {location_name}")
         raise ValueError(f"No valid data found for location: {location_name}")
-    
+
     # Data reconciliation: Combine the two DataFrames
     # Use snrfa_df data if available, otherwise use swalim_df data
     # Do reconciliation based on date and location
@@ -412,7 +380,7 @@ def load_river_data_from_csvs(config: Config, location_name: str, snrfa_file_pat
     logger.info(f"Data available for {current_year}: {len(current_year_data)} records")
     logger.info(f"Data available for {current_year - 1}: {len(past_year_data)} records")
     logger.info(f"Data available for {current_year - 2}: {len(year_before_data)} records")
-    
+
     # Check if there are any new river levels to insert
     if df.empty:
         logger.warning(f"No new river levels found for {location_name}.")
@@ -420,11 +388,7 @@ def load_river_data_from_csvs(config: Config, location_name: str, snrfa_file_pat
 
     # Convert DataFrame to list of HistoricalRiverLevel objects
     def convert_row_to_river_level(row):
-        return HistoricalRiverLevel(
-            location_name=row["location"],
-            date=row["date"],
-            level_m=row["level__m"]
-        )
+        return HistoricalRiverLevel(location_name=row["location"], date=row["date"], level_m=row["level__m"])
 
     river_levels = [convert_row_to_river_level(row) for row in df.to_dict(orient="records")]
 
@@ -441,12 +405,13 @@ def get_latest_swalim_river_csv(config: Config, location_name: str) -> str:
     """
     river_data_config = config.load_data_csv_config()
     swalim_raw_data_dir = river_data_config["swalim_raw_data_dir"]
-    if not swalim_raw_data_dir.endswith('/'):
-        swalim_raw_data_dir += '/'
-    
+    if not swalim_raw_data_dir.endswith("/"):
+        swalim_raw_data_dir += "/"
+
     # find the latest CSV file in the SWALIM raw data directory
-    import os
     import glob
+    import os
+
     latest_file = None
     for file in glob.glob(swalim_raw_data_dir + f"{location_name.lower().replace(' ', '_')}_river_levels_as_at_*.csv"):
         if os.path.isfile(file) and (latest_file is None or os.path.getmtime(file) > os.path.getmtime(latest_file)):
@@ -467,12 +432,13 @@ def get_latest_snrfa_river_csv(config: Config, location_name: str) -> str:
     """
     river_data_config = config.load_data_csv_config()
     snrfa_raw_data_dir = river_data_config["snrfa_raw_data_dir"]
-    if not snrfa_raw_data_dir.endswith('/'):
-        snrfa_raw_data_dir += '/'
-    
+    if not snrfa_raw_data_dir.endswith("/"):
+        snrfa_raw_data_dir += "/"
+
     # find the latest CSV file in the SNRFA raw data directory
-    import os
     import glob
+    import os
+
     latest_file = None
     for file in glob.glob(snrfa_raw_data_dir + f"snrfa_level_data-{location_name.lower().replace(' ', '_')}-*.csv"):
         if os.path.isfile(file) and (latest_file is None or os.path.getmtime(file) > os.path.getmtime(latest_file)):

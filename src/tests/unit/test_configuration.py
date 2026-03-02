@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
 
 from flood_forecaster.utils.configuration import Config
 
@@ -19,12 +19,16 @@ class TestConfig(unittest.TestCase):
         self.mock_file_path = "../mock_config.ini"
 
     @patch("os.path.exists", return_value=True)  # Simulate file existence
-    @patch("builtins.open", new_callable=mock_open, read_data="""[data.database]
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data="""[data.database]
     dbname=testdb
     user=testuser
     host=localhost
     port=5432
-    """)
+    """,
+    )
     def test_load_database_config(self, mock_file, mock_exists):
         config = Config(self.mock_file_path)
         db_config = config.load_data_database_config()
@@ -46,16 +50,20 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             Config(self.mock_file_path)
 
-    @patch("builtins.open", new_callable=mock_open, read_data="""
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data="""
         [database]
         dbname=testdb
         user=testuser
         host=localhost
         port=5432
-        
+
         [openmeteo]
         api_url=https://api.open-meteo.com/v1/forecast
-    """)
+    """,
+    )
     @patch("os.path.exists", return_value=True)  # Simulate file existence
     def test_load_openmeteo_config(self, mock_file, mock_exists):
         config = Config(self.mock_file_path)

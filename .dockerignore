@@ -1,0 +1,69 @@
+# Version control
+.git/
+.gitignore
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+sdist/
+
+# Virtual environments
+.venv/
+venv/
+.tox/
+.nox/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing & coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/
+.hypothesis/
+junit/
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+LICENSE
+
+# Legacy code (not used in production)
+legacy/
+
+# Raw and interim data (downloaded at runtime)
+data/raw/
+data/interim/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets baseline
+.secrets.baseline
+
+# CI/CD
+.github/
+
+# Misc
+*.log
+logs/
+.cache.sqlite

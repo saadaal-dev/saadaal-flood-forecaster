@@ -6,7 +6,18 @@ from flood_forecaster.data_model.station import Station
 
 # TODO replace with read from data_model RiverStationMetadata
 class RiverStation(Station):
-    def __init__(self, id: int, name: str, latitude: float, longitude: float, region: str, district: str, moderate_threshold: float, high_threshold: float, full_threshold: float = 0.0):
+    def __init__(
+        self,
+        id: int,
+        name: str,
+        latitude: float,
+        longitude: float,
+        region: str,
+        district: str,
+        moderate_threshold: float,
+        high_threshold: float,
+        full_threshold: float = 0.0,
+    ):
         super().__init__(id, name, latitude, longitude)
         self.moderate_threshold = moderate_threshold
         self.high_threshold = high_threshold
@@ -23,8 +34,8 @@ def get_river_stations_static(config) -> List[RiverStation]:
     :return: List of RiverStation objects with metadata.
     """
     data_static_config = config.load_static_data_config()
-    csv_path = data_static_config['river_stations_metadata_path']
-    with open(csv_path, mode="r", newline="") as location_file:
+    csv_path = data_static_config["river_stations_metadata_path"]
+    with open(csv_path, newline="") as location_file:
         reader = csv.reader(location_file)
         stations: List[RiverStation] = []
         next(reader, None)  # skip the headers
@@ -38,7 +49,7 @@ def get_river_stations_static(config) -> List[RiverStation]:
                 district=row[6],
                 moderate_threshold=float(row[7]),
                 high_threshold=float(row[8]),
-                full_threshold=float(row[9])
+                full_threshold=float(row[9]),
             )
             stations.append(station)
         return stations

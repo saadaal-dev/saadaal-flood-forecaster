@@ -1,12 +1,12 @@
 ---
-name: "Run Python linting and testing"
-on:
+name: "CI — Lint, Test & Build"
+"on":
   pull_request:
     paths:
       - "src/**"
       - "config/**"
-      - "requirements.txt"
       - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/*"
   push:
     branches: [main]
@@ -15,37 +15,96 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-      - name: Install tox
-        run: uv pip install --system tox
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
       - name: Run linting, yaml and secrets checks
-        run: tox -p -e linting,yaml,detect-secrets
+        run: uv run tox -p -e linting,yaml,detect-secrets
+
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+      - name: Ruff lint check
+        run: uv run ruff check src/
+      - name: Ruff format check
+        run: uv run ruff format --check src/
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+      - name: Run mypy
+        run: >
+          uv run mypy src/flood_forecaster
+          --ignore-missing-imports
+          --no-strict-optional
+        continue-on-error: true
 
   unit-tests:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+      - name: Run unit tests with coverage
+        run: uv run pytest src/tests/unit -v
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
 
-      - name: Install tox
-        run: uv pip install --system tox
-
-      - name: Run unit tests
-        run: tox -e test-unit
+  docker-build:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: saadaal-flood-forecaster:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

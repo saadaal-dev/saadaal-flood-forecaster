@@ -9,10 +9,10 @@ from sqlalchemy.sql import func
 from flood_forecaster import DatabaseConnection
 from flood_forecaster.data_ingestion.openmeteo.common import (
     fetch_openmeteo_data,
+    parse_daily_data,
+    persist_weather_data,
     prepare_weather_locations,
     process_weather_responses,
-    persist_weather_data,
-    parse_daily_data,
 )
 from flood_forecaster.data_model.weather import HistoricalWeather
 from flood_forecaster.utils.configuration import Config
@@ -33,18 +33,19 @@ def remove_duplicates_historical_weather_from_db(config: Config, dry_run: bool =
     with database_connection.engine.connect() as conn:
         with Session(bind=conn) as session:
             # Get all historical weather entries where the key has more than one entry (key: location_name and date columns only)
-            duplicates = session.query(
-                HistoricalWeather.location_name,
-                func.date(HistoricalWeather.date).label("date"),
-            ).group_by(
-                HistoricalWeather.location_name,
-                func.date(HistoricalWeather.date),
-            ).having(
-                func.count(HistoricalWeather.id) > 1
-            ).order_by(
-                HistoricalWeather.location_name,
-                func.date(HistoricalWeather.date)
-            ).all()
+            duplicates = (
+                session.query(
+                    HistoricalWeather.location_name,
+                    func.date(HistoricalWeather.date).label("date"),
+                )
+                .group_by(
+                    HistoricalWeather.location_name,
+                    func.date(HistoricalWeather.date),
+                )
+                .having(func.count(HistoricalWeather.id) > 1)
+                .order_by(HistoricalWeather.location_name, func.date(HistoricalWeather.date))
+                .all()
+            )
 
             if not duplicates:
                 logger.debug("No duplicate historical weather entries found.")
@@ -53,33 +54,39 @@ def remove_duplicates_historical_weather_from_db(config: Config, dry_run: bool =
             logger.warning(f"Found {len(duplicates)} duplicate historical weather entries:")
             for duplicate in duplicates:
                 logger.warning(f" - Location: {duplicate.location_name}, Date: {duplicate.date}")
-            
+
             if not dry_run:
                 # Bulk delete duplicates
                 for duplicate in duplicates:
                     # get the id of latest entry (max date) for this location and date
-                    latest_entry = session.query(HistoricalWeather).filter(
-                        HistoricalWeather.location_name == duplicate.location_name,
-                        func.date(HistoricalWeather.date) == duplicate.date
-                    ).order_by(HistoricalWeather.date.desc()).first()
+                    latest_entry = (
+                        session.query(HistoricalWeather)
+                        .filter(
+                            HistoricalWeather.location_name == duplicate.location_name, func.date(HistoricalWeather.date) == duplicate.date
+                        )
+                        .order_by(HistoricalWeather.date.desc())
+                        .first()
+                    )
 
                     if not latest_entry:
                         logger.warning(
-                            f"WARNING: No latest entry found for {duplicate.location_name} on {duplicate.date}, skipping... (this should never happen)")
+                            f"WARNING: No latest entry found for {duplicate.location_name} on {duplicate.date}, skipping... (this should never happen)"
+                        )
                         continue
 
                     # delete all entries except one (keep latest entry)
                     session.query(HistoricalWeather).filter(
                         HistoricalWeather.location_name == duplicate.location_name,
                         func.date(HistoricalWeather.date) == duplicate.date,
-                        HistoricalWeather.id != latest_entry.id
+                        HistoricalWeather.id != latest_entry.id,
                     ).delete(synchronize_session=False)
                 session.commit()
                 logger.info("Duplicate historical weather entries removed from the database.")
 
 
-def create_historical_params(start_date: datetime.datetime, end_date: datetime.datetime,
-                             latitudes: List[float], longitudes: List[float]) -> Dict[str, Any]:
+def create_historical_params(
+    start_date: datetime.datetime, end_date: datetime.datetime, latitudes: List[float], longitudes: List[float]
+) -> Dict[str, Any]:
     """Create parameters for historical API call"""
     return {
         "latitude": latitudes,
@@ -119,17 +126,21 @@ def fetch_historical(config: Config, openmeteo):
     return historical_df
 
 
-def get_historical_weather(location_labels: List[str],
-                           latitudes: List[float], longitudes: List[float],
-                           config: Config, openmeteo,
-                           max_date: Optional[datetime.datetime] = None) -> Optional[pd.DataFrame]:
+def get_historical_weather(
+    location_labels: List[str],
+    latitudes: List[float],
+    longitudes: List[float],
+    config: Config,
+    openmeteo,
+    max_date: Optional[datetime.datetime] = None,
+) -> Optional[pd.DataFrame]:
     """Get historical weather data for the specified locations and date range."""
     # Use yesterday as the end date to avoid fetching today's data
     end_date = datetime.datetime.now() - datetime.timedelta(days=1)
 
     if max_date is not None:
         # Start from the day after the latest date in the database
-        start_date = max_date + datetime.timedelta(days=1)   # FIXME this creates duplicates
+        start_date = max_date + datetime.timedelta(days=1)  # FIXME this creates duplicates
     else:
         # Default to 10 years of historical data
         start_date = end_date - datetime.timedelta(days=10 * 365)
@@ -142,7 +153,7 @@ def get_historical_weather(location_labels: List[str],
 
     logger.info("Fetching historical weather data from Open-Meteo API...")
     logger.info(f"Start date: {start_date.strftime('%Y-%m-%d')}, End date: {end_date.strftime('%Y-%m-%d')}")
-    
+
     # Create API parameters and fetch data
     params = create_historical_params(start_date, end_date, latitudes, longitudes)
     url = config.get_openmeteo_api_archive_url()

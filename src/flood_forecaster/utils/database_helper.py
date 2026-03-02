@@ -35,12 +35,7 @@ class DatabaseConnection:
 
         try:
             url = URL.create(
-                drivername="postgresql",
-                username=self.user,
-                password=self.password,
-                host=self.host,
-                port=self.port,
-                database=self.dbname
+                drivername="postgresql", username=self.user, password=self.password, host=self.host, port=self.port, database=self.dbname
             )
             self.engine = create_engine(url)
             logger.debug(f"Connected to database '{self.dbname}' in {self.host}")
@@ -147,10 +142,7 @@ class DatabaseConnection:
             tables = inspector.get_table_names(schema=schema_name)
             result = []
             for table in tables:
-                columns = [
-                    {"name": col["name"], "type": str(col["type"])}
-                    for col in inspector.get_columns(table, schema=schema_name)
-                ]
+                columns = [{"name": col["name"], "type": str(col["type"])} for col in inspector.get_columns(table, schema=schema_name)]
                 result.append((table, columns))
             for table, columns in result:
                 logger.info(f"Table: {table}")
@@ -205,18 +197,19 @@ class DatabaseConnection:
         """
         with self.engine.connect() as conn:
             from sqlalchemy import func, select
+
             stmt = select(func.max(getattr(model_class, date_column)))
             result = conn.execute(stmt).scalar()
             return result
 
     def fetch_table_to_csv(
-            self,
-            schema_name: str,
-            table_name: str,
-            data_download_path: str,
-            force_overwrite: bool = False,
-            preview_rows: int = 20,  # limit rows for screen printing
-            where_clause: str | None = None,
+        self,
+        schema_name: str,
+        table_name: str,
+        data_download_path: str,
+        force_overwrite: bool = False,
+        preview_rows: int = 20,  # limit rows for screen printing
+        where_clause: str | None = None,
     ) -> None:
         """
         Fetch data from a table and download it as a CSV file to the specified folder.
@@ -239,9 +232,7 @@ class DatabaseConnection:
 
             # Check if the file already exists
             if os.path.exists(output_file_path) and not force_overwrite:
-                logger.warning(
-                    f"File '{output_file_path}' already exists. Use force_overwrite=True to overwrite it."
-                )
+                logger.warning(f"File '{output_file_path}' already exists. Use force_overwrite=True to overwrite it.")
                 return
 
             # Build SQL query dynamically
@@ -258,23 +249,17 @@ class DatabaseConnection:
 
                 # Save the DataFrame to a CSV file
                 df.to_csv(output_file_path, index=False)
-                logger.info(
-                    f"Data from '{schema_name}.{table_name}' downloaded to '{output_file_path}'"
-                )
+                logger.info(f"Data from '{schema_name}.{table_name}' downloaded to '{output_file_path}'")
 
                 logger.debug("\nPreview of downloaded data:")
                 logger.debug(tabulate(df.head(preview_rows), headers="keys", tablefmt="psql"))
 
         except SQLAlchemyError as e:
-            logger.error(
-                f"Error fetching data from table '{schema_name}.{table_name}': {str(e)}"
-            )
+            logger.error(f"Error fetching data from table '{schema_name}.{table_name}': {str(e)}")
         except Exception as e:
             logger.error(f"An unexpected error occurred: {str(e)}")
 
-    def validate_table_data(
-            self, schema_name: str, table_name: str, hard_limit: int = 100000
-    ) -> None:
+    def validate_table_data(self, schema_name: str, table_name: str, hard_limit: int = 100000) -> None:
         """
         Validate table data: missing values, invalid values, outliers.
         Dynamically applies LIMIT if table is very large.
@@ -337,8 +322,7 @@ class DatabaseConnection:
         except Exception as e:
             logger.error(f"⚠️ Unexpected error: {str(e)}")
 
-    def validate_sensor_readings(self, schema_name: str = "public", table_name: str = "sensor_readings",
-                                 hard_limit: int = 100000):
+    def validate_sensor_readings(self, schema_name: str = "public", table_name: str = "sensor_readings", hard_limit: int = 100000):
         """
         Specific validation for the sensor_readings table.
         Detects nulls, invalid values like '---', zeros where not expected, and out-of-range timestamps.
@@ -378,11 +362,9 @@ class DatabaseConnection:
                     bad_values = df[df["value"].isin(["---", "", "NULL"])]
                     zeros = df[df["value"].astype(str).str.strip() == "0"]
                     if not bad_values.empty:
-                        logger.warning(
-                            f"⚠️ Invalid values detected in 'value': {len(bad_values)} rows (---, empty, NULL)")
+                        logger.warning(f"⚠️ Invalid values detected in 'value': {len(bad_values)} rows (---, empty, NULL)")
                     if not zeros.empty:
-                        logger.warning(
-                            f"⚠️ '0' readings detected in 'value': {len(zeros)} rows (may be invalid depending on sensor)")
+                        logger.warning(f"⚠️ '0' readings detected in 'value': {len(zeros)} rows (may be invalid depending on sensor)")
                     if bad_values.empty and zeros.empty:
                         logger.info("✅ No invalid values in 'value'")
 

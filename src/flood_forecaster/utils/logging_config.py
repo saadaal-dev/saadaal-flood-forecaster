@@ -4,6 +4,7 @@ Centralized logging configuration with Sentry integration.
 This module provides a unified way to configure logging across the application,
 integrating with Sentry for error tracking and log aggregation.
 """
+
 import logging
 import os
 import sys
@@ -14,10 +15,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 
 
 def setup_logging(
-        level: str = "INFO",
-        sentry_dsn: Optional[str] = None,
-        environment: Optional[str] = None,
-        enable_sentry: bool = True
+    level: str = "INFO", sentry_dsn: Optional[str] = None, environment: Optional[str] = None, enable_sentry: bool = True
 ) -> None:
     """
     Configure logging for the application with Sentry integration.
@@ -32,10 +30,7 @@ def setup_logging(
     log_level = getattr(logging, level.upper(), logging.INFO)
 
     # Create a formatter
-    formatter = logging.Formatter(
-        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+    formatter = logging.Formatter(fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
     # Configure root logger
     root_logger = logging.getLogger()
@@ -54,18 +49,18 @@ def setup_logging(
     # Initialize Sentry if enabled
     if enable_sentry:
         # Get Sentry DSN from parameter or environment variable
-        dsn = sentry_dsn or os.getenv('SENTRY_DSN')
+        dsn = sentry_dsn or os.getenv("SENTRY_DSN")
 
         if dsn:
             # Get environment from parameter or environment variable
-            env = environment or os.getenv('SENTRY_ENVIRONMENT', 'production')
+            env = environment or os.getenv("SENTRY_ENVIRONMENT", "production")
 
             # Configure Sentry logging integration
             # This will capture logs at ERROR level and above as breadcrumbs
             # and send them to Sentry
             sentry_logging = LoggingIntegration(
                 level=logging.INFO,  # Capture info and above as breadcrumbs
-                event_level=logging.ERROR  # Send errors and above as events
+                event_level=logging.ERROR,  # Send errors and above as events
             )
 
             sentry_sdk.init(
@@ -75,7 +70,7 @@ def setup_logging(
                 traces_sample_rate=0.1,  # Sample 10% of transactions for performance monitoring
                 profiles_sample_rate=0.1,  # Sample 10% for profiling
                 # Set release if available
-                release=os.getenv('SENTRY_RELEASE', None),
+                release=os.getenv("SENTRY_RELEASE", None),
                 # Send default PII (personally identifiable information)
                 send_default_pii=False,
                 # Attach stack traces to pure messages
@@ -87,8 +82,7 @@ def setup_logging(
             logging.info(f"Sentry initialized successfully for environment: {env}")
         else:
             logging.warning(
-                "Sentry DSN not provided. Logging will work locally only. "
-                "Set SENTRY_DSN environment variable to enable Sentry integration."
+                "Sentry DSN not provided. Logging will work locally only. Set SENTRY_DSN environment variable to enable Sentry integration."
             )
 
 
@@ -134,6 +128,7 @@ def capture_message(message: str, level: str = "info", **extra_data) -> None:
     """
     # Type casting for Sentry SDK literal type
     from typing import Literal
+
     sentry_level: Literal["fatal", "critical", "error", "warning", "info", "debug"] = level  # type: ignore
 
     if extra_data:
@@ -157,9 +152,4 @@ def add_breadcrumb(message: str, category: str = "default", level: str = "info",
         level: Breadcrumb level
         **data: Additional data to attach
     """
-    sentry_sdk.add_breadcrumb(
-        category=category,
-        message=message,
-        level=level,
-        data=data
-    )
+    sentry_sdk.add_breadcrumb(category=category, message=message, level=level, data=data)

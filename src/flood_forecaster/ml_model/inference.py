@@ -11,11 +11,20 @@ from flood_forecaster.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, station_metadata, stations_df, weather_df,
-                        station_lag_days, weather_lag_days, forecast_days):
+def infer_from_raw_data(
+    model_manager: ModelManager,
+    model_path,
+    model_name,
+    station_metadata,
+    stations_df,
+    weather_df,
+    station_lag_days,
+    weather_lag_days,
+    forecast_days,
+):
     """
     Infer a prediction from raw data.
-    
+
     Args:
         model_manager: The model manager (responsible for providing a trained model and an inference function).
         model_path: The path to the directory containing the model files.
@@ -29,8 +38,10 @@ def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, sta
     """
     df = preprocess_diff(
         station_metadata,
-        stations_df, weather_df,
-        station_lag_days=station_lag_days, weather_lag_days=weather_lag_days,
+        stations_df,
+        weather_df,
+        station_lag_days=station_lag_days,
+        weather_lag_days=weather_lag_days,
         forecast_days=forecast_days,
         infer=True,
     )
@@ -41,11 +52,11 @@ def infer_from_raw_data(model_manager: ModelManager, model_path, model_name, sta
 
 
 def create_inference_insert_statement(
-        location: str,
-        model_name: str,
-        forecast_days: int,
-        date: datetime,
-        level_m: float,
+    location: str,
+    model_name: str,
+    forecast_days: int,
+    date: datetime,
+    level_m: float,
 ):
     """
     Create an SQL UPSERT statement to store inference results.
@@ -57,7 +68,7 @@ def create_inference_insert_statement(
         forecast_days: how many days ahead the prediction is made for (1=today).
         date: The datetime of the inference (will be converted to date only).
         level_m: The predicted river level in meters.
-    
+
     Returns:
         An SQLAlchemy PostgreSQL insert statement with ON CONFLICT UPDATE.
     """
@@ -66,21 +77,13 @@ def create_inference_insert_statement(
 
     # Create PostgreSQL-specific insert statement with UPSERT capability
     stmt = pg_insert(PredictedRiverLevel).values(
-        location_name=location,
-        ml_model_name=model_name,
-        forecast_days=forecast_days,
-        date=date_only,
-        level_m=level_m
+        location_name=location, ml_model_name=model_name, forecast_days=forecast_days, date=date_only, level_m=level_m
     )
 
     # On conflict (duplicate location_name, date, ml_model_name), update the existing row
     stmt = stmt.on_conflict_do_update(
-        constraint='uq_prediction_location_date_model',
-        set_={
-            'level_m': stmt.excluded.level_m,
-            'forecast_days': stmt.excluded.forecast_days,
-            'updated_at': datetime.now()
-        }
+        constraint="uq_prediction_location_date_model",
+        set_={"level_m": stmt.excluded.level_m, "forecast_days": stmt.excluded.forecast_days, "updated_at": datetime.now()},
     )
 
     return stmt
@@ -89,7 +92,7 @@ def create_inference_insert_statement(
 def store_inference_result(db_connection: DatabaseConnection, location, model_name, forecast_days, date, level_m):
     """
     Store the inference result in the database.
-    
+
     Args:
         :param db_connection:
         :param location: The location of the station.
@@ -103,4 +106,5 @@ def store_inference_result(db_connection: DatabaseConnection, location, model_na
         conn.execute(insert_stmt)
         conn.commit()
         logger.debug(
-            f"Inserted inference result for {location} with model {model_name} for {forecast_days} days ahead on {date} with level {level_m} m.")
+            f"Inserted inference result for {location} with model {model_name} for {forecast_days} days ahead on {date} with level {level_m} m."
+        )

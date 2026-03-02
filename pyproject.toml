@@ -34,23 +34,21 @@ dependencies = [
     "retry_requests~=2.0.0",
     "lxml>=5.0.2",
     "urllib3~=1.26.20",
-    "plotly",
-    "tabulate",
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
+    "plotly~=6.0.0",
+    "tabulate~=0.9.0",
     "sentry-sdk~=2.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "black",
-    "flake8",
-    "pylint",
-    "pylint-fail-under",
+    "pytest-cov",
+    "pytest-mock",
+    "ruff",
+    "mypy",
+    "types-requests",
     "tox",
-    "detect-secrets"
+    "detect-secrets",
 ]
 
 [tool.setuptools]
@@ -62,8 +60,62 @@ where = ["src"]
 [project.scripts]
 flood-cli = "flood_forecaster_cli.main:cli"
 
-[tool.flake8]
-max-line-length = 140
-max-doc-length = 155
-max-complexity = 14
-ignore = ["E203", "W503"]
+# ─── Ruff configuration (replaces flake8, black, isort) ───
+[tool.ruff]
+target-version = "py312"
+line-length = 140
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "LOG",  # flake8-logging — catches f-string in logger calls
+    "G",    # flake8-logging-format
+]
+ignore = [
+    "E203",   # whitespace before ':'
+    "E501",   # line too long (handled by formatter)
+    # Temporarily ignored — to be fixed in a Python code quality branch
+    "G004",   # f-string in logging statement
+    "G001",   # logging .format() usage
+    "G003",   # logging string concatenation
+    "UP006",  # use `type` instead of `Type` for type hints
+    "UP035",  # deprecated imports from typing
+    "UP045",  # use `X | Y` instead of `Optional[X]`
+    "SIM108", # use ternary operator instead of if-else
+    "SIM117", # combine `with` statements
+    "SIM118", # use `key in dict` instead of `key in dict.keys()`
+    "SIM101", # combine isinstance calls
+    "B008",   # function call in default argument
+    "B007",   # loop control variable not used within loop body
+    "B017",   # do not assert blind exception
+    "B020",   # loop control variable overrides iterable
+    "B905",   # zip() without strict=
+    "LOG015", # root logger call
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["flood_forecaster", "flood_forecaster_cli"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ─── Mypy configuration ───
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+no_strict_optional = true
+
+# ─── Pytest configuration ───
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+addopts = "--cov=src/flood_forecaster --cov-report=xml --cov-report=term-missing --cov-fail-under=15"

@@ -4,14 +4,11 @@ Tests the data validation and conversion logic for weather data.
 """
 
 import unittest
-from datetime import datetime, date
+from datetime import date, datetime
 
 import pandas as pd
 
-from flood_forecaster.data_model.weather import (
-    HistoricalWeather,
-    ForecastWeather
-)
+from flood_forecaster.data_model.weather import ForecastWeather, HistoricalWeather
 
 
 class TestHistoricalWeather(unittest.TestCase):
@@ -26,7 +23,7 @@ class TestHistoricalWeather(unittest.TestCase):
             temperature_2m_min=15.0,
             precipitation_sum=10.0,
             rain_sum=8.0,
-            precipitation_hours=5.0
+            precipitation_hours=5.0,
         )
 
         self.assertEqual(weather.location_name, "test_location")
@@ -35,30 +32,34 @@ class TestHistoricalWeather(unittest.TestCase):
 
     def test_from_dataframe_conversion(self):
         """Test converting DataFrame to HistoricalWeather objects."""
-        df = pd.DataFrame({
-            'location_name': ['loc1', 'loc2'],
-            'date': [datetime(2024, 1, 1), datetime(2024, 1, 2)],
-            'temperature_2m_max': [25.0, 26.0],
-            'temperature_2m_min': [15.0, 16.0],
-            'precipitation_sum': [10.0, 12.0],
-            'rain_sum': [8.0, 10.0],
-            'precipitation_hours': [5.0, 6.0]
-        })
+        df = pd.DataFrame(
+            {
+                "location_name": ["loc1", "loc2"],
+                "date": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
+                "temperature_2m_max": [25.0, 26.0],
+                "temperature_2m_min": [15.0, 16.0],
+                "precipitation_sum": [10.0, 12.0],
+                "rain_sum": [8.0, 10.0],
+                "precipitation_hours": [5.0, 6.0],
+            }
+        )
 
         weather_objects = HistoricalWeather.from_dataframe(df)
 
         self.assertEqual(len(weather_objects), 2)
         self.assertIsInstance(weather_objects[0], HistoricalWeather)
-        self.assertEqual(weather_objects[0].location_name, 'loc1')
-        self.assertEqual(weather_objects[1].location_name, 'loc2')
+        self.assertEqual(weather_objects[0].location_name, "loc1")
+        self.assertEqual(weather_objects[1].location_name, "loc2")
 
     def test_from_dataframe_with_missing_columns(self):
         """Test from_dataframe raises error when required columns missing."""
-        df = pd.DataFrame({
-            'location_name': ['loc1'],
-            'date': [datetime(2024, 1, 1)]
-            # Missing required temperature and precipitation columns
-        })
+        df = pd.DataFrame(
+            {
+                "location_name": ["loc1"],
+                "date": [datetime(2024, 1, 1)],
+                # Missing required temperature and precipitation columns
+            }
+        )
 
         # Should handle missing columns gracefully or raise appropriate error
         try:
@@ -71,7 +72,7 @@ class TestHistoricalWeather(unittest.TestCase):
 
     def test_tablename(self):
         """Test that table name is correctly set."""
-        self.assertEqual(HistoricalWeather.__tablename__, 'historical_weather')
+        self.assertEqual(HistoricalWeather.__tablename__, "historical_weather")
 
 
 class TestForecastWeather(unittest.TestCase):
@@ -88,7 +89,7 @@ class TestForecastWeather(unittest.TestCase):
             rain_sum=8.0,
             precipitation_hours=5.0,
             precipitation_probability_max=80.0,
-            wind_speed_10m_max=15.0
+            wind_speed_10m_max=15.0,
         )
 
         self.assertEqual(weather.location_name, "test_location")
@@ -97,17 +98,19 @@ class TestForecastWeather(unittest.TestCase):
 
     def test_from_dataframe_conversion(self):
         """Test converting DataFrame to ForecastWeather objects."""
-        df = pd.DataFrame({
-            'location_name': ['loc1', 'loc2'],
-            'date': [datetime(2024, 1, 1), datetime(2024, 1, 2)],
-            'temperature_2m_max': [25.0, 26.0],
-            'temperature_2m_min': [15.0, 16.0],
-            'precipitation_sum': [10.0, 12.0],
-            'rain_sum': [8.0, 10.0],
-            'precipitation_hours': [5.0, 6.0],
-            'precipitation_probability_max': [80.0, 75.0],
-            'wind_speed_10m_max': [15.0, 18.0]
-        })
+        df = pd.DataFrame(
+            {
+                "location_name": ["loc1", "loc2"],
+                "date": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
+                "temperature_2m_max": [25.0, 26.0],
+                "temperature_2m_min": [15.0, 16.0],
+                "precipitation_sum": [10.0, 12.0],
+                "rain_sum": [8.0, 10.0],
+                "precipitation_hours": [5.0, 6.0],
+                "precipitation_probability_max": [80.0, 75.0],
+                "wind_speed_10m_max": [15.0, 18.0],
+            }
+        )
 
         weather_objects = ForecastWeather.from_dataframe(df)
 
@@ -117,7 +120,7 @@ class TestForecastWeather(unittest.TestCase):
 
     def test_tablename(self):
         """Test that table name is correctly set."""
-        self.assertEqual(ForecastWeather.__tablename__, 'forecast_weather')
+        self.assertEqual(ForecastWeather.__tablename__, "forecast_weather")
 
 
 class TestWeatherDataFrameSchema(unittest.TestCase):
@@ -125,54 +128,50 @@ class TestWeatherDataFrameSchema(unittest.TestCase):
 
     def test_valid_weather_dataframe(self):
         """Test that valid weather dataframe passes schema validation."""
-        df = pd.DataFrame({
-            'location': ['loc1', 'loc2'],
-            'date': [date(2024, 1, 1), date(2024, 1, 2)],
-            'precipitation_sum': [10.0, 12.0],
-            'precipitation_hours': [5.0, 6.0]
-        })
+        df = pd.DataFrame(
+            {
+                "location": ["loc1", "loc2"],
+                "date": [date(2024, 1, 1), date(2024, 1, 2)],
+                "precipitation_sum": [10.0, 12.0],
+                "precipitation_hours": [5.0, 6.0],
+            }
+        )
 
         # Schema validation happens during pandera check_types decorator
         # Just verify the dataframe structure is correct
-        self.assertTrue('location' in df.columns)
-        self.assertTrue('date' in df.columns)
-        self.assertTrue('precipitation_sum' in df.columns)
-        self.assertTrue('precipitation_hours' in df.columns)
+        self.assertTrue("location" in df.columns)
+        self.assertTrue("date" in df.columns)
+        self.assertTrue("precipitation_sum" in df.columns)
+        self.assertTrue("precipitation_hours" in df.columns)
 
     def test_weather_dataframe_with_nulls(self):
         """Test handling of null values in weather data."""
-        df = pd.DataFrame({
-            'location': ['loc1', 'loc2'],
-            'date': [date(2024, 1, 1), date(2024, 1, 2)],
-            'precipitation_sum': [10.0, None],  # One null value
-            'precipitation_hours': [5.0, 6.0]
-        })
+        df = pd.DataFrame(
+            {
+                "location": ["loc1", "loc2"],
+                "date": [date(2024, 1, 1), date(2024, 1, 2)],
+                "precipitation_sum": [10.0, None],  # One null value
+                "precipitation_hours": [5.0, 6.0],
+            }
+        )
 
         # Null precipitation should be handled (filled with 0 in load.py)
-        self.assertTrue(df['precipitation_sum'].isnull().any())
+        self.assertTrue(df["precipitation_sum"].isnull().any())
 
     def test_weather_dataframe_date_types(self):
         """Test that date column can handle different date formats."""
         # Test with Python date objects
-        df1 = pd.DataFrame({
-            'location': ['loc1'],
-            'date': [date(2024, 1, 1)],
-            'precipitation_sum': [10.0],
-            'precipitation_hours': [5.0]
-        })
+        df1 = pd.DataFrame({"location": ["loc1"], "date": [date(2024, 1, 1)], "precipitation_sum": [10.0], "precipitation_hours": [5.0]})
 
-        self.assertEqual(df1['date'].iloc[0], date(2024, 1, 1))
+        self.assertEqual(df1["date"].iloc[0], date(2024, 1, 1))
 
         # Test with datetime objects (should be converted to date)
-        df2 = pd.DataFrame({
-            'location': ['loc1'],
-            'date': [datetime(2024, 1, 1, 12, 0, 0)],
-            'precipitation_sum': [10.0],
-            'precipitation_hours': [5.0]
-        })
+        df2 = pd.DataFrame(
+            {"location": ["loc1"], "date": [datetime(2024, 1, 1, 12, 0, 0)], "precipitation_sum": [10.0], "precipitation_hours": [5.0]}
+        )
 
         # In actual use, datetime is converted to date in load.py
-        self.assertIsInstance(df2['date'].iloc[0], datetime)
+        self.assertIsInstance(df2["date"].iloc[0], datetime)
 
 
 class TestWeatherDataValidation(unittest.TestCase):
@@ -187,7 +186,7 @@ class TestWeatherDataValidation(unittest.TestCase):
             temperature_2m_min=15.0,
             precipitation_sum=-5.0,  # Invalid negative
             rain_sum=0.0,
-            precipitation_hours=0.0
+            precipitation_hours=0.0,
         )
 
         # Model should allow creation (validation happens elsewhere)
@@ -202,7 +201,7 @@ class TestWeatherDataValidation(unittest.TestCase):
             temperature_2m_min=-40.0,  # Very cold
             precipitation_sum=0.0,
             rain_sum=0.0,
-            precipitation_hours=0.0
+            precipitation_hours=0.0,
         )
 
         self.assertEqual(weather.temperature_2m_max, 50.0)
@@ -217,7 +216,7 @@ class TestWeatherDataValidation(unittest.TestCase):
             temperature_2m_min=15.0,
             precipitation_sum=10.0,
             rain_sum=8.0,
-            precipitation_hours=24.0  # Maximum possible (entire day)
+            precipitation_hours=24.0,  # Maximum possible (entire day)
         )
 
         self.assertEqual(weather.precipitation_hours, 24.0)
@@ -231,7 +230,7 @@ class TestWeatherDataValidation(unittest.TestCase):
             temperature_2m_min=0.0,
             precipitation_sum=0.0,
             rain_sum=0.0,
-            precipitation_hours=0.0
+            precipitation_hours=0.0,
         )
 
         self.assertEqual(weather.precipitation_sum, 0.0)
@@ -250,9 +249,14 @@ class TestWeatherComparison(unittest.TestCase):
         common_fields = hist_fields & forecast_fields
 
         expected_common = {
-            'id', 'location_name', 'date',
-            'temperature_2m_max', 'temperature_2m_min',
-            'precipitation_sum', 'rain_sum', 'precipitation_hours'
+            "id",
+            "location_name",
+            "date",
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "precipitation_sum",
+            "rain_sum",
+            "precipitation_hours",
         }
 
         self.assertTrue(expected_common.issubset(common_fields))
@@ -262,9 +266,9 @@ class TestWeatherComparison(unittest.TestCase):
         forecast_fields = set(ForecastWeather.__table__.columns.keys())
 
         # Forecast should have probability and wind speed
-        self.assertIn('precipitation_probability_max', forecast_fields)
-        self.assertIn('wind_speed_10m_max', forecast_fields)
+        self.assertIn("precipitation_probability_max", forecast_fields)
+        self.assertIn("wind_speed_10m_max", forecast_fields)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
