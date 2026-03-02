@@ -33,42 +33,6 @@ The PostgreSQL database is automatically bootstrapped with the schema, indexes, 
 
 ---
 
-## Automated Deployment (CI/CD)
-
-Pushing to `main` triggers the **CD — Deploy to CapRover** GitHub Actions workflow (`.github/workflows/cd-deploy.yml`).
-
-### Prerequisites (one-time setup)
-
-Add the following **GitHub repository secrets** (Settings → Secrets and variables → Actions):
-
-| Secret | Description |
-|--------|-------------|
-| `CAPROVER_SERVER` | CapRover dashboard URL (e.g., `https://captain.example.com`) |
-| `CAPROVER_APP` | App name in CapRover (e.g., `flood-forecaster`) |
-| `CAPROVER_APP_TOKEN` | App token from CapRover (Apps → your app → Deployment → API Token) |
-
-Once configured, every merge to `main` that passes CI will auto-deploy.
-
-### Environment Variables
-
-Set these in the CapRover app's **App Configs → Environmental Variables**:
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DB_HOST` | Yes | PostgreSQL host |
-| `DB_PORT` | No | PostgreSQL port (default: 5432) |
-| `DB_NAME` | No | Database name (default: postgres) |
-| `DB_USER` | No | Database user (default: postgres) |
-| `POSTGRES_PASSWORD` | Yes | Database password |
-| `SENTRY_DSN` | No | Sentry DSN for error tracking |
-| `SENTRY_ENVIRONMENT` | No | e.g., `production`, `staging` |
-| `SENTRY_RELEASE` | No | Release version (e.g., `0.1.2`) |
-| `LOG_LEVEL` | No | Logging level (default: INFO) |
-| `MAILJET_API_KEY` | Yes | Mailjet API key for alerts |
-| `MAILJET_API_SECRET` | Yes | Mailjet API secret for alerts |
-
----
-
 ## Manual Deployment (CapRover UI)
 
 If you need to deploy manually (e.g., a hotfix):
