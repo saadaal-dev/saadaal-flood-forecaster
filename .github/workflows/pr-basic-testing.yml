@@ -85,7 +85,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --extra dev
       - name: Run unit tests with coverage
-        run: uv run tox -e test-unit
+        run: uv run pytest src/tests/unit -v
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
