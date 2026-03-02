@@ -37,9 +37,9 @@ def common_options(function):
 
 
 def create_openmeteo_client(
-        expire_after: int = 3600,  # 1 hour cache
-        retries: int = 5,
-        backoff_factor: float = 0.2,
+    expire_after: int = 3600,  # 1 hour cache
+    retries: int = 5,
+    backoff_factor: float = 0.2,
 ) -> openmeteo_requests.Client:
     """
     Create an Open-Meteo API client with caching and retry logic.

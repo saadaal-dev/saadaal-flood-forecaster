@@ -1,0 +1,67 @@
+# Docker Compose for running the flood forecaster
+#
+# Production (existing PostgreSQL on the VM):
+#   docker compose up -d
+#   → only starts the flood-forecaster, connects to the host's PostgreSQL
+#
+# Local development (with a fresh PostgreSQL):
+#   docker compose --profile local up -d
+#   → starts both PostgreSQL and the flood-forecaster
+#
+# Prerequisites:
+#   Copy .env.example to .env and fill in your values:
+#     cp .env.example .env
+
+services:
+  db:
+    # Only started with: docker compose --profile local up -d
+    profiles: [local]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
+      POSTGRES_DB: ${DB_NAME:-postgres}
+      POSTGRES_USER: ${DB_USER:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Bootstrap the schema on first run
+      - ./sql/database_bootstrap.sql:/docker-entrypoint-initdb.d/01-bootstrap.sql:ro
+      - ./sql/database_indexes.sql:/docker-entrypoint-initdb.d/02-indexes.sql:ro
+      - ./sql/database_views.sql:/docker-entrypoint-initdb.d/03-views.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  flood-forecaster:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Default DB_HOST connects to the host's native PostgreSQL.
+      # When using --profile local, override with DB_HOST=db in .env
+      - DB_HOST=${DB_HOST:-host.gateway}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-postgres}
+      - DB_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-development}
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - MAILJET_API_KEY=${MAILJET_API_KEY:-}
+      - MAILJET_API_SECRET=${MAILJET_API_SECRET:-}
+    extra_hosts:
+      # Maps "host.gateway" to the Docker host IP so the container
+      # can reach the native PostgreSQL running on the VM
+      - "host.gateway:host-gateway"
+    volumes:
+      # Persist logs on the host
+      - ./logs:/root/Amadeus/saadaal-flood-forecaster/logs
+
+volumes:
+  pgdata:

@@ -27,12 +27,7 @@ def deploy_alert(mailjet_client, html_template_path: str, alert_status_table: pd
         str: The final HTML content with the alert status table injected.
     """
     # Convert DataFrame to HTML table with custom styling
-    table_html = alert_status_table.to_html(
-        index=False,
-        border=1,
-        classes="alert-table",
-        escape=False
-    )
+    table_html = alert_status_table.to_html(index=False, border=1, classes="alert-table", escape=False)
     # Add custom CSS styling for the table
     custom_style = """
     <style>
@@ -61,7 +56,7 @@ def deploy_alert(mailjet_client, html_template_path: str, alert_status_table: pd
     </style>
     """
     # Load the HTML template
-    with open(html_template_path, "r", encoding="utf-8") as file:
+    with open(html_template_path, encoding="utf-8") as file:
         soup = BeautifulSoup(file, "html.parser")
 
     # Inject the table into the content section
@@ -79,21 +74,21 @@ def deploy_alert(mailjet_client, html_template_path: str, alert_status_table: pd
     final_html = str(soup)
 
     data = {
-        'Messages': [
+        "Messages": [
             {
-                'From': {
-                    'Email': f"{config.load_mailjet_config()['sender_email']}",
-                    'Name': f"{config.load_mailjet_config()['sender_name']}",
+                "From": {
+                    "Email": f"{config.load_mailjet_config()['sender_email']}",
+                    "Name": f"{config.load_mailjet_config()['sender_name']}",
                 },
-                'To': [
+                "To": [
                     {
-                        'Email': f"{config.load_mailjet_config()['receiver_email']}",
-                        'Name': f"{config.load_mailjet_config()['receiver_name']}",
+                        "Email": f"{config.load_mailjet_config()['receiver_email']}",
+                        "Name": f"{config.load_mailjet_config()['receiver_name']}",
                     }
                 ],
-                'Subject': '⚠️ Flood Risk Alert – Please Stay Vigilant',
-                'TextPart': 'This is a test email from Mailjet.',
-                'HTMLPart': final_html
+                "Subject": "⚠️ Flood Risk Alert – Please Stay Vigilant",
+                "TextPart": "This is a test email from Mailjet.",
+                "HTMLPart": final_html,
             }
         ]
     }
@@ -140,7 +135,7 @@ def main():
     2. Analyzes the data to determine flood risk levels for specific dates.
     3. Generates an HTML alert using a predefined template and dynamically inserts flood risk details.
     4. Sends the alert via email using the Mailjet API to notify stakeholders about potential flood risks.
-   
+
     prerequisites:
     - Ensure the following environment variables are set:
         export MAILJET_API_KEY="mailjet_key": The Mailjet API key for sending emails. // pragma: allowlist secret
@@ -149,16 +144,17 @@ def main():
     """
     # Mailing module
     load_dotenv()
-    api_key = os.getenv('MAILJET_API_KEY')
-    api_secret = os.getenv('MAILJET_API_SECRET')
+    api_key = os.getenv("MAILJET_API_KEY")
+    api_secret = os.getenv("MAILJET_API_SECRET")
 
     if not api_key or not api_secret:
-        raise EnvironmentError(
-            "Check that Mailjet is configured for the email alerts. MAILJET_API_KEY and MAILJET_API_SECRET must be set as environment variables.")
+        raise OSError(
+            "Check that Mailjet is configured for the email alerts. MAILJET_API_KEY and MAILJET_API_SECRET must be set as environment variables."
+        )
 
     # Set up clients
     db_client = DatabaseConnection(config)
-    mailjet_client = mailjet_rest.Client(auth=(api_key, api_secret), version='v3.1')
+    mailjet_client = mailjet_rest.Client(auth=(api_key, api_secret), version="v3.1")
     logger.debug("Postgres and Mailjet client ready")
 
     # Check if the DB was updated within the last 2 days
@@ -170,14 +166,14 @@ def main():
         exit(1)
 
     # Check if the predicted risk level is full in the forecast day
-    flood_status_df = get_df_by_date(db_client, latest_db_date, risk_level='full')
+    flood_status_df = get_df_by_date(db_client, latest_db_date, risk_level="full")
     if flood_status_df.empty:
         logger.info("### Exiting process: No flood risks forecasted for the next coming days")
         exit(0)
 
-    deploy_alert(mailjet_client,
-                 html_template_path="src/flood_forecaster/alert_module/alert_template.html",
-                 alert_status_table=flood_status_df)
+    deploy_alert(
+        mailjet_client, html_template_path="src/flood_forecaster/alert_module/alert_template.html", alert_status_table=flood_status_df
+    )
 
 
 if __name__ == "__main__":

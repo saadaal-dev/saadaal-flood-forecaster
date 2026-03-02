@@ -4,14 +4,14 @@ from typing import List
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from sqlalchemy import Column, Float, String, DateTime, Integer, UniqueConstraint
+from sqlalchemy import Column, DateTime, Float, Integer, String, UniqueConstraint
 
 from . import Base
 
 
 @dataclass
 class HistoricalWeather(Base):
-    __tablename__ = 'historical_weather'
+    __tablename__ = "historical_weather"
     __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
@@ -34,10 +34,10 @@ class HistoricalWeather(Base):
 
 @dataclass
 class ForecastWeather(Base):
-    __tablename__ = 'forecast_weather'
+    __tablename__ = "forecast_weather"
     __table_args__ = (
-        UniqueConstraint('location_name', 'date', name='uq_forecast_location_date'),
-        {"schema": "flood_forecaster"}  # Specify the schema
+        UniqueConstraint("location_name", "date", name="uq_forecast_location_date"),
+        {"schema": "flood_forecaster"},  # Specify the schema
     )
 
     id = Column(Integer, primary_key=True)
@@ -65,6 +65,7 @@ class HistoricalWeatherDataFrameSchema(pa.DataFrameModel):
     Schema for historical weather data in ETL.
     Equivalent to the HistoricalWeather SQLAlchemy model.
     """
+
     location_name: Series[str]
     date: Series[pd.Timestamp]
     temperature_2m_max: Series[float]
@@ -83,6 +84,7 @@ class ForecastWeatherDataFrameSchema(pa.DataFrameModel):
     Schema for forecast weather data in ETL.
     Equivalent to the ForecastWeather SQLAlchemy model.
     """
+
     location_name: Series[str]
     date: Series[pd.Timestamp]
     temperature_2m_max: Series[float]
@@ -102,6 +104,7 @@ class WeatherDataFrameSchema(pa.DataFrameModel):
     """
     Schema for weather data in ETL.
     """
+
     location: Series[str]
     date: Series[pd.Timestamp]
     precipitation_sum: Series[float]
@@ -123,6 +126,7 @@ class StationMapping:
         upstream_stations (List[str]): A list of upstream stations related to the weather station.
         weather_locations (List[str]): A list of weather conditions relevant to the weather station.
     """
+
     location: str
     river: str
     upstream_stations: List[str]

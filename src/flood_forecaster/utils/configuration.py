@@ -7,11 +7,12 @@ from pathlib import Path
 
 from flood_forecaster.data_model.weather import StationMapping
 
+
 # Find the project root by looking for key files
 def _find_project_root():
     """Find the project root directory by looking for characteristic files."""
     current_path = Path(__file__).resolve()
-    
+
     # Look for project root markers
     for parent in current_path.parents:
         if (parent / "config" / "config.ini").exists():
@@ -20,6 +21,7 @@ def _find_project_root():
     # Fallback to relative path from current file location
     fallback_path = os.path.dirname(os.path.realpath(__file__)) + "/../../../config/config.ini"
     return fallback_path
+
 
 DEFAULT_CONFIG_FILE_PATH = str(_find_project_root())
 
@@ -61,8 +63,24 @@ class Config:
     def load_data_csv_config(self):
         return dict(self._config.items("data.csv"))
 
-    def load_data_database_config(self):
-        return dict(self._config.items("data.database"))
+    def load_data_database_config(self) -> dict[str, str]:
+        """Load database config with environment variable overrides.
+
+        Environment variables take precedence over config.ini values:
+            DB_HOST -> host, DB_PORT -> port, DB_NAME -> dbname, DB_USER -> user
+        """
+        config = dict(self._config.items("data.database"))
+        # Allow environment variable overrides for deployment flexibility
+        env_overrides = {
+            "host": os.environ.get("DB_HOST"),
+            "port": os.environ.get("DB_PORT"),
+            "dbname": os.environ.get("DB_NAME"),
+            "user": os.environ.get("DB_USER"),
+        }
+        for key, value in env_overrides.items():
+            if value is not None:
+                config[key] = value
+        return config
 
     def load_openmeteo_config(self):
         return dict(self._config.items("openmeteo"))
@@ -117,7 +135,7 @@ class Config:
 
 
 def _load_json_station_mapping(path) -> dict[str, StationMapping]:
-    with open(path, "r") as f:
+    with open(path) as f:
         d = json.load(f)
         for k, v in d.items():
             d[k] = StationMapping(**v)

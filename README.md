@@ -49,8 +49,8 @@ Before submitting a PR, please ensure:
 
 ## 🔹 Linting and secrets detection
 
-* To run the Python linter flake8 on the whole repo, run the command: `tox -e linting`.
-* To detect new secrets, compared with the previously created baseline run the command: `tox -e detect-secrets`.
+* To run the linter (ruff) on the repo: `tox -e ruff` (checks lint rules + formatting).
+* To detect new secrets, compared with the previously created baseline: `tox -e detect-secrets`.
 * To run all validations from `tox.ini` just run `tox`
 
 ## 📊 Logging and Monitoring

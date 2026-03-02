@@ -1,11 +1,9 @@
 import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from openmeteo_sdk import VariableWithValues
-from openmeteo_sdk import VariablesWithTime
-from openmeteo_sdk import WeatherApiResponse
+from openmeteo_sdk import VariablesWithTime, VariableWithValues, WeatherApiResponse
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -25,15 +23,13 @@ def fetch_openmeteo_data(openmeteo, url: str, params: Dict[str, Any]) -> List[We
 def prepare_weather_locations(config: Config) -> tuple[List[str], List[float], List[float]]:
     """Get weather locations and extract labels, latitudes, and longitudes"""
     weather_locations = get_weather_locations(config.get_weather_location_metadata_path())
-    location_labels, latitudes, longitudes = zip(*[
-        (location.label, location.latitude, location.longitude)
-        for location in weather_locations
-    ])
+    location_labels, latitudes, longitudes = zip(
+        *[(location.label, location.latitude, location.longitude) for location in weather_locations]
+    )
     return list(location_labels), list(latitudes), list(longitudes)
 
 
-def process_weather_responses(responses: List[WeatherApiResponse], location_labels: List[str],
-                              parse_function) -> pd.DataFrame:
+def process_weather_responses(responses: List[WeatherApiResponse], location_labels: List[str], parse_function) -> pd.DataFrame:
     """Process OpenMeteo responses into a combined DataFrame"""
     daily_dfs = []
 
@@ -52,13 +48,7 @@ def process_weather_responses(responses: List[WeatherApiResponse], location_labe
     return pd.concat(daily_dfs, ignore_index=True)
 
 
-def persist_weather_data(
-        config: Config,
-        df: pd.DataFrame,
-        filename: str,
-        weather_model_class,
-        clear_existing: bool = False
-) -> None:
+def persist_weather_data(config: Config, df: pd.DataFrame, filename: str, weather_model_class, clear_existing: bool = False) -> None:
     """Common function to persist weather data to database or CSV"""
     if config.use_database_weather():
         save_dataframe_to_db(config, df, weather_model_class, clear_existing)
@@ -66,12 +56,7 @@ def persist_weather_data(
         save_dataframe_to_csv(config, df, filename)
 
 
-def save_dataframe_to_db(
-        config: Config,
-        df: pd.DataFrame,
-        weather_model_class,
-        clear_existing: bool = False
-) -> None:
+def save_dataframe_to_db(config: Config, df: pd.DataFrame, weather_model_class, clear_existing: bool = False) -> None:
     """
     Save DataFrame to database, optionally clearing existing data.
 
@@ -85,9 +70,8 @@ def save_dataframe_to_db(
     """
     db_client = DatabaseConnection(config)
 
-    if getattr(weather_model_class, "__name__") not in ["HistoricalWeather", "ForecastWeather"]:
-        raise ValueError(
-            f"weather_model_class must be either HistoricalWeather or ForecastWeather, got {weather_model_class.__name__}")
+    if weather_model_class.__name__ not in ["HistoricalWeather", "ForecastWeather"]:
+        raise ValueError(f"weather_model_class must be either HistoricalWeather or ForecastWeather, got {weather_model_class.__name__}")
 
     # Log DataFrame info before persisting
     logger.debug(f"DEBUG: Attempting to save {len(df)} rows to {weather_model_class.__name__}")
@@ -96,73 +80,64 @@ def save_dataframe_to_db(
         logger.debug(f"DEBUG: Unique locations: {df['location_name'].unique().tolist()}")
         logger.debug(f"DEBUG: Sample data:\n{df.head(3)}")
 
-    with db_client.engine.connect() as conn:
-        with Session(bind=conn) as session:
-            try:
-                if clear_existing:
-                    # Empty the table for forecast data to replace it with new data
-                    logger.debug(f"Emptying the table for {weather_model_class.__name__} data...")
-                    session.query(weather_model_class).delete()
+    with db_client.engine.connect() as conn, Session(bind=conn) as session:
+        try:
+            if clear_existing:
+                # Empty the table for forecast data to replace it with new data
+                logger.debug(f"Emptying the table for {weather_model_class.__name__} data...")
+                session.query(weather_model_class).delete()
 
-                # Convert DataFrame to weather objects
-                df = df.drop(columns=["forecast_latitude"])
-                df = df.drop(columns=["forecast_longitude"])
+            # Convert DataFrame to weather objects
+            df = df.drop(columns=["forecast_latitude"])
+            df = df.drop(columns=["forecast_longitude"])
 
-                # Persist to database - Use UPSERT for both historical and forecast to handle unique constraints
-                table = weather_model_class.__table__
-                data = df.to_dict(orient="records")
+            # Persist to database - Use UPSERT for both historical and forecast to handle unique constraints
+            table = weather_model_class.__table__
+            data = df.to_dict(orient="records")
 
-                logger.debug(f"DEBUG: Preparing upsert for {len(data)} records")
+            logger.debug(f"DEBUG: Preparing upsert for {len(data)} records")
 
-                insert_stmt = insert(table).values(data)
-                update_dict = {c.name: insert_stmt.excluded[c.name] for c in table.columns if c.name != "id"}
-                upsert_stmt = insert_stmt.on_conflict_do_update(
-                    index_elements=["location_name", "date"],
-                    set_=update_dict
-                )
-                result = session.execute(upsert_stmt)
-                session.commit()
+            insert_stmt = insert(table).values(data)
+            update_dict = {c.name: insert_stmt.excluded[c.name] for c in table.columns if c.name != "id"}
+            upsert_stmt = insert_stmt.on_conflict_do_update(index_elements=["location_name", "date"], set_=update_dict)
+            result = session.execute(upsert_stmt)
+            session.commit()
 
-                logger.debug(f"DEBUG: Upsert executed, rows affected: {result.rowcount}")
-                logger.info(f"Upserted {len(df)} {weather_model_class.__name__} values into the database.")
+            logger.debug(f"DEBUG: Upsert executed, rows affected: {result.rowcount}")
+            logger.info(f"Upserted {len(df)} {weather_model_class.__name__} values into the database.")
 
-                # Verify the data was actually written
-                from sqlalchemy import select, func
-                verify_stmt = select(func.count()).select_from(table).where(
-                    table.c.date >= df['date'].min()
-                )
-                count_result = session.execute(verify_stmt).scalar()
-                logger.debug(f"DEBUG: Verification - Found {count_result} total rows with date >= {df['date'].min()}")
+            # Verify the data was actually written
+            from sqlalchemy import func, select
 
+            verify_stmt = select(func.count()).select_from(table).where(table.c.date >= df["date"].min())
+            count_result = session.execute(verify_stmt).scalar()
+            logger.debug(f"DEBUG: Verification - Found {count_result} total rows with date >= {df['date'].min()}")
 
-            except Exception as e:
-                logger.critical(f"ERROR: Failed to save {weather_model_class.__name__} to database: {e}")
-                logger.critical(f"ERROR: Exception type: {type(e).__name__}")
-                import traceback
-                traceback.print_exc()
-                session.rollback()
-                raise
+        except Exception as e:
+            logger.critical(f"ERROR: Failed to save {weather_model_class.__name__} to database: {e}")
+            logger.critical(f"ERROR: Exception type: {type(e).__name__}")
+            import traceback
+
+            traceback.print_exc()
+            session.rollback()
+            raise
 
 
 def save_dataframe_to_csv(config, df, filename) -> None:
     """Save DataFrame to CSV file with timestamped filename"""
     data_path = config.get_store_base_path()
     basename = data_path + filename
-    file = "{}_{:%Y-%m-%d}.csv".format(
-        basename, datetime.datetime.now()
-    )
+    file = f"{basename}_{datetime.datetime.now():%Y-%m-%d}.csv"
     df.to_csv(file, index=False)
 
 
-def __get_variable_values_as_numpy(daily: VariablesWithTime, variable_index: int,
-                                   variable_name: Optional[str]) -> np.ndarray:
+def __get_variable_values_as_numpy(daily: VariablesWithTime, variable_index: int, variable_name: Optional[str]) -> np.ndarray:
     """
     Helper function to extract variable values as numpy array from daily data.
     """
     variable: Optional[VariableWithValues] = daily.Variables(variable_index)
     if variable is None:
-        raise ValueError(
-            f"Variable index {variable_index} {' (' + variable_name + ')' if variable_name else ''} not found in daily data.")
+        raise ValueError(f"Variable index {variable_index} {' (' + variable_name + ')' if variable_name else ''} not found in daily data.")
     return variable.ValuesAsNumpy()
 
 

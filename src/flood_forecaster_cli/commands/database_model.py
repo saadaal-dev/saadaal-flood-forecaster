@@ -6,6 +6,7 @@ import click
 
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.database_helper import DatabaseConnection
+
 from .common import common_options
 
 
@@ -18,9 +19,7 @@ def database_model():
 
 @database_model.command("list-db-schemas", help="List all schemas from given database")
 @common_options
-def list_db_schemas(
-    configuration: Config
-):
+def list_db_schemas(configuration: Config):
     # Initialize database connection
     db_conn = DatabaseConnection(configuration)
 
@@ -35,9 +34,7 @@ def list_db_schemas(
 @database_model.command("list-tables-from-schema", help="List all tables from given schema")
 @click.option("--schema-name", "-s", required=True, help="Schema name")
 @common_options
-def list_tables_from_schema(
-    configuration: Config, schema_name: str
-):
+def list_tables_from_schema(configuration: Config, schema_name: str):
     # Initialize database connection
     db_conn = DatabaseConnection(configuration)
     # List all tables from a given schema
@@ -58,7 +55,13 @@ def list_tables_from_schema(
 @click.option("--where", "-w", help="Optional WHERE clause, like 'sensor_meaning LIKE ''%Rainfall%'''")
 @common_options
 def fetch_table_to_csv(
-    configuration: Config, schema_name: str, table_name: str, data_download_path: str, force_overwrite: bool, preview_rows: int, where: str | None,
+    configuration: Config,
+    schema_name: str,
+    table_name: str,
+    data_download_path: str,
+    force_overwrite: bool,
+    preview_rows: int,
+    where: str | None,
 ):
     # Initialize database connection
     db_conn = DatabaseConnection(configuration)

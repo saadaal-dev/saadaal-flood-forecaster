@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from sqlalchemy import Column, Integer, String, DateTime, Float, Date
+from sqlalchemy import Column, Date, DateTime, Float, Integer, String
 from sqlalchemy.sql import func
 
 from . import Base
@@ -11,7 +11,7 @@ from . import Base
 
 @dataclass
 class HistoricalRiverLevel(Base):
-    __tablename__ = 'historical_river_level'
+    __tablename__ = "historical_river_level"
     __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
@@ -23,7 +23,7 @@ class HistoricalRiverLevel(Base):
 
 @dataclass
 class PredictedRiverLevel(Base):
-    __tablename__ = 'predicted_river_level'
+    __tablename__ = "predicted_river_level"
     __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
 
     id = Column(Integer, primary_key=True)
@@ -42,6 +42,7 @@ class StationDataFrameSchema(pa.DataFrameModel):
     """
     Schema for station data in ETL.
     """
+
     location: Series[str]
     date: Series[pd.Timestamp]
     level__m: Series[float]

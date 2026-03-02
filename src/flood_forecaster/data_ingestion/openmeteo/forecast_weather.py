@@ -5,10 +5,10 @@ from openmeteo_sdk import WeatherApiResponse
 
 from flood_forecaster.data_ingestion.openmeteo.common import (
     fetch_openmeteo_data,
+    parse_daily_data,
+    persist_weather_data,
     prepare_weather_locations,
     process_weather_responses,
-    persist_weather_data,
-    parse_daily_data
 )
 from flood_forecaster.data_model.weather import ForecastWeather
 from flood_forecaster.utils.configuration import Config
@@ -54,8 +54,9 @@ def fetch_forecast(config: Config, openmeteo):
     return forecast_df
 
 
-def get_weather_forecast(location_labels: List[str], latitudes: List[float],
-                         longitudes: List[float], config: Config, openmeteo) -> pd.DataFrame:
+def get_weather_forecast(
+    location_labels: List[str], latitudes: List[float], longitudes: List[float], config: Config, openmeteo
+) -> pd.DataFrame:
     """Get weather forecast for the specified weather locations."""
     # Create API parameters and fetch data
     params = create_forecast_params(latitudes, longitudes)

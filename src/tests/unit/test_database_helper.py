@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from flood_forecaster.utils.database_helper import DatabaseConnection
 
@@ -15,12 +15,15 @@ class TestDatabaseHelper(unittest.TestCase):
 
     @patch("os.environ.get", return_value="testpassword")
     @patch("flood_forecaster.utils.database_helper.create_engine")
-    @patch("flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
-        "dbname": "testdb",
-        "user": "testuser",
-        "host": "localhost",
-        "port": "5432",
-    })
+    @patch(
+        "flood_forecaster.utils.configuration.Config.load_data_database_config",
+        return_value={
+            "dbname": "testdb",
+            "user": "testuser",
+            "host": "localhost",
+            "port": "5432",
+        },
+    )
     def test_database_connection_success(self, mock_load_config, mock_create_engine, mock_env):
         # Mocking the Config object
         config = MagicMock()
@@ -55,12 +58,15 @@ class TestDatabaseHelper(unittest.TestCase):
 
     @patch("os.environ.get", return_value="testpassword")
     @patch("flood_forecaster.utils.database_helper.create_engine", side_effect=Exception("Mocked error"))
-    @patch("flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
-        "dbname": "testdb",
-        "user": "testuser",
-        "host": "localhost",
-        "port": "5432",
-    })
+    @patch(
+        "flood_forecaster.utils.configuration.Config.load_data_database_config",
+        return_value={
+            "dbname": "testdb",
+            "user": "testuser",
+            "host": "localhost",
+            "port": "5432",
+        },
+    )
     def test_database_connection_failure(self, mock_load_config, mock_create_engine, mock_env):
         config = MagicMock()
 

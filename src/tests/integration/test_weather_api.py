@@ -36,5 +36,5 @@ class TestOpenmeteo(unittest.TestCase):
             self.fail("Expected to fetch historical weather data, but got None")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

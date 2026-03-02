@@ -1,5 +1,4 @@
 import joblib
-
 from xgboost import XGBRegressor
 
 EXCLUDED_COLUMNS = ["location", "y", "date", "level__m", "sin_month", "cos_month", "sin_dayofyear", "cos_dayofyear"]
@@ -15,7 +14,7 @@ def train(train_df):
 
 
 def serialize(model, model_path):
-    with open(model_path, 'wb') as f:
+    with open(model_path, "wb") as f:
         joblib.dump(model, f)
 
 
@@ -28,7 +27,7 @@ def train_and_serialize(train_df, model_path, model_name):
 
     model_full_path = __model_full_path(model_path, model_name)
     serialize(model, model_full_path)
-    
+
     return model, model_full_path
 
 
@@ -52,5 +51,5 @@ def infer(model, infer_df):
 
 def load(model_path, model_name):
     # Load model from .pkl file
-    with open(__model_full_path(model_path, model_name), 'rb') as f:
+    with open(__model_full_path(model_path, model_name), "rb") as f:
         return joblib.load(f)

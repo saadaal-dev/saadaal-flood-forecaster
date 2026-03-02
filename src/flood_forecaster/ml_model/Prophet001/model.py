@@ -1,13 +1,12 @@
 from prophet import Prophet
-from prophet.serialize import model_to_json, model_from_json
-
+from prophet.serialize import model_from_json, model_to_json
 
 EXCLUDED_COLUMNS = ["location", "y", "date", "level__m"]
 
 
 def train(train_df):
     # Initialize the Prophet model
-    m = Prophet(weekly_seasonality=False, growth='flat')
+    m = Prophet(weekly_seasonality=False, growth="flat")
 
     # Adapt the dataframe to Prophet's requirements
     train_df["ds"] = train_df["date"]
@@ -23,7 +22,7 @@ def train(train_df):
 
 
 def serialize(model, model_path):
-    with open(model_path, 'w') as f:
+    with open(model_path, "w") as f:
         f.write(model_to_json(model))
 
 
@@ -36,7 +35,7 @@ def train_and_serialize(train_df, model_path, model_name):
 
     model_full_path = __model_full_path(model_path, model_name)
     serialize(model, model_full_path)
-    
+
     return model, model_full_path
 
 
@@ -67,5 +66,5 @@ def infer(model, infer_df):
 
 
 def load(model_path, model_name):
-    with open(__model_full_path(model_path, model_name), 'r') as f:
+    with open(__model_full_path(model_path, model_name)) as f:
         return model_from_json(f.read())

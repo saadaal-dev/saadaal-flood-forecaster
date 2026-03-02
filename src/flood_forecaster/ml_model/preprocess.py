@@ -15,21 +15,23 @@ DEFAULT_WEATHER_LAG_DAYS = [1, 3, 7, 14] + [0, -2, -6]
 DEFAULT_FORECAST_DAYS = 1
 
 
-ModellingDataFrameSchema = pa.DataFrameSchema({
-    "location": pa.Column(str),
-    "date": pa.Column(pa.DateTime),
-    "level__m": pa.Column(float),
-    r"[a-zA-Z0-9_]+__lag\d+__level__m": pa.Column(pa.Float, regex=True, required=False),
-    r"[a-zA-Z0-9_]+__lag\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
-    r"[a-zA-Z0-9_]+__lag\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
-    r"[a-zA-Z0-9_]+__forecast\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
-    r"[a-zA-Z0-9_]+__forecast\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
-    "month_sin": pa.Column(float),
-    "month_cos": pa.Column(float),
-    "dayofyear_sin": pa.Column(float),
-    "dayofyear_cos": pa.Column(float),
-    "y": pa.Column(float, nullable=True),
-})
+ModellingDataFrameSchema = pa.DataFrameSchema(
+    {
+        "location": pa.Column(str),
+        "date": pa.Column(pa.DateTime),
+        "level__m": pa.Column(float),
+        r"[a-zA-Z0-9_]+__lag\d+__level__m": pa.Column(pa.Float, regex=True, required=False),
+        r"[a-zA-Z0-9_]+__lag\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
+        r"[a-zA-Z0-9_]+__lag\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
+        r"[a-zA-Z0-9_]+__forecast\d+__precipitation_sum": pa.Column(pa.Float, regex=True, required=False),
+        r"[a-zA-Z0-9_]+__forecast\d+__precipitation_hours": pa.Column(pa.Float, regex=True, required=False),
+        "month_sin": pa.Column(float),
+        "month_cos": pa.Column(float),
+        "dayofyear_sin": pa.Column(float),
+        "dayofyear_cos": pa.Column(float),
+        "y": pa.Column(float, nullable=True),
+    }
+)
 """
 Defining a pandera dynamic schema for the ML data.
 This is the output of the preprocessing pipeline suitable for the ML model training/evaluation/inference.
@@ -70,11 +72,15 @@ def preprocess_station(station_df: pa.typing.DataFrame[StationDataFrameSchema], 
 
     for lag_days in lag_days:
         df = df.merge(station_df[["level__m"]].shift(lag_days).add_prefix(f"lag{lag_days:02d}__"), left_index=True, right_index=True)
-    
+
     return df
 
 
-def preprocess_all_stations(ref_station_df: pa.typing.DataFrame[StationDataFrameSchema], upstream_station_dfs: Dict[str, pa.typing.DataFrame[StationDataFrameSchema]], lag_days=DEFAULT_STATION_LAG_DAYS):
+def preprocess_all_stations(
+    ref_station_df: pa.typing.DataFrame[StationDataFrameSchema],
+    upstream_station_dfs: Dict[str, pa.typing.DataFrame[StationDataFrameSchema]],
+    lag_days=DEFAULT_STATION_LAG_DAYS,
+):
     # """
     # Preprocess all station dataframes:
     #  - add lagged values for the level__m column on all stations
@@ -91,7 +97,7 @@ def preprocess_all_stations(ref_station_df: pa.typing.DataFrame[StationDataFrame
         df = preprocess_station(station_df.droplevel(0), lag_days, only_lag_columns=True).add_prefix(f"{station_prefix}__")
 
         # add station data without empty lag values
-        acc_df = acc_df.merge(df[max(lag_days):], left_index=True, right_index=True)
+        acc_df = acc_df.merge(df[max(lag_days) :], left_index=True, right_index=True)
 
     return acc_df
 
@@ -115,7 +121,7 @@ def preprocess_weather(weather_df: pa.typing.DataFrame[WeatherDataFrameSchema], 
         else:
             shift_df = shift_df.add_prefix(f"lag{lag:02d}__")
         df = df.merge(shift_df, left_index=True, right_index=True)
-    
+
     # QUICKFIX: make all columns float
     return df.astype(float)
 
@@ -126,10 +132,9 @@ def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDat
     deduplicated_weather_dfs = {}
     for weather_location, weather_df in weather_dfs.items():
         if weather_df.index.has_duplicates:
-            logger.warning(
-                f"WARNING: Found duplicate index values in weather data for {weather_location}, removing duplicates...")
+            logger.warning(f"WARNING: Found duplicate index values in weather data for {weather_location}, removing duplicates...")
             # Keep last duplicate based on the original order (most recent data)
-            weather_df = weather_df[~weather_df.index.duplicated(keep='last')]
+            weather_df = weather_df[~weather_df.index.duplicated(keep="last")]
             logger.warning(f"  Removed {weather_dfs[weather_location].index.duplicated().sum()} duplicate(s)")
         deduplicated_weather_dfs[weather_location] = weather_df
 
@@ -141,22 +146,23 @@ def preprocess_all_weather(weather_dfs: Dict[str, pa.typing.DataFrame[WeatherDat
     for weather_location, weather_df in weather_dfs.items():
         if weather_df.index.has_duplicates:
             # This should never happen after deduplication, but keep as safety check
-            duplicate_values = weather_df[weather_df.index.duplicated(keep='first')].index.unique().tolist()
+            duplicate_values = weather_df[weather_df.index.duplicated(keep="first")].index.unique().tolist()
             raise ValueError(
-                f"Weather data for {weather_location} STILL has non-unique index values after deduplication: {duplicate_values}. This is a bug.")
+                f"Weather data for {weather_location} STILL has non-unique index values after deduplication: {duplicate_values}. This is a bug."
+            )
 
     acc_df = None
     for weather_location, weather_df in weather_dfs.items():
         # standardize station column names (lowercase, remove spaces)
         weather_location_prefix = weather_location.lower().replace(" ", "_")
-        
+
         df = preprocess_weather(weather_df.droplevel(0), lag_days).add_prefix(f"{weather_location_prefix}__")
 
         if acc_df is None:
             acc_df = df
         else:
             # add weather data without empty lag values
-            acc_df = acc_df.merge(df[max(lag_days):], left_index=True, right_index=True)
+            acc_df = acc_df.merge(df[max(lag_days) :], left_index=True, right_index=True)
 
     return acc_df
 
@@ -165,7 +171,7 @@ def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS) -> pd.Da
     if forecast_days > 1:
         # shift for output data of <forecast_days>-1 (-1 since y contains the next day prediction by default)
         shift = -forecast_days + 1
-        df['level__m'] = df['level__m'].shift(shift)
+        df["level__m"] = df["level__m"].shift(shift)
 
         # data usable for a forecast (without output label, only input data):
         # # forecast dates (last <forecast_days> days not available)
@@ -173,9 +179,9 @@ def add_y_column(df: pd.DataFrame, forecast_days=DEFAULT_FORECAST_DAYS) -> pd.Da
 
         # remove null entries (last <forecast_days> days not available)
         df = df[:shift]
-        
+
     # apply final structure
-    df = df.assign(y=(df['level__m'] - df['lag01__level__m']))
+    df = df.assign(y=(df["level__m"] - df["lag01__level__m"]))
 
     return df
 
@@ -184,13 +190,14 @@ def preprocess_diff(
     station_metadata: StationMapping,
     stations_df: pa.typing.DataFrame[StationDataFrameSchema],
     weather_df: pa.typing.DataFrame[WeatherDataFrameSchema],
-    station_lag_days=DEFAULT_STATION_LAG_DAYS, weather_lag_days=DEFAULT_WEATHER_LAG_DAYS,
+    station_lag_days=DEFAULT_STATION_LAG_DAYS,
+    weather_lag_days=DEFAULT_WEATHER_LAG_DAYS,
     forecast_days=DEFAULT_FORECAST_DAYS,
     infer=False,
 ) -> pa.typing.DataFrame:  # DataFrame[ModellingDataFrameSchema] | DataFrame[InferenceDataFrameSchema]
     """
     Preprocess the data for the ML model.
-    
+
     The preprocessing steps include:
         - Extract reference station data
         - Extract upstream station data
@@ -210,7 +217,7 @@ def preprocess_diff(
     for upstream_station in station_metadata.upstream_stations:
         upstream_station_df = stations_df[stations_df.index.get_level_values("location") == upstream_station]
         upstream_station_dfs[upstream_station] = upstream_station_df
-    
+
     # extract weather data
     weather_dfs = {}
     for weather_location in station_metadata.weather_locations:
@@ -227,7 +234,7 @@ def preprocess_diff(
         raise ValueError(f"One or more weather dataframes are empty for {station_metadata.location}.")
     if ref_station_df.empty:
         raise ValueError(f"No reference station data found for {station_metadata.location}.")
-    
+
     # preprocess data
     stations_df = preprocess_all_stations(ref_station_df, upstream_station_dfs, lag_days=station_lag_days)
     weathers_df = preprocess_all_weather(weather_dfs, lag_days=weather_lag_days)
@@ -236,19 +243,19 @@ def preprocess_diff(
 
     df = pd.merge(stations_df, weathers_df, left_index=True, right_index=True)
     df = df.reset_index()
-    
+
     if not infer:
         df = add_y_column(df, forecast_days)
-    
+
     # data augmentation: add date features
-    df['month'] = df['date'].dt.month
-    df['dayofyear'] = df['date'].dt.dayofyear
+    df["month"] = df["date"].dt.month
+    df["dayofyear"] = df["date"].dt.dayofyear
 
     # apply circular encoding to date features
-    df['month_sin'] = df['month'].apply(lambda x: np.sin(2 * np.pi * (x - 1) / 12))
-    df['month_cos'] = df['month'].apply(lambda x: np.cos(2 * np.pi * (x - 1) / 12))
-    df['dayofyear_sin'] = df['dayofyear'].apply(lambda x: np.sin(2 * np.pi * (x - 1) / 365))
-    df['dayofyear_cos'] = df['dayofyear'].apply(lambda x: np.cos(2 * np.pi * (x - 1) / 365))
+    df["month_sin"] = df["month"].apply(lambda x: np.sin(2 * np.pi * (x - 1) / 12))
+    df["month_cos"] = df["month"].apply(lambda x: np.cos(2 * np.pi * (x - 1) / 12))
+    df["dayofyear_sin"] = df["dayofyear"].apply(lambda x: np.sin(2 * np.pi * (x - 1) / 365))
+    df["dayofyear_cos"] = df["dayofyear"].apply(lambda x: np.cos(2 * np.pi * (x - 1) / 365))
 
     # # drop redundant date features
     # df = df.drop(columns=['month', 'dayofyear'])

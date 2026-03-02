@@ -10,15 +10,9 @@ import os
 import sys
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from flood_forecaster.utils.logging_config import (
-    setup_logging,
-    get_logger,
-    capture_message,
-    capture_exception,
-    add_breadcrumb
-)
+from flood_forecaster.utils.logging_config import add_breadcrumb, capture_exception, capture_message, get_logger, setup_logging
 
 
 def test_sentry_integration():
@@ -30,9 +24,9 @@ def test_sentry_integration():
     print()
 
     # Check environment variables
-    sentry_dsn = os.getenv('SENTRY_DSN')
-    sentry_env = os.getenv('SENTRY_ENVIRONMENT', 'not set (will use default: production)')
-    log_level = os.getenv('LOG_LEVEL', 'INFO')
+    sentry_dsn = os.getenv("SENTRY_DSN")
+    sentry_env = os.getenv("SENTRY_ENVIRONMENT", "not set (will use default: production)")
+    log_level = os.getenv("LOG_LEVEL", "INFO")
 
     print("Configuration:")
     print(f"  - SENTRY_DSN: {'✓ Set' if sentry_dsn else '✗ Not Set'}")
@@ -70,23 +64,12 @@ def test_sentry_integration():
 
     print()
     print("Testing breadcrumb functionality...")
-    add_breadcrumb(
-        message="Test breadcrumb for station processing",
-        category="test",
-        level="info",
-        station="Belet Weyne",
-        test_run=True
-    )
+    add_breadcrumb(message="Test breadcrumb for station processing", category="test", level="info", station="Belet Weyne", test_run=True)
     print("✓ Breadcrumb added")
     print()
 
     print("Testing manual message capture...")
-    capture_message(
-        "Test message from integration test",
-        level="info",
-        test_type="integration_test",
-        timestamp=str(os.times())
-    )
+    capture_message("Test message from integration test", level="info", test_type="integration_test", timestamp=str(os.times()))
     print("✓ Manual message captured")
     print()
 
@@ -96,12 +79,7 @@ def test_sentry_integration():
         raise ValueError("This is a test exception - don't worry!")
     except Exception as e:
         print(f"✓ Exception raised: {e}")
-        capture_exception(
-            e,
-            test_run=True,
-            location="test_script",
-            note="This is an intentional test exception"
-        )
+        capture_exception(e, test_run=True, location="test_script", note="This is an intentional test exception")
         print("✓ Exception captured and sent to Sentry")
     print()
 
