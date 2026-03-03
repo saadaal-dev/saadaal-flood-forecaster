@@ -1,0 +1,5 @@
+sensor, label, latitude, longitude, type
+Baidoa, BAIDOA_MOH, 3.1108195, 43.6233185, weather station
+Afgooye, MOHADM_AFG, 2.140976, 45.1085611, weather station
+Elbarde, MOH_EBW1, 4.6949753, 43.5732575, water level sensor
+Baidoa, BAIDOA_MOH, 3.1108195, 43.6233185, water level sensor

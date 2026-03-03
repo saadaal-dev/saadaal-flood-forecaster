@@ -47,7 +47,7 @@ Before submitting a PR, please ensure:
 - [ ] Documentation is updated if needed.
 - [ ] You’ve added meaningful comments where applicable.
 
-## 🔹 Linting and secrets detection
+## 🔹 Linting, secrets detection and tests
 
 * To run the Python linter flake8 on the whole repo, run the command: `tox -e linting`.
 * To detect new secrets, compared with the previously created baseline run the command: `tox -e detect-secrets`.
@@ -75,6 +75,31 @@ The application uses **Sentry** for centralized logging, error tracking, and per
 
 All `print()` statements in `/src` (excluding tests) have been replaced with proper `logging` calls that integrate with
 Sentry.
+### Running tests
+
+```bash
+# Unit tests only (default — integration tests are excluded automatically)
+uv run pytest
+
+# Run a specific test file
+uv run pytest src/tests/unit/test_geo.py
+
+# Integration tests — external network (Open-Meteo API, SWALIM)
+uv run pytest -m integration
+
+# Integration tests — local PostgreSQL DB required
+docker compose up -d
+export POSTGRES_PASSWORD=testpassword   # must match docker-compose.yml
+uv run pytest -m integration_db
+
+# All tests
+uv run pytest -m ''
+```
+
+> `integration` tests contact external APIs (Open-Meteo, SWALIM) and also require a local PostgreSQL instance (historical weather fetch checks the DB for existing data).
+> `integration_db` tests require a local PostgreSQL instance (no external network needed).
+> Both marks are excluded from the default run. DB tests are auto-skipped (not failed)
+> when PostgreSQL is not reachable on `localhost:5432`.
 
 ---
 
