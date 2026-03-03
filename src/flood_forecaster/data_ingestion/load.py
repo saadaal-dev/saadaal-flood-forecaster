@@ -10,9 +10,12 @@ from sqlalchemy import select, func
 
 from flood_forecaster.data_model.river_level import HistoricalRiverLevel, StationDataFrameSchema
 from flood_forecaster.data_model.weather import HistoricalWeather, ForecastWeather, WeatherDataFrameSchema
+from flood_forecaster.data_model.sensor_readings import SensorReading, SensorRainfallDataFrameSchema
 from flood_forecaster.utils.configuration import Config, DataSourceType
 from flood_forecaster.utils.database_helper import DatabaseConnection
 from flood_forecaster.utils.logging_config import get_logger
+from flood_forecaster.utils.geo import build_sensor_location_mapping
+
 
 pat = pa.typing
 logger = get_logger(__name__)
@@ -299,6 +302,104 @@ def load_river_level_csv(
     df = __load_csv(path, start_date, end_date, datefmt="%d/%m/%Y").loc[lambda df: df["location"].isin(locations)]  # type: ignore (ensured by pandera)
     df = df[["location", "date", "level__m"]]
     return df  # type: ignore (ensured by pandera)
+
+
+_SENSOR_INVALID_VALUES = frozenset({"---", "", "null", "-999.99", "0", "0.0"})
+
+
+def _clean_sensor_value(series: pd.Series) -> pd.Series:
+    """
+    Clean the raw VARCHAR 'value' column from public.sensor_readings.
+    Casts to float, replacing known sentinel strings and true nulls with NaN.
+    Negative values (except valid small negatives) are also dropped.
+
+    Known invalid sentinels: '---', '', 'NULL', '-999.99', '0', '0.0'
+    """
+    cleaned = series.str.strip().str.lower()
+    cleaned = cleaned.where(~cleaned.isin(_SENSOR_INVALID_VALUES), other=float("nan"))
+    numeric = pd.to_numeric(cleaned, errors="coerce")
+    # drop implausible negatives (sensor error codes below -100)
+    numeric = numeric.where(numeric >= -100, other=float("nan"))
+    return numeric
+
+
+@pa.check_types
+def load_sensor_rainfall_db(
+    config: Config, locations: Iterable[str], date_begin: date, date_end: date
+) -> pat.DataFrame[SensorRainfallDataFrameSchema]:
+    """
+    Load daily rainfall totals from public.sensor_readings for the given date range,
+    filtered to rows whose sensor_meaning contains the configured rainfall keyword.
+
+    Steps:
+      1. Build sensor_id → location mapping via haversine nearest-neighbour.
+      2. Query public.sensor_readings filtered by station_id, sensor_meaning, and reading_ts.
+      3. Clean the raw VARCHAR 'value' column via _clean_sensor_value().
+      4. Aggregate to daily totals per pipeline location.
+
+    Returns a DataFrame[SensorRainfallDataFrameSchema] with columns:
+        location, date, precipitation_sum, precipitation_hours
+    """
+    sensor_config = config.load_sensor_config()
+    sensor_stations_path = sensor_config["sensor_stations_file"]
+    forecast_locations_path = config.load_static_data_config()["weather_location_data_path"]
+    max_distance_km = float(sensor_config.get("sensor_max_distance_km", 50))
+    rainfall_keyword = sensor_config.get("rainfall_sensor_meaning", "Rainfall")
+
+    # Build station_id → location label mapping restricted to the requested locations
+    station_to_location = build_sensor_location_mapping(
+        sensor_stations_path, forecast_locations_path, max_distance_km=max_distance_km
+    )
+    # Keep only sensor stations that map to one of the requested locations
+    relevant_station_ids = [
+        sid for sid, loc in station_to_location.items() if loc in set(locations)
+    ]
+    if not relevant_station_ids:
+        print(f"WARNING: No sensor stations found within {max_distance_km} km of locations {list(locations)}.")
+        return pd.DataFrame(columns=["location", "date", "precipitation_sum", "precipitation_hours"])
+
+    _date_begin = pd.to_datetime(date_begin).replace(hour=0, minute=0, second=0, microsecond=0)
+    _date_end = pd.to_datetime(date_end).replace(hour=23, minute=59, second=59, microsecond=0)
+
+    stmt = (
+        select(SensorReading)
+        .where(SensorReading.station_id.in_(relevant_station_ids))
+        .where(SensorReading.sensor_meaning.ilike(f"%{rainfall_keyword}%"))
+        .where(SensorReading.reading_ts >= _date_begin)
+        .where(SensorReading.reading_ts <= _date_end)
+    )
+    database = DatabaseConnection(config)
+    df = pd.read_sql(stmt, database.engine)
+    print(f"Loaded {len(df)} raw sensor rainfall rows from public.sensor_readings")
+
+    if df.empty:
+        print("WARNING: No sensor rainfall data found for the given date range and stations.")
+        return pd.DataFrame(columns=["location", "date", "precipitation_sum", "precipitation_hours"])
+
+    # Clean value column
+    df = df.copy()
+    df["value_clean"] = _clean_sensor_value(df["value"])
+    df = df.dropna(subset=["value_clean"]).copy()
+
+    # Map station_id → pipeline location label
+    df["location"] = df["station_id"].map(station_to_location)
+    df = df.dropna(subset=["location"]).copy()
+
+    # Parse reading_ts and aggregate to daily totals
+    df["reading_ts"] = pd.to_datetime(df["reading_ts"], utc=True)
+    df["date"] = df["reading_ts"].dt.date
+    df["date"] = pd.to_datetime(df["date"])
+
+    agg = (
+        df.groupby(["location", "date"], as_index=False)
+        .agg(
+            precipitation_sum=("value_clean", "sum"),
+            precipitation_hours=("value_clean", "count"),
+        )
+    )
+
+    print(f"Aggregated to {len(agg)} daily sensor rainfall rows")
+    return agg  # type: ignore (ensured by pandera)
 
 
 __WEATHER_HISTORY_LOAD_FNS = {
@@ -644,3 +745,51 @@ def load_inference_river_levels(
     )
 
     return df  # type: ignore (ensured by pandera)
+
+
+@pa.check_types
+def load_inference_sensor_rainfall(
+    config: Config, locations: Iterable[str], date=datetime.now()
+) -> pat.DataFrame[SensorRainfallDataFrameSchema]:
+    """
+    Load sensor rainfall data for inference from public.sensor_readings.
+
+    Mirrors load_inference_weather() in date-window logic: uses the same weather_lag_days
+    from config to build the historical window. Sensor data is real-time only (no forecast arm).
+
+    Dataframe columns:
+        - location: str   (mapped from sensor station_id via haversine)
+        - date: datetime
+        - precipitation_sum: float  (daily rainfall total in mm)
+        - precipitation_hours: int  (number of valid hourly readings that day)
+    """
+    date = date.date()
+
+    model_config = config.load_model_config()
+    weather_lag_days = json.loads(model_config["weather_lag_days"])
+
+    min_date = date - timedelta(days=max(weather_lag_days))
+    # Sensor data is historical only — cap at yesterday
+    max_date = min(date - timedelta(days=min(weather_lag_days)), datetime.now().date() - timedelta(days=1))
+
+    print(f"Loading sensor rainfall inference data from {min_date} to {max_date}")
+    df = load_sensor_rainfall_db(config, locations, min_date, max_date)
+
+    if df.empty:
+        return df  # type: ignore
+
+    # Gap-fill each location using the same helper as load_inference_weather
+    _filled_dfs = []
+    for location in locations:
+        _expected_len = (max_date - min_date).days + 1
+        _actual_df = df[df["location"] == location]
+        if len(_actual_df) == _expected_len:
+            _filled_dfs.append(_actual_df)
+        else:
+            print(
+                f"WARNING: Missing sensor rainfall data for location {location}. "
+                f"Expected {_expected_len} entries, got {len(_actual_df)}. Filling missing dates."
+            )
+            _filled_dfs.append(__weather_df_without_missing_dates(df, location, min_date, max_date))
+
+    return pd.concat(_filled_dfs, ignore_index=True).sort_values(by=["location", "date"])  # type: ignore
