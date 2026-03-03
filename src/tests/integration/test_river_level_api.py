@@ -1,12 +1,15 @@
 import datetime
 import unittest
 
+import pytest
+
 from flood_forecaster import DatabaseConnection
 from flood_forecaster.data_ingestion.swalim.river_level_api import fetch_latest_river_data, insert_river_data
 from flood_forecaster.data_model.river_level import HistoricalRiverLevel
 from flood_forecaster.utils.configuration import Config
 
 
+@pytest.mark.integration_db
 class TestConfig(unittest.TestCase):
 
     def test_fetch_latest_river_data(self):

@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-testpassword}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql/database_bootstrap.sql:/docker-entrypoint-initdb.d/01_bootstrap.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

@@ -85,7 +85,7 @@ class TestInference(unittest.TestCase):
             "lag01__level__m": [1.0],
             "s1__lag01__level__m": [1.0],
             "w1__forecast01__precipitation_sum": [0.1],
-            "w1__forecast01__precipitation_hours": [1.1],
+            "w1__forecast01__precipitation_hours": [1.0],
             "y": [42.0]
         })
 
