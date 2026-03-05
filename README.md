@@ -215,6 +215,7 @@ cd saadaal-flood-forecaster/
 touch .env
 ```
 ```bash
+export DB_HOST=<database-host>
 export POSTGRES_PASSWORD=<database-password>
 ```
 3. Install the application and the required python dependencies.

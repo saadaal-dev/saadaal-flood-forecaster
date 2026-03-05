@@ -22,7 +22,6 @@ class TestConfig(unittest.TestCase):
     @patch("builtins.open", new_callable=mock_open, read_data="""[data.database]
     dbname=testdb
     user=testuser
-    host=localhost
     port=5432
     """)
     def test_load_database_config(self, mock_file, mock_exists):
@@ -30,7 +29,6 @@ class TestConfig(unittest.TestCase):
         db_config = config.load_data_database_config()
         self.assertEqual(db_config["dbname"], "testdb")
         self.assertEqual(db_config["user"], "testuser")
-        self.assertEqual(db_config["host"], "localhost")
         self.assertEqual(db_config["port"], "5432")
 
     # @patch("flood_forecaster.utils.configuration.ConfigParser.read")  # target correct module
