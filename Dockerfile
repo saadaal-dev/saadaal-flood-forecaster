@@ -3,6 +3,10 @@ FROM python:3.12
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Runtime environment variables required (pass via docker run -e or docker-compose):
+#   DB_HOST            - PostgreSQL database host
+#   POSTGRES_PASSWORD  - PostgreSQL database password
+
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
