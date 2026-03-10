@@ -1,4 +1,3 @@
-import logging
 import os
 from datetime import datetime, timedelta
 
@@ -11,8 +10,9 @@ from flood_forecaster.alert_module.flood_status import get_df_by_date
 from flood_forecaster.data_model.river_level import PredictedRiverLevel
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 config = Config("config/config.ini")
 
 

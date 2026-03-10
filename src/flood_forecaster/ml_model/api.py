@@ -507,7 +507,7 @@ def infer(
                 weather_df["precipitation_hours_openmeteo"]
             )
             weather_df = weather_df[["location", "date", "precipitation_sum", "precipitation_hours"]]
-            print(f"Coalesced sensor rainfall over Open-Meteo for {len(sensor_df)} rows.")
+            logger.info(f"Coalesced sensor rainfall over Open-Meteo for {len(sensor_df)} rows.")
 
     stations_df = load_inference_river_levels(config, station_metadata.upstream_stations, date=date)
 

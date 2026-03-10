@@ -6,6 +6,10 @@ from typing import Optional
 
 import pandas as pd
 
+from flood_forecaster.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
@@ -78,14 +82,14 @@ def build_sensor_location_mapping(
                 best_loc_label = loc_row["label"]
 
         if max_distance_km is not None and best_dist > max_distance_km:
-            print(
-                f"WARNING: Sensor station '{station_label}' is {best_dist:.1f} km from the nearest "
+            logger.warning(
+                f"Sensor station '{station_label}' is {best_dist:.1f} km from the nearest "
                 f"forecast location '{best_loc_label}' — exceeds max_distance_km={max_distance_km}. "
                 f"Excluding from mapping."
             )
             continue
 
-        print(f"Sensor '{station_label}' → location '{best_loc_label}' ({best_dist:.1f} km)")
+        logger.debug(f"Sensor '{station_label}' → location '{best_loc_label}' ({best_dist:.1f} km)")
         # Map both the device label (used as station_id in public.sensor_readings queries)
         # and the human-readable sensor name (convenient for CLI --location arguments).
         mapping[station_label] = best_loc_label

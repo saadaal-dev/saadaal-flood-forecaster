@@ -355,7 +355,7 @@ def load_sensor_rainfall_db(
         sid for sid, loc in station_to_location.items() if loc in set(locations)
     ]
     if not relevant_station_ids:
-        print(f"WARNING: No sensor stations found within {max_distance_km} km of locations {list(locations)}.")
+        logger.warning(f"No sensor stations found within {max_distance_km} km of locations {list(locations)}.")
         return pd.DataFrame(columns=["location", "date", "precipitation_sum", "precipitation_hours"])
 
     _date_begin = pd.to_datetime(date_begin).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -370,10 +370,10 @@ def load_sensor_rainfall_db(
     )
     database = DatabaseConnection(config)
     df = pd.read_sql(stmt, database.engine)
-    print(f"Loaded {len(df)} raw sensor rainfall rows from public.sensor_readings")
+    logger.info(f"Loaded {len(df)} raw sensor rainfall rows from public.sensor_readings")
 
     if df.empty:
-        print("WARNING: No sensor rainfall data found for the given date range and stations.")
+        logger.warning("No sensor rainfall data found for the given date range and stations.")
         return pd.DataFrame(columns=["location", "date", "precipitation_sum", "precipitation_hours"])
 
     # Clean value column
@@ -398,7 +398,7 @@ def load_sensor_rainfall_db(
         )
     )
 
-    print(f"Aggregated to {len(agg)} daily sensor rainfall rows")
+    logger.info(f"Aggregated to {len(agg)} daily sensor rainfall rows")
     return agg  # type: ignore (ensured by pandera)
 
 
@@ -772,7 +772,7 @@ def load_inference_sensor_rainfall(
     # Sensor data is historical only — cap at yesterday
     max_date = min(date - timedelta(days=min(weather_lag_days)), datetime.now().date() - timedelta(days=1))
 
-    print(f"Loading sensor rainfall inference data from {min_date} to {max_date}")
+    logger.info(f"Loading sensor rainfall inference data from {min_date} to {max_date}")
     df = load_sensor_rainfall_db(config, locations, min_date, max_date)
 
     if df.empty:
@@ -786,8 +786,8 @@ def load_inference_sensor_rainfall(
         if len(_actual_df) == _expected_len:
             _filled_dfs.append(_actual_df)
         else:
-            print(
-                f"WARNING: Missing sensor rainfall data for location {location}. "
+            logger.warning(
+                f"Missing sensor rainfall data for location {location}. "
                 f"Expected {_expected_len} entries, got {len(_actual_df)}. Filling missing dates."
             )
             _filled_dfs.append(__weather_df_without_missing_dates(df, location, min_date, max_date))

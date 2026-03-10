@@ -10,7 +10,10 @@ from flood_forecaster.data_ingestion.load import load_history_weather_db, load_s
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.geo import build_sensor_location_mapping
 from flood_forecaster.utils.database_helper import DatabaseConnection
+from flood_forecaster.utils.logging_config import get_logger
 from .common import common_options
+
+logger = get_logger(__name__)
 
 
 @click.group
@@ -86,7 +89,7 @@ def validate_sensor_readings(configuration: Config, schema_name: str, table_name
 def validate_table_data(configuration: Config, schema_name: str, table_name: str):
     db_conn = DatabaseConnection(configuration)
     issues = db_conn.validate_table_data(schema_name, table_name)
-    print("\nValidation issues:", issues)
+    logger.warning("Validation issues: %s", issues)
 
 
 @database_model.command(
@@ -150,7 +153,7 @@ def compare_sensor_weather(
     for loc in location:
         if loc in station_to_location:
             mapped = station_to_location[loc]
-            print(f"Resolved sensor station '{loc}' → forecast location '{mapped}'")
+            logger.info(f"Resolved sensor station '{loc}' → forecast location '{mapped}'")
             locations.append(mapped)
         else:
             locations.append(loc)
@@ -158,10 +161,10 @@ def compare_sensor_weather(
     seen: set = set()
     locations = [loc for loc in locations if not (loc in seen or seen.add(loc))]  # type: ignore[func-returns-value]
 
-    print(f"Loading sensor rainfall for {locations} from {d_from} to {d_to}...")
+    click.echo(f"Loading sensor rainfall for {locations} from {d_from} to {d_to}...")
     sensor_df = load_sensor_rainfall_db(configuration, locations, d_from, d_to)
 
-    print(f"Loading Open-Meteo historical weather for {locations} from {d_from} to {d_to}...")
+    click.echo(f"Loading Open-Meteo historical weather for {locations} from {d_from} to {d_to}...")
     weather_df = load_history_weather_db(configuration, locations, d_from, d_to)
 
     sensor_df["date"] = pd.to_datetime(sensor_df["date"])
@@ -180,19 +183,19 @@ def compare_sensor_weather(
     merged["delta_mm"] = merged["sensor_precip_mm"] - merged["openmeteo_precip_mm"]
 
     _W = 80
-    print(f"\n{'─' * _W}")
-    print(f"{'location':<25} {'date':<12} {'sensor_precip_mm':>18} {'openmeteo_precip_mm':>20} {'delta_mm':>10}")
-    print(f"{'─' * _W}")
+    click.echo(f"\n{'─' * _W}")
+    click.echo(f"{'location':<25} {'date':<12} {'sensor_precip_mm':>18} {'openmeteo_precip_mm':>20} {'delta_mm':>10}")
+    click.echo(f"{'─' * _W}")
     for _, row in merged.iterrows():
         s = f"{row['sensor_precip_mm']:.2f}" if pd.notna(row.get("sensor_precip_mm")) else "N/A"
         w = f"{row['openmeteo_precip_mm']:.2f}" if pd.notna(row.get("openmeteo_precip_mm")) else "N/A"
         d = f"{row['delta_mm']:.2f}" if pd.notna(row.get("delta_mm")) else "N/A"
-        print(f"{str(row['location']):<25} {str(row['date'].date()):<12} {s:>18} {w:>20} {d:>10}")
-    print(f"{'─' * _W}")
+        click.echo(f"{str(row['location']):<25} {str(row['date'].date()):<12} {s:>18} {w:>20} {d:>10}")
+    click.echo(f"{'─' * _W}")
     sensor_count = int((~merged["sensor_precip_mm"].isna()).sum())
     weather_count = int((~merged["openmeteo_precip_mm"].isna()).sum())
-    print(f"{len(merged)} rows | {sensor_count} sensor, {weather_count} Open-Meteo")
+    click.echo(f"{len(merged)} rows | {sensor_count} sensor, {weather_count} Open-Meteo")
 
     if output:
         merged.to_csv(output, index=False)
-        print(f"\nSaved comparison to {output}")
+        click.echo(f"\nSaved comparison to {output}")
