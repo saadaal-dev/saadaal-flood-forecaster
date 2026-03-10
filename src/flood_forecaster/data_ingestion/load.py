@@ -480,21 +480,33 @@ def __river_level_df_without_missing_dates(df: pd.DataFrame, location: str, date
     # add missing dates
     # TODO: might not handle all cases (e.g., first value is missing)
     missing_dates = all_dates.difference(location_df['date'].to_list())
-    location_df = pd.concat([
-        location_df,
-        pd.DataFrame({
-            "date": missing_dates,
-            "location": [location] * len(missing_dates),
-            "level__m": [np.nan] * len(missing_dates)  # fill with NaN for now
-        })
-    ], ignore_index=True).sort_values(by=['location', 'date'])
+    missing_df = pd.DataFrame({
+        "date": missing_dates,
+        "location": [location] * len(missing_dates),
+        "level__m": [np.nan] * len(missing_dates)  # fill with NaN for now
+    })
+    # Exclude empty frames before concat to avoid pandas FutureWarning about
+    # all-NA entries changing dtype inference behaviour in a future version.
+    frames = [f for f in [location_df, missing_df] if not f.empty]
+    location_df = pd.concat(frames, ignore_index=True).sort_values(by=['location', 'date'])
 
     # fill values with the last available value
-    location_df = location_df.ffill(axis=0)
+    # Call infer_objects to avoid FutureWarning about object-dtype downcasting
+    # being deprecated on ffill/bfill.
+    location_df = location_df.ffill(axis=0).infer_objects(copy=False)
 
     # fill remaining NaN values with backward fill
     # case first value(s) are NaN
-    location_df = location_df.bfill(axis=0)
+    location_df = location_df.bfill(axis=0).infer_objects(copy=False)
+
+    # Guard: if level__m is still all-NaN after both fills, the entire location window
+    # was empty — raise a clear error rather than letting pandera emit a cryptic SchemaError.
+    if location_df['level__m'].isna().any():
+        raise ValueError(
+            f"No river level data found for location '{location}' between {date_begin} and {date_end}; "
+            "it contains only null values and cannot be gap-filled. "
+            "Ensure the database has at least one valid reading for this period."
+        )
 
     return location_df
 

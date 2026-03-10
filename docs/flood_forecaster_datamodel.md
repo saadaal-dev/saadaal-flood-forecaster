@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
 direction BT
 class forecast_weather {
@@ -60,3 +61,8 @@ double precision elevation
 integer swalim_internal_id
 }
 
+%% Relationships
+forecast_weather --> river_station_metadata : location_name → station_name
+historical_weather --> river_station_metadata : location_name → station_name
+historical_river_level --> river_station_metadata : location_name → station_name
+predicted_river_level --> river_station_metadata : station_number

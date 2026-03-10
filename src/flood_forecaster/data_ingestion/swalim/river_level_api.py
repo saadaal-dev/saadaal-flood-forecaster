@@ -73,21 +73,30 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
 def __filter_river_data_exists(river_levels: List[HistoricalRiverLevel], session: Session) -> Generator[HistoricalRiverLevel, None, None]:
     """
     Check if the river levels already exist in the database.
+
+    - No existing row for (location, date): yield for insertion.
+    - Existing row with level_m = NULL and new value is non-null: update in-place.
+      This repairs rows inserted by the live scraper when the sensor read failed.
+    - Existing row with a non-null level_m: skip (genuine duplicate).
+
     :param river_levels: List of HistoricalRiverLevel objects to check.
     :param session: SQLAlchemy session to use for the database query.
     :return: Generator yielding HistoricalRiverLevel objects that do not exist in the database.
     """
     for level in river_levels:
-        existing_entry = session.query(HistoricalRiverLevel.date, HistoricalRiverLevel.level_m).filter(
+        existing_entry = session.query(HistoricalRiverLevel).filter(
             HistoricalRiverLevel.location_name == level.location_name,
             HistoricalRiverLevel.date == level.date
         ).first()
         if existing_entry:
-            logger.debug(
-                f"River level for {level.location_name} on {level.date} already exists in the database. Skipping insertion.")
-            if existing_entry.level_m != level.level_m:
-                logger.warning(
-                    f"WARNING: Existing level {existing_entry.level_m} does not match new level {level.level_m}.")
+            if existing_entry.level_m is None and level.level_m is not None:
+                logger.debug(f"Updating NULL river level for {level.location_name} on {level.date} "
+                      f"-> {level.level_m}.")
+                existing_entry.level_m = level.level_m
+            else:
+                logger.debug(f"River level for {level.location_name} on {level.date} already exists in the database. Skipping insertion.")
+                if existing_entry.level_m != level.level_m:
+                    logger.warning(f"Existing level {existing_entry.level_m} does not match new level {level.level_m}.")
         else:
             yield level
 
@@ -430,6 +439,54 @@ def load_river_data_from_csvs(config: Config, location_name: str, snrfa_file_pat
 
     # Insert into database
     insert_river_data(river_levels, config)
+
+
+def backfill_river_data_from_chart_api(config: Config, location_name: str) -> int:
+    """
+    Fetch the full river level history for *location_name* from the SWALIM chart
+    API and insert it directly into the database (no intermediate CSV file).
+
+    The conversion logic mirrors ``__load_swalim_river_data``:
+    - ``readingvalue``  → current-year level
+    - ``previousreadingvalue`` → previous-year level (date shifted back 1 year)
+
+    :param config: Configuration object.
+    :param location_name: Station name as it appears in the DB / station mapping.
+    :return: Number of new rows inserted.
+    """
+    df = fetch_river_data_from_chart_api(config, location_name)
+    if df.empty:
+        print(f"No data returned from chart API for {location_name}.")
+        return 0
+
+    # --- current year rows ---
+    current = df[["date", "readingvalue"]].copy()
+    current = current.rename(columns={"readingvalue": "level_m"})
+    current["location_name"] = location_name
+
+    # --- previous year rows (shift date forward by 1 year to align with previous-year readings) ---
+    previous = df[["date", "previousreadingvalue"]].copy()
+    previous = previous.rename(columns={"previousreadingvalue": "level_m"})
+    previous["location_name"] = location_name
+    previous["date"] = previous["date"].apply(lambda d: d - pd.DateOffset(years=1))
+
+    combined = pd.concat([current, previous], ignore_index=True)
+    combined["level_m"] = pd.to_numeric(combined["level_m"], errors="coerce")
+    combined = combined.dropna(subset=["level_m", "date"])
+    combined = combined.drop_duplicates(subset=["date", "location_name"])
+
+    river_levels = [
+        HistoricalRiverLevel(
+            location_name=row["location_name"],
+            date=row["date"],
+            level_m=row["level_m"],
+        )
+        for row in combined.to_dict(orient="records")
+    ]
+
+    inserted = insert_river_data(river_levels, config, avoid_duplicates=True)
+    print(f"Backfilled {inserted} rows for {location_name}.")
+    return inserted
 
 
 def get_latest_swalim_river_csv(config: Config, location_name: str) -> str:

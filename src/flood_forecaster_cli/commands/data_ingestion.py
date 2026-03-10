@@ -144,6 +144,83 @@ def fetch_river_data_from_chart_api(configuration: Config, location_name: str, o
         click.echo(f"No river data found for {location_name}.")
 
 
+@data_ingestion.command("ensure-river-data", help="Check DB coverage for the inference window and backfill from SWALIM chart API if needed")
+@click.argument('location_name', type=str, required=False, default=None)
+@click.option('--all-stations', '-a', is_flag=True,
+              help="Ensure data for every unique upstream station in the station mapping (overrides LOCATION_NAME).")
+@click.option('--lag-days', '-l', default=None, type=int,
+              help="Override the maximum lag-day window to check (defaults to max river_station_lag_days from model config).")
+@common_options
+def ensure_river_data(configuration: Config, location_name: Optional[str], all_stations: bool, lag_days: Optional[int] = None):
+    """
+    Ensure the database has river level data for LOCATION_NAME covering the
+    inference window (river_station_lag_days).  When data is missing the
+    command fetches the full history from the SWALIM chart API and inserts it
+    directly into the database — no intermediate CSV file.
+
+    Pass --all-stations to check and backfill every unique upstream station
+    defined in the station mapping (recommended for the daily cron job).
+
+    USAGE:
+    flood-cli data-ingestion ensure-river-data <location_name> [--lag-days N] [--configfile <path>]
+    flood-cli data-ingestion ensure-river-data --all-stations [--lag-days N] [--configfile <path>]
+    """
+    import json
+    from datetime import datetime, timedelta
+    from sqlalchemy import select, func
+    from flood_forecaster.data_model.river_level import HistoricalRiverLevel
+    from flood_forecaster import DatabaseConnection
+    from flood_forecaster.data_ingestion.swalim.river_level_api import backfill_river_data_from_chart_api
+
+    if not all_stations and not location_name:
+        raise click.UsageError("Provide a LOCATION_NAME or pass --all-stations.")
+
+    if all_stations:
+        station_mapping = configuration.load_station_mapping()
+        locations = sorted({
+            upstream
+            for meta in station_mapping.values()
+            for upstream in meta.upstream_stations
+        })
+        click.echo(f"Ensuring river data for all {len(locations)} upstream stations: {locations}")
+    else:
+        locations = [location_name]
+
+    if lag_days is None:
+        model_config = configuration.load_model_config()
+        lag_days = max(json.loads(model_config["river_station_lag_days"]))
+
+    today = datetime.now().date()
+    date_begin = today - timedelta(days=lag_days)
+    date_end = today - timedelta(days=1)
+
+    db = DatabaseConnection(configuration)
+    for location in locations:
+        click.echo(
+            f"Checking river level coverage for '{location}' "
+            f"between {date_begin} and {date_end} ({lag_days} days window)..."
+        )
+        with db.engine.connect() as conn:
+            stmt = (
+                select(func.count())
+                .select_from(HistoricalRiverLevel)
+                .where(HistoricalRiverLevel.location_name == location)
+                .where(HistoricalRiverLevel.date >= date_begin)
+                .where(HistoricalRiverLevel.date <= date_end)
+                .where(HistoricalRiverLevel.level_m.isnot(None))
+            )
+            row_count = conn.execute(stmt).scalar()
+
+        click.echo(f"Found {row_count} non-null rows in the database for '{location}'.")
+
+        if row_count == 0:
+            click.echo(f"No data found — backfilling '{location}' from SWALIM chart API...")
+            inserted = backfill_river_data_from_chart_api(configuration, location)
+            click.echo(f"Backfill complete for '{location}': {inserted} new rows inserted.")
+        else:
+            click.echo(f"Coverage sufficient for '{location}', skipping backfill.")
+
+
 @data_ingestion.command("show-latest-swalim-river-csv", help="Get the latest SWALIM river levels CSV file (printed to console)")
 @click.argument('location_name', type=str, required=True)
 @common_options
