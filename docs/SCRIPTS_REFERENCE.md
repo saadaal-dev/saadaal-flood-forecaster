@@ -9,6 +9,13 @@ support deployment, automation, maintenance, and troubleshooting of the Flood Fo
 
 - [Production Scripts](#production-scripts)
 - [Maintenance & Troubleshooting Scripts](#maintenance--troubleshooting-scripts)
+    - [catchup_missing_predictions.py](#catchup_missing_predictionspy)
+    - [fill_river_data_gaps.py](#fill_river_data_gapspy)
+    - [backfill_river_data_from_swalim.py](#backfill_river_data_from_swalimpy)
+    - [check_river_data_availability.py](#check_river_data_availabilitypy)
+    - [clear_cache.py](#clear_cachepy)
+    - [diagnose_forecast_data.py](#diagnose_forecast_datapy)
+    - [force_refresh_forecast.py](#force_refresh_forecastpy)
 - [Script Usage Examples](#script-usage-examples)
 
 ---
@@ -529,6 +536,116 @@ Next steps:
 
 ---
 
+### `backfill_river_data_from_swalim.py`
+
+**Purpose**: Backfill historical river level data by pulling directly from the SWALIM chart API.
+
+**Description**: Use this when `fill_river_data_gaps.py` cannot help — i.e. when `public.station_river_data` does not
+have the missing dates and you need to go to the external SWALIM source. It wraps two CLI commands in sequence for each
+selected station:
+
+1. `flood-cli data-ingestion fetch-river-data-from-chart-api <station>` — POSTs to the SWALIM `/graph` endpoint and
+   saves the full historical series to a timestamped CSV in `data/raw/swalim/`
+2. `flood-cli data-ingestion fetch-river-data-from-csv <station> --swalim-file <csv>` — reads that CSV and bulk-inserts
+   into `flood_forecaster.historical_river_level`
+
+**Usage**:
+
+```bash
+python scripts/backfill_river_data_from_swalim.py
+```
+
+The script is **interactive**: it shows current gaps per station, lets you select which ones to process, asks for
+confirmation, then runs the fetch + load pair for each.
+
+**Underlying CLI commands** (can also be run manually):
+
+```bash
+# Download full history for one station to CSV
+flood-cli data-ingestion fetch-river-data-from-chart-api "Belet Weyne"
+
+# Load a SWALIM CSV into the database
+flood-cli data-ingestion fetch-river-data-from-csv "Belet Weyne" \
+  --swalim-file data/raw/swalim/belet_weyne_river_levels_as_at_<timestamp>.csv
+
+# Load from both SNRFA archive and SWALIM CSV (SNRFA takes priority on overlap)
+flood-cli data-ingestion fetch-river-data-from-csv "Belet Weyne" \
+  --snrfa-file data/raw/snrfa/snrfa_level_data-belet_weyne-<timestamp>.csv \
+  --swalim-file data/raw/swalim/belet_weyne_river_levels_as_at_<timestamp>.csv
+```
+
+**⚠️ Known limitations of the SWALIM chart API**:
+
+- **Missing `readingValue`**: The API iterates dates using the *previous year* list as a reference. If SWALIM hasn't
+  entered a current-year reading yet, `readingValue` is `null` → stored as `NaN` → silently dropped by `dropna()`.
+  The gap may still exist after the script runs.
+- **Leap-year edge case**: Dates like `29-02` in non-leap years are silently skipped with no warning.
+
+Always run `check_river_data_availability.py` after this script to verify how many dates were actually filled.
+
+**When to Use**:
+
+- `fill_river_data_gaps.py` failed with "no data found in public.station_river_data"
+- You need data older than what the internal table holds
+- Initial data load for a new station
+
+**Prerequisites**:
+
+- `flood-cli` available in PATH
+- Network access to `https://frrims.faoswalim.org`
+- `POSTGRES_PASSWORD` set in `.env`
+
+**Output Example**:
+
+```
+================================================================================
+BACKFILL RIVER DATA FROM SWALIM CHART API
+================================================================================
+
+⚠️  Note: SWALIM may return null for dates not yet entered. Those dates
+    will be silently dropped. Run check_river_data_availability.py afterwards.
+
+Step 1: Current data gaps
+--------------------------------------------------------------------------------
+  📍 Belet Weyne: 45 missing days (range 2025-01-01 → 2025-03-09, 20/65 records)
+  ✅ Dollow: no gaps detected
+
+Step 2: Select stations to backfill
+--------------------------------------------------------------------------------
+  1. Belet Weyne
+
+  Enter numbers separated by commas, or 'all': 1
+
+  Selected: Belet Weyne
+
+  Proceed? This will call the SWALIM API and update the DB. (yes/no): yes
+
+Step 3: Fetch from SWALIM chart API and load into DB
+--------------------------------------------------------------------------------
+
+📍 Belet Weyne
+
+  ▶ flood-cli data-ingestion fetch-river-data-from-chart-api "Belet Weyne"
+  ✅ Done
+  📄 CSV: data/raw/swalim/belet_weyne_river_levels_as_at_20260309_143200.csv
+
+  ▶ flood-cli data-ingestion fetch-river-data-from-csv "Belet Weyne" --swalim-file ...
+  ✅ Done
+
+================================================================================
+BACKFILL COMPLETE
+================================================================================
+  ✅ Succeeded: 1 station(s): Belet Weyne
+  ❌ Failed:    0 station(s): —
+
+Next steps:
+  1. Verify:  python scripts/check_river_data_availability.py
+  2. Catchup: python scripts/catchup_missing_predictions.py
+================================================================================
+```
+
+---
+
 ### `check_river_data_availability.py`
 
 **Purpose**: Check what historical river level data is available in the database.
@@ -775,19 +892,25 @@ When the system has been offline and predictions are missing:
 # Step 1: Check for river data gaps
 python scripts/check_river_data_availability.py
 
-# Step 2: Fill any gaps in river data (if gaps detected)
+# Step 2a: Fill gaps from internal DB table (fastest, try this first)
 python scripts/fill_river_data_gaps.py
 
-# Step 3: Ensure fresh weather data
+# Step 2b: If Step 2a can't fill all gaps, pull from SWALIM chart API
+python scripts/backfill_river_data_from_swalim.py
+
+# Step 3: Verify gaps are closed
+python scripts/check_river_data_availability.py
+
+# Step 4: Ensure fresh weather data
 python scripts/clear_cache.py
 flood-cli data-ingestion fetch-openmeteo historical
 flood-cli data-ingestion fetch-openmeteo forecast
 flood-cli data-ingestion fetch-river-data
 
-# Step 4: Catch up missing predictions
+# Step 5: Catch up missing predictions
 python scripts/catchup_missing_predictions.py
 
-# Step 5: Resume normal operations with CRON
+# Step 6: Resume normal operations with CRON
 ```
 
 ### Typical Troubleshooting Workflow

@@ -31,6 +31,42 @@ The project is organized as follows:
 
 ---
 
+# 📚 Documentation
+
+Full documentation lives in the [`docs/`](docs/) folder and on
+the [GitHub Wiki](https://github.com/saadaal-dev/saadaal-flood-forecaster/wiki).
+
+## Architecture & Pipeline
+
+| Document                                                   | Description                                                                                                             |
+|------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| [Pipeline Overview](docs/PIPELINE_OVERVIEW.md)             | End-to-end pipeline walkthrough — data ingestion, ML inference, risk assessment, alerting, and known SWALIM data issues |
+| [Data Model](docs/flood_forecaster_datamodel.md)           | Database schema, table relationships, and ER diagram                                                                    |
+| [ML Model Design](src/flood_forecaster/ml_model/DESIGN.md) | ML model architecture, feature engineering, and training approach                                                       |
+
+## Deployment & Operations
+
+| Document                                                         | Description                                                                                            |
+|------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| [Container Deployment Guide](docs/container-deployment-guide.md) | Docker / CapRover container deployment instructions                                                    |
+| [Scripts Reference](docs/SCRIPTS_REFERENCE.md)                   | All scripts in `scripts/` — purpose, usage, and examples (including gap-filling and catchup workflows) |
+| [Server Quick Reference](docs/SERVER_QUICK_REFERENCE.md)         | Cheat sheet for common server operations                                                               |
+
+## Monitoring & Alerting
+
+| Document                                         | Description                                                   |
+|--------------------------------------------------|---------------------------------------------------------------|
+| [Sentry Integration](docs/SENTRY_INTEGRATION.md) | Setting up and using Sentry for error tracking and monitoring |
+
+## GitHub Wiki
+
+The [GitHub Wiki](https://github.com/saadaal-dev/saadaal-flood-forecaster/wiki) contains higher-level guides intended
+for non-technical stakeholders and new contributors:
+
+- [Home](https://github.com/saadaal-dev/saadaal-flood-forecaster/wiki) — Project overview and quick links
+
+---
+
 # 🧪 Code Guidelines & Validation
 
 - Follow [PEP8](https://peps.python.org/pep-0008/) for Python code.
