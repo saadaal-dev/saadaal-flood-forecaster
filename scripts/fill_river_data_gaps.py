@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """
+!!!NOTE: THIS FUNCTIONALITY HAS BEEN ADDED TO src/flood_forecaster/data_ingestion/public_schema AND CAN BE RUN USING flood-cli data-ingestion fetch-river-data-from-public-schema COMMAND
+
 Fill gaps in historical_river_level table using data from public.station_river_data.
 
 This script:
@@ -56,7 +58,7 @@ def get_existing_data_range(conn, location: str) -> Tuple[date | None, date | No
     query = text("""
                  SELECT MIN(date) as first_date,
                         MAX(date) as last_date,
-                        COUNT(*)  as record_count
+                        COUNT(DISTINCT date)  as record_count
                  FROM flood_forecaster.historical_river_level
                  WHERE location_name = :location
                  """)
@@ -124,7 +126,7 @@ def fetch_data_from_public_schema(conn, swalim_id: int, missing_dates: List[date
                    AND reading_date >= :min_date
                    AND reading_date <= :max_date
                    AND reading IS NOT NULL
-                 ORDER BY date
+                 ORDER BY reading_date
                  """)
 
     try:
