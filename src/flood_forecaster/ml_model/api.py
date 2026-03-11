@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from flood_forecaster.data_ingestion.load import (
-    load_inference_river_levels, load_inference_weather,
+    load_inference_river_levels, load_inference_weather, load_inference_sensor_rainfall,
     load_modelling_river_levels, load_modelling_weather
 )
 from flood_forecaster.data_model.river_station import get_river_station_metadata
@@ -489,6 +489,26 @@ def infer(
     model_manager = MODEL_MANAGER_REGISTRY[model_type]
 
     weather_df = load_inference_weather(config, station_metadata.weather_locations, date=date)
+
+    # If sensor rainfall is enabled, coalesce sensor data over Open-Meteo:
+    # sensor precipitation_sum / precipitation_hours take precedence where a sensor
+    # row exists for that (location, date); Open-Meteo values fill the gaps.
+    if config.use_sensor_rainfall():
+        sensor_df = load_inference_sensor_rainfall(config, station_metadata.weather_locations, date=date)
+        if not sensor_df.empty:
+            weather_df = (
+                weather_df
+                .merge(sensor_df, on=["location", "date"], how="left", suffixes=("_openmeteo", "_sensor"))
+            )
+            weather_df["precipitation_sum"] = weather_df["precipitation_sum_sensor"].combine_first(
+                weather_df["precipitation_sum_openmeteo"]
+            )
+            weather_df["precipitation_hours"] = weather_df["precipitation_hours_sensor"].combine_first(
+                weather_df["precipitation_hours_openmeteo"]
+            )
+            weather_df = weather_df[["location", "date", "precipitation_sum", "precipitation_hours"]]
+            logger.info(f"Coalesced sensor rainfall over Open-Meteo for {len(sensor_df)} rows.")
+
     stations_df = load_inference_river_levels(config, station_metadata.upstream_stations, date=date)
 
     # Check that at least one entry is available for the given date

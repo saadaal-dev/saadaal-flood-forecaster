@@ -58,7 +58,13 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
+[tool.pytest.ini_options]
+testpaths = ["src"]
+addopts = "-m 'not integration and not integration_db'"
+markers = [
+    "integration: marks tests requiring live external network access (Open-Meteo, SWALIM)",
+    "integration_db: marks tests requiring a local PostgreSQL instance (see docker-compose.yml)"
+]
 [project.scripts]
 flood-cli = "flood_forecaster_cli.main:cli"
 

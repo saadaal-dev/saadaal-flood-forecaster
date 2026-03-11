@@ -29,7 +29,7 @@ class DatabaseConnection:
         _config = config.load_data_database_config()
         self.dbname = _config.get("dbname")
         self.user = _config.get("user")
-        self.host = _config.get("host")
+        self.host = self._get_env_host()
         self.port = int(_config.get("port", 5432))
         self.password = self._get_env_pwd() if db_password is None else db_password
 
@@ -47,6 +47,14 @@ class DatabaseConnection:
         except SQLAlchemyError as e:
             logger.error(f"Failed to connect to database: {str(e)}")
             raise
+
+    @staticmethod
+    def _get_env_host():
+        load_dotenv()
+        host = os.getenv("DB_HOST")
+        if not host:
+            raise ValueError("DB_HOST environment variable not set.")
+        return host
 
     @staticmethod
     def _get_env_pwd():
@@ -247,6 +255,8 @@ class DatabaseConnection:
             # Build SQL query dynamically
             query_str = f'SELECT * FROM "{schema_name}"."{table_name}"'
             if where_clause:
+                # PostgreSQL requires single quotes for string literals; replace double quotes
+                where_clause = where_clause.replace('"', "'")
                 query_str += f" WHERE {where_clause}"
 
             query = text(query_str)

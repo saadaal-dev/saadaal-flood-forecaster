@@ -1,6 +1,9 @@
 import unittest
 
 import openmeteo_requests
+import pytest
+import requests_cache
+from retry_requests import retry
 
 from flood_forecaster import Config
 from flood_forecaster.data_ingestion.openmeteo.forecast_weather import fetch_forecast
@@ -8,6 +11,8 @@ from flood_forecaster.data_ingestion.openmeteo.historical_weather import fetch_h
 from flood_forecaster_cli.commands.common import create_openmeteo_client
 
 
+@pytest.mark.integration
+@pytest.mark.integration_db
 class TestOpenmeteo(unittest.TestCase):
     openmeteo: openmeteo_requests.Client
 

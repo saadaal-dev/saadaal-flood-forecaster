@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -9,25 +10,18 @@ class TestDatabaseHelper(unittest.TestCase):
         self.mock_config_data = {
             "dbname": "testdb",
             "user": "testuser",
-            "host": "localhost",
             "port": "5432",
         }
 
-    @patch("os.environ.get", return_value="testpassword")
+    @patch("flood_forecaster.utils.database_helper.load_dotenv")
+    @patch.dict(os.environ, {"DB_HOST": "localhost", "POSTGRES_PASSWORD": "testpassword"})
     @patch("flood_forecaster.utils.database_helper.create_engine")
-    @patch("flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
-        "dbname": "testdb",
-        "user": "testuser",
-        "host": "localhost",
-        "port": "5432",
-    })
-    def test_database_connection_success(self, mock_load_config, mock_create_engine, mock_env):
+    def test_database_connection_success(self, mock_create_engine, mock_dotenv):
         # Mocking the Config object
         config = MagicMock()
         config.load_data_database_config.return_value = {
             "dbname": "testdb",
             "user": "testuser",
-            "host": "localhost",
             "port": "5432",
         }
 
@@ -41,7 +35,7 @@ class TestDatabaseHelper(unittest.TestCase):
         self.assertEqual(connection.port, 5432)
         self.assertEqual(connection.password, "testpassword")
 
-        # Verify create_engine was called - fails due to password obfuscation by SQLAlchemy
+        # Verify create_engine was called
         # Extract the actual call argument
         args, _ = mock_create_engine.call_args
 
@@ -53,21 +47,28 @@ class TestDatabaseHelper(unittest.TestCase):
         self.assertEqual(args[0].port, 5432)
         self.assertEqual(args[0].database, "testdb")
 
-    @patch("os.environ.get", return_value="testpassword")
+    @patch("flood_forecaster.utils.database_helper.load_dotenv")
+    @patch.dict(os.environ, {"DB_HOST": "localhost", "POSTGRES_PASSWORD": "testpassword"})
     @patch("flood_forecaster.utils.database_helper.create_engine", side_effect=Exception("Mocked error"))
-    @patch("flood_forecaster.utils.configuration.Config.load_data_database_config", return_value={
-        "dbname": "testdb",
-        "user": "testuser",
-        "host": "localhost",
-        "port": "5432",
-    })
-    def test_database_connection_failure(self, mock_load_config, mock_create_engine, mock_env):
+    def test_database_connection_failure(self, mock_create_engine, mock_dotenv):
         config = MagicMock()
+        config.load_data_database_config.return_value = {
+            "dbname": "testdb",
+            "user": "testuser",
+            "port": "5432",
+        }
 
         with self.assertRaises(Exception):
             DatabaseConnection(config)
 
-    @patch("os.environ.get", return_value=None)
-    def test_missing_env_password(self, mock_env):
+    @patch("flood_forecaster.utils.database_helper.load_dotenv")
+    @patch.dict(os.environ, {}, clear=True)
+    def test_missing_env_password(self, mock_dotenv):
         with self.assertRaises(ValueError):
             DatabaseConnection._get_env_pwd()
+
+    @patch("flood_forecaster.utils.database_helper.load_dotenv")
+    @patch.dict(os.environ, {}, clear=True)
+    def test_missing_env_db_host(self, mock_dotenv):
+        with self.assertRaises(ValueError):
+            DatabaseConnection._get_env_host()

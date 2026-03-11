@@ -79,6 +79,12 @@ class Config:
     def load_mailjet_config(self):
         return dict(self._config.items("mailjet_config"))
 
+    def load_sensor_config(self):
+        return dict(self._config.items("data.sensor"))
+
+    def use_sensor_rainfall(self) -> bool:
+        return self._config.get("data.sensor", "use_sensor_rainfall", fallback="false").lower() == "true"
+
     def load_station_mapping(self):
         return _load_json_station_mapping(self._config.get("data.static", "river_stations_mapping_path"))
 
