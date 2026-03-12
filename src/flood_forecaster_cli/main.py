@@ -8,6 +8,7 @@ import click
 
 from flood_forecaster.utils.logging_config import setup_logging
 from flood_forecaster_cli.commands import (database_model, data_ingestion, ml, run_alert, run_risk_assessment)
+from flood_forecaster_cli.commands.rainfall_risk_assessment import run_rainfall_risk_assessment
 
 
 @click.group(help="flood_forecaster client tool")
@@ -24,6 +25,7 @@ cli.add_command(database_model)
 cli.add_command(data_ingestion)
 cli.add_command(ml, "ml")
 cli.add_command(run_risk_assessment, "risk-assessment")
+cli.add_command(run_rainfall_risk_assessment, "rainfall-risk-assessment")
 cli.add_command(run_alert, "alert")
 # cli.add_command(config)
 

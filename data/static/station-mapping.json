@@ -15,7 +15,21 @@
         "location": "Jowhar",
         "river": "Shabelle",
         "upstream_stations": ["Jowhar", "Bulo Burti", "Belet Weyne"],
-        "weather_locations": ["middle_shabelle__jowhar", "hiran__bulo_burti", "hiran__belet_weyne", "ethiopia__tullu_dimtu", "ethiopia__debre_selam_arsi", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+        "weather_locations": ["middle_shabelle__jowhar", "lower_shabelle__afgooye", "hiran__bulo_burti", "hiran__belet_weyne", "ethiopia__tullu_dimtu", "ethiopia__debre_selam_arsi", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"]
+    },
+    "Afgoi": {
+        "location": "Afgoi",
+        "river": "Shabelle",
+        "upstream_stations": ["Jowhar", "Bulo Burti", "Belet Weyne"],
+        "weather_locations": ["lower_shabelle__afgooye", "middle_shabelle__jowhar", "hiran__bulo_burti", "hiran__belet_weyne", "ethiopia__tullu_dimtu", "ethiopia__debre_selam_arsi", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"],
+        "sensor_stations": ["MOHADM_AFG"]
+    },
+    "Audegle": {
+        "location": "Audegle",
+        "river": "Shabelle",
+        "upstream_stations": ["Afgoi", "Jowhar", "Bulo Burti", "Belet Weyne"],
+        "weather_locations": ["lower_shabelle__afgooye", "middle_shabelle__jowhar", "hiran__bulo_burti", "hiran__belet_weyne", "ethiopia__tullu_dimtu", "ethiopia__debre_selam_arsi", "ethiopia__fafen_haren", "ethiopia__fafen_gebredarre", "ethiopia__shabelle_gode"],
+        "sensor_stations": ["MOHADM_AFG"]
     },
     "Dollow": {
         "location": "Dollow",

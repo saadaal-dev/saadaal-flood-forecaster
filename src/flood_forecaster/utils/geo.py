@@ -97,3 +97,56 @@ def build_sensor_location_mapping(
             mapping[sensor_name] = best_loc_label
 
     return mapping
+
+
+def map_sensors_to_non_functional_stations(
+    sensor_stations_path: str,
+    river_stations_metadata_path: str,
+    max_distance_km: float = 50.0,
+) -> dict:
+    """
+    Build a mapping from non-functional river station name to a list of nearby
+    sensor station labels (as stored in public.sensor_readings station_id column).
+
+    Only stations with status == "Non Functional" in river_stations_metadata.csv
+    are considered.
+
+    :param sensor_stations_path: Path to data/static/sensor-stations.csv
+    :param river_stations_metadata_path: Path to data/static/river_stations_metadata.csv
+    :param max_distance_km: Maximum distance (km) for a sensor to be considered nearby.
+    :return: dict mapping river station name → list[str] of nearby sensor station labels
+    """
+    sensor_df = pd.read_csv(sensor_stations_path)
+    sensor_df.columns = sensor_df.columns.str.strip()
+    sensor_df = sensor_df[["sensor", "label", "latitude", "longitude"]].drop_duplicates(subset=["label"])
+
+    meta_df = pd.read_csv(river_stations_metadata_path)
+    meta_df.columns = meta_df.columns.str.strip()
+    nf_df = meta_df[meta_df["status"].str.strip() == "Non Functional"].copy()
+    nf_df["latitude"] = pd.to_numeric(nf_df["latitude"], errors="coerce")
+    nf_df["longitude"] = pd.to_numeric(nf_df["longitude"], errors="coerce")
+    nf_df = nf_df.dropna(subset=["latitude", "longitude"])
+
+    result: dict = {}
+    for _, rs_row in nf_df.iterrows():
+        station_name = str(rs_row["station_name"]).strip()
+        nearby: list = []
+        for _, sensor_row in sensor_df.iterrows():
+            dist = haversine_distance(
+                rs_row["latitude"], rs_row["longitude"],
+                sensor_row["latitude"], sensor_row["longitude"],
+            )
+            if dist <= max_distance_km:
+                label = str(sensor_row["label"]).strip()
+                logger.debug(
+                    f"Non-functional station '{station_name}' ← sensor '{label}' ({dist:.1f} km)"
+                )
+                nearby.append(label)
+        if nearby:
+            result[station_name] = nearby
+        else:
+            logger.debug(
+                f"Non-functional station '{station_name}': no sensor within {max_distance_km} km."
+            )
+
+    return result
