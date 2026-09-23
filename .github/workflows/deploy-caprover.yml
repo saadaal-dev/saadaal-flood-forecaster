@@ -1,0 +1,158 @@
+---
+name: "Deploy to CapRover (on-demand)"
+
+# Manual trigger only - this workflow never runs on push/PR, only when a
+# maintainer explicitly runs it from the Actions tab ("Run workflow").
+#
+# It mirrors the manual "Force Build" step documented in
+# docs/container-deployment-guide.md for the CapRover app that is already
+# configured with "Method 3: Deploy from Github/Bitbucket/Gitlab" - i.e. it
+# calls CapRover's "Trigger build via webhook" URL, which tells CapRover to
+# pull the latest commit on the configured branch and rebuild/redeploy the app.
+"on":
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: >-
+          Reason for this on-demand deployment (shown in the run log for
+          audit purposes)
+        required: false
+        default: "Manual on-demand deployment"
+
+# Prevent two deployments from racing each other.
+concurrency:
+  group: caprover-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Trigger CapRover build
+    runs-on: ubuntu-latest
+
+    # Requires the "production" environment's protection rules (e.g. required
+    # reviewers) to be configured in the repo settings before this job runs.
+    environment: production
+
+    steps:
+      - name: Log deployment request
+        run: |
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Branch:       ${{ github.ref_name }}"
+          echo "Reason:       ${{ github.event.inputs.reason }}"
+
+      - name: Trigger CapRover build via webhook
+        id: trigger
+        shell: bash
+        env:
+          CAPROVER_WEBHOOK_URL: ${{ secrets.CAPROVER_WEBHOOK_URL }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${CAPROVER_WEBHOOK_URL:-}" ]; then
+            echo "http_status=unset" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          max_attempts=3
+          base_delay=3 # seconds; doubles every retry (exponential backoff)
+          response_file="$(mktemp)"
+          http_status="000"
+
+          for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+            echo "Attempt ${attempt}/${max_attempts}:"
+            echo "triggering CapRover build..."
+
+            # --max-time/--connect-timeout guard against a hung CapRover
+            # instance; a non-zero curl exit (network error/timeout) is
+            # treated as HTTP 000.
+            http_status=$(curl --silent --show-error \
+              --output "$response_file" \
+              --write-out "%{http_code}" \
+              --connect-timeout 10 \
+              --max-time 30 \
+              -X POST "$CAPROVER_WEBHOOK_URL" 2>&1) \
+              || http_status="000"
+
+            if [[ "$http_status" =~ ^2 ]]; then
+              echo "CapRover accepted the build trigger"
+              echo "(HTTP ${http_status})."
+              cat "$response_file" 2>/dev/null || true
+              echo "http_status=${http_status}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # 4xx (other than 408/429) means the request itself is broken
+            # (bad/expired token, wrong URL) - retrying won't help.
+            if [[ "$http_status" =~ ^4 ]] \
+              && [[ "$http_status" != "408" ]] \
+              && [[ "$http_status" != "429" ]]; then
+              break
+            fi
+
+            if ((attempt < max_attempts)); then
+              echo "Attempt ${attempt} failed"
+              echo "(HTTP ${http_status}). Retrying..."
+              sleep "$((base_delay * 2 ** (attempt - 1)))"
+            fi
+          done
+
+          cat "$response_file" 2>/dev/null || true
+          echo "http_status=${http_status}" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Post-trigger reminder
+        if: success()
+        run: |
+          echo "Build triggered on CapRover."
+          echo "Open the CapRover dashboard -> Apps -> target app -> Logs tab"
+          echo "to confirm the build and deployment completed successfully."
+
+      # Translates the last HTTP status from the trigger step into the exact
+      # cause of failure, so the run log never just says "something failed".
+      - name: Failure guidance
+        if: failure()
+        env:
+          HTTP_STATUS: ${{ steps.trigger.outputs.http_status }}
+        run: |
+          # Covers the five most probable causes for this webhook call;
+          # anything else falls through to the generic case below.
+          case "$HTTP_STATUS" in
+            unset)
+              echo "::error::CAPROVER_WEBHOOK_URL secret is not set"
+              echo "::error::for the 'production' environment."
+              ;;
+            000)
+              echo "::error::Network error or timeout."
+              echo "::error::Could not reach the CapRover server"
+              echo "::error::(DNS failure, connection refused,"
+              echo "::error::or request timed out)."
+              ;;
+            401)
+              echo "::error::HTTP 401 Unauthorized."
+              echo "::error::The webhook token is missing or invalid."
+              ;;
+            404)
+              echo "::error::HTTP 404 Not Found."
+              echo "::error::The app/namespace in the webhook URL"
+              echo "::error::doesn't exist"
+              echo "::error::(app renamed/deleted or wrong URL)."
+              ;;
+            429)
+              echo "::error::HTTP 429 Too Many Requests."
+              echo "::error::Still rate-limited by CapRover after retries."
+              ;;
+            503)
+              echo "::error::HTTP 503 Service Unavailable."
+              echo "::error::The CapRover server may be restarting"
+              echo "::error::or overloaded."
+              ;;
+            *)
+              echo "::error::Deployment trigger failed"
+              echo "::error::with unexpected HTTP status"
+              echo "::error::'${HTTP_STATUS}'."
+              ;;
+          esac
+
+          echo "Verify the CAPROVER_WEBHOOK_URL secret"
+          echo "and CapRover server status,"
+          echo "then re-run this workflow."
