@@ -840,10 +840,13 @@ cd /path/to/saadaal-flood-forecaster
 
 ## Related Documentation
 
-- [Complete Deployment Guide](COMPLETE_DEPLOYMENT_GUIDE.md)
-- [Server Quick Reference](SERVER_QUICK_REFERENCE.md)
-- [Forecast Data Issue Resolution](FORECAST_DATA_ISSUE_RESOLUTION.md)
-- [Cache Issue Root Cause](CACHE_ISSUE_ROOT_CAUSE.md)
+- [Server Quick Reference](server-quick-reference.md)
+
+Historical incident context (not current operating instructions):
+
+- [Complete Deployment Guide](archive/incidents/complete-deployment-guide.md)
+- [Forecast Data Issue Resolution](archive/incidents/forecast-data-issue-resolution.md)
+- [Cache Issue Root Cause](archive/incidents/cache-issue-root-cause.md)
 
 ---
 
