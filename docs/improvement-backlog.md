@@ -62,6 +62,7 @@ domain guides; priority, status, and completion criteria live here to avoid main
 | RISK-002 | P1       | Alerts               | Correct reference-date versus target-date display           | Open   |
 | RISK-003 | P2       | Alerts               | Make alert policy and freshness handling configurable       | Open   |
 | RISK-004 | P3       | Alerts               | Configure and test failed-email output                      | Open   |
+| RISK-006 | P0       | Alerts               | Fix alert crash from Date/datetime regression               | Done   |
 | DB-001   | P1       | Database             | Repair non-authoritative SQL views                          | Open   |
 | DB-002   | P2       | Database             | Unify bootstrap and migration behavior                      | Open   |
 | DB-003   | P3       | Database             | Define referential-integrity strategy                       | Open   |
@@ -464,6 +465,52 @@ prediction exists before comparing dates.
 - [ ] Writes are atomic and failures are surfaced.
 - [ ] Tests cover writable and unwritable destinations.
 - [ ] Operations documentation identifies where failed alerts are stored.
+
+### RISK-006 — Fix alert crash from Date/datetime regression
+
+- **Priority:** P0
+- **Status:** Done (2026-09-23, branch `fix/risk-006-alert-date-regression`)
+- **Issue/PR:** —
+
+**Problem:** The `flood-cli alert` command crashed on every run before any alert could be evaluated or sent, so the
+entire alerting phase (Phase 4) was non-functional in production. Because this is the delivery path for flood warnings,
+the outage was a safety risk, not only a correctness one.
+
+**Evidence:**
+
+- Production log (2026-09-23, Phase 4 "Send alerts") ended with
+  `AttributeError: 'datetime.date' object has no attribute 'date'` and `flood-cli alert` exiting with code 1.
+- `get_df_by_date()` in `src/flood_forecaster/alert_module/flood_status.py` filtered with
+  `func.date(PredictedRiverLevel.date) >= date_begin.date()`, calling `.date()` on `date_begin`.
+- `date_begin` is supplied by `main()` in `src/flood_forecaster/alert_module/alert.py` as
+  `latest_db_date = db_client.get_max_date(PredictedRiverLevel)`.
+- `PredictedRiverLevel.date` is `Column(Date)` (see `src/flood_forecaster/data_model/river_level.py`), so
+  `get_max_date()` returns a `datetime.date`, which has no `.date()` method. The parameter was annotated
+  `date_begin: datetime`, masking the mismatch.
+- **Second crash on the same path:** a `Date` column is returned by `pd.read_sql()` as object-dtype `datetime.date`
+  values, so `result_df['date'] + pd.to_timedelta(...)` raised
+  `TypeError: unsupported operand type(s) for +: 'TimedeltaArray' and 'datetime.date'` and `result_df['date'].dt.date`
+  raised `AttributeError: Can only use .dt accessor with datetimelike values`. This was latent behind the first crash and
+  triggered only when the query returned rows, meaning it would have surfaced precisely when an alert had to be sent.
+- Regression origin: commit `c79bd7c` ("Refactor date handling in predicted_river_level ... Now one prediction per
+  day") changed the column from `DateTime` to `Date` without updating either site. Under the previous `DateTime` column,
+  `get_max_date()` returned a `datetime.datetime` and the column arrived as `datetime64`, so both worked.
+
+**Done when:**
+
+- [x] `get_df_by_date()` no longer calls `.date()` on a value that is already a `datetime.date`; the date filter compares
+      directly against the `Date` column and the redundant `func.date(...)` wrapper is removed.
+- [x] `get_df_by_date()` accepts the actual type returned by `get_max_date()`; the annotation is
+      `Union[date, datetime]` and a `datetime` is narrowed to its calendar day.
+- [x] The retrieved `date` column is normalized to a datetime dtype before `.dt` is used, so returning rows no longer
+      raises.
+- [x] `flood-cli alert` completes without raising on a database whose `predicted_river_level.date` is a `Date` column.
+- [x] A regression test exercises the alert query path against `Date`-typed prediction dates so a future column-type
+      change cannot silently break delivery again
+      (`src/tests/unit/test_flood_status.py`, verified to fail against the pre-fix code).
+
+**Not addressed here (still open):** the displayed "Prediction date" remains the stored reference date rather than the
+forecast target date; that semantic fix stays with RISK-002, which owns the target-date formula.
 
 ## Database
 

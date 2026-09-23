@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
+from typing import Union
 
 import pandas as pd
-from sqlalchemy import select, func
+from sqlalchemy import select
 
 from flood_forecaster.data_model.river_level import PredictedRiverLevel
 from flood_forecaster.utils.logging_config import get_logger
@@ -9,12 +10,15 @@ from flood_forecaster.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def get_df_by_date(db_client, date_begin: datetime, risk_level='full') -> pd.DataFrame:
+def get_df_by_date(db_client, date_begin: Union[date, datetime], risk_level='full') -> pd.DataFrame:
     logger.debug(f"Getting risk level for date: {date_begin}")
-    # only check the dd/mm/yyyy part of the date
+    # PredictedRiverLevel.date is a DATE column, so compare against a plain date.
+    # Callers may pass either a date (e.g. DatabaseConnection.get_max_date) or a datetime.
+    if isinstance(date_begin, datetime):
+        date_begin = date_begin.date()
     stations_risk = (
         select(PredictedRiverLevel)
-        .where(func.date(PredictedRiverLevel.date) >= date_begin.date())
+        .where(PredictedRiverLevel.date >= date_begin)
         .where(PredictedRiverLevel.risk_level.ilike(risk_level))
     )
     result_df = pd.read_sql(stations_risk, db_client.engine)
@@ -25,6 +29,9 @@ def get_df_by_date(db_client, date_begin: datetime, risk_level='full') -> pd.Dat
         return pd.DataFrame(columns=[
             'location_name', 'flood_risk', 'water_level_m', 'predicted_flood_date'
         ])
+
+    # A DATE column arrives as object-dtype datetime.date values; normalize so .dt is usable.
+    result_df['date'] = pd.to_datetime(result_df['date'])
 
     result_df['forecast_date'] = result_df['date'] + pd.to_timedelta(result_df['forecast_days'], unit='D')
     result_df['forecast_date'] = result_df['date'].dt.date
