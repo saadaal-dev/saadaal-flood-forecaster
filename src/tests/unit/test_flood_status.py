@@ -79,7 +79,14 @@ class TestGetDfByDate(unittest.TestCase):
         )
 
     def test_prediction_date_is_a_date_value(self):
-        """Guards the `.dt` accessor use on the object-dtype DATE column."""
+        """Guards the `.dt` accessor use on the object-dtype DATE column.
+
+        The asserted *value* encodes current, pre-RISK-002 semantics on purpose: the
+        column labelled "Prediction date" currently carries the stored reference date,
+        not the forecast target date. RISK-002 changes that to
+        `reference date + forecast_days - 1`; when it lands, keep the type assertion
+        and update the expected value. Do not "fix" the value here in isolation.
+        """
         self._insert([self._row("Luuq", REFERENCE_DATE)])
 
         result = get_df_by_date(self.db_client, REFERENCE_DATE, risk_level="full")
