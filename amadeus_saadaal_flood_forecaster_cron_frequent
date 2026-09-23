@@ -1,0 +1,6 @@
+SHELL=/bin/bash
+
+# More frequent schedule for testing (every 30 minutes)
+# Once you've verified everything works, switch back to the daily schedule
+*/30 * * * * root bash {{REPOSITORY_ROOT_PATH}}/scripts/amadeus_saadaal_flood_forecaster.sh {{REPOSITORY_ROOT_PATH}} {{VENV_PATH}} >> {{LOG_FILE_PATH}} 2>&1
+
