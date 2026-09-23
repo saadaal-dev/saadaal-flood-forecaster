@@ -92,8 +92,8 @@ You can manually capture exceptions with additional context:
 from flood_forecaster.utils.logging_config import capture_exception
 
 try:
-    # Your code here
-    process_data()
+    # Replace this example failure with the operation you want to monitor.
+    raise RuntimeError("Example processing failure")
 except Exception as e:
     capture_exception(e,
                       station="Belet Weyne",
@@ -176,6 +176,15 @@ The integration includes performance monitoring:
 - Identify bottlenecks
 
 ## Testing the Integration
+
+The repository includes a live integration check that intentionally emits test messages and errors. With a test or
+production DSN set, run:
+
+```bash
+uv run python src/tests/integration/test_sentry_integration.py
+```
+
+This sends events to the configured Sentry project; do not run it unintentionally against production alerting.
 
 ### Test 1: Check if Sentry is Initialized
 

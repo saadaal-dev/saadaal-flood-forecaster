@@ -8,17 +8,18 @@ The project is organized as follows:
 
 | Path                                             | Description                                                                                                        |
 |--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| `src/flood_forecaster/data_model/`               | Utility functions (e.g., alert dispatch, time helpers).                                                            |
+| `src/flood_forecaster/data_model/`               | SQLAlchemy ORM and Pandera validation models.                                                                      |
 | `src/flood_forecaster/data_ingestion/`           | Ingestion modules for external APIs.                                                                               |
 | `src/flood_forecaster/data_ingestion/openmeteo/` | API integration for weather data from `Open-Meteo`.                                                                |
-| `src/flood_forecaster/data_ingestion/swalim/`    | API integration for weather data from `Open-Meteo`.                                                                |
-| `src/flood_forecaster/utils/`                    | Common helper modules (e.g., alert dispatch).                                                                      |
-| `src/flood_forecaster/prediction/`               | ML models and training logic for flood prediction.                                                                 |
-| `src/flood_forecaster/recommendation_algorithm/` | Generates actionable alerts based on predictions.                                                                  |
+| `src/flood_forecaster/data_ingestion/swalim/`    | River-level integration for FAO SWALIM and CSV exports.                                                            |
+| `src/flood_forecaster/ml_model/`                 | Feature preparation, model registry, training, evaluation, and inference.                                          |
+| `src/flood_forecaster/risk_assessment/`          | Assigns threshold-based risk levels to predictions.                                                                |
+| `src/flood_forecaster/alert_module/`             | Selects full-risk predictions and dispatches Mailjet email alerts.                                                 |
+| `src/flood_forecaster/utils/`                    | Configuration, database, geographic, and logging helpers.                                                          |
 | `src/flood_forecaster_cli/`                      | Command-line client for flood_forecaster.                                                                          |
 | `src/tests`                                      | Unit and integration tests.                                                                                        |
-| `install/`                                       | Environment setup scripts (Python dependencies).                                                                   |
-| `scripts/`                                       | Cron-scheduled automation jobs for running models. See [Scripts Reference](docs/SCRIPTS_REFERENCE.md) for details. |
+| `install.sh`                                     | Local environment and package installation script.                                                                 |
+| `scripts/`                                       | Cron-scheduled automation jobs for running models. See [Scripts Reference](docs/scripts-reference.md) for details. |
 | `sql/`                                           | Database schema and setup scripts for PostgreSQL.                                                                  |
 | `data/interim`                                   | Data used for ML model training and validation.                                                                    |
 | `data/raw`                                       | Sample environmental data from exploration phase.                                                                  |
@@ -28,6 +29,9 @@ The project is organized as follows:
 | `docs/`                                          | Architecture and design details, API docs, data model details and data flows.                                      |
 | `legacy/data-extractor/`                         | [Obsolete] Scripts to extract raw environmental/hydrological data.                                                 |
 | `pyproject.toml`                                 | Root project configuration defining a workspace                                                                    |
+
+The current architecture, pipeline, database, deployment, external systems, and component guides are indexed in
+[docs/README.md](docs/README.md).
 
 ---
 
@@ -70,8 +74,8 @@ The application uses **Sentry** for centralized logging, error tracking, and per
 
 ### Documentation
 
-- **Full Guide**: [docs/SENTRY_INTEGRATION.md](docs/SENTRY_INTEGRATION.md) - Complete integration details
-- **Test**: Run `python scripts/test_sentry_integration.py` to verify setup
+- **Full Guide**: [docs/sentry-integration.md](docs/sentry-integration.md) - Complete integration details
+- **Test**: Run `uv run pytest src/tests/integration/test_sentry_integration.py -m integration` to verify setup
 
 All `print()` statements in `/src` (excluding tests) have been replaced with proper `logging` calls that integrate with
 Sentry.
@@ -167,14 +171,14 @@ python -m flood_forecaster_cli.main ml list-models
 
 ```
 
-The CLI is configured in `setup.py` as a console script entry point, making the `flood_forecaster_cli` command available
-system-wide when the virtual environment is active.
+The CLI is configured in `pyproject.toml` as the `flood-cli` console script and is available while the virtual
+environment is active.
 
-To uninstall, simply run: `python -m pip uninstall flood-forecaster-tool`
+To uninstall, simply run: `python -m pip uninstall flood-forecaster`
 
 ### Configuration Notes
 
-The CLI configuration is managed through `pyproject.toml`.
+Runtime configuration is managed through `config/config.ini`; packaging and test configuration live in `pyproject.toml`.
 
 Advanced users can manually adjust the `PATH` or create custom shell aliases for convenience.
 For example, to create a shell alias, you can add the following line to your `.bashrc` or `.zshrc`:
@@ -224,19 +228,22 @@ bash install.sh
 ```
 
 ## Alert setup
-Checkout the alert README.md here: `src/flood_forecaster/alert_module/README.md`.
+
+See [Risk assessment and alerts](docs/components/risk-and-alerts.md).
 
 ## Setup of periodic tasks
-The script to be set up in the CRON is the following: [amadeus_saadaal_flood_forecaster.sh](scripts/amadeus_saadaal_flood_forecaster.sh).
-The goal of this file is to run sequentially all the modules from data ingestion to alert sending.
+
+The tracked container cron runs the resilient script
+[amadeus_saadaal_flood_forecaster_resilient.sh](scripts/amadeus_saadaal_flood_forecaster_resilient.sh).
+It runs the modules from data ingestion to alert sending while allowing partial progress when non-critical stages fail.
 The logs of the CRON app will be stored in this folder: `logs/`. The creation of this folder is managed by the [install.sh](install.sh) script.
 
-📖 **For detailed information about all available scripts, see the [Scripts Reference Guide](docs/SCRIPTS_REFERENCE.md)
+📖 **For detailed information about all available scripts, see the [Scripts Reference Guide](docs/scripts-reference.md)
 **.
 ```bash
 crontab -e
-# Add the last line to the crontab
-* 12 * * * <path to the repository>/scripts/bash amadeus_saadaal_flood_forecaster.sh >><path to the repository>/logs/logs_amadeus_saadaal_flood_forecaster.log 2>&1
+# Run daily at noon in the host timezone
+0 12 * * * bash <repository>/scripts/amadeus_saadaal_flood_forecaster_resilient.sh <repository> <repository>/.venv >> <repository>/logs/logs_amadeus_saadaal_flood_forecaster.log 2>&1
 
 # Check the crontab with:
 crontab -l
@@ -296,7 +303,7 @@ The database includes the following tables:
 - **`river_station_metadata`** - Metadata about river monitoring stations
 
 For a detailed visual representation of the database schema and table relationships, see
-the [database model diagram](docs/flood_forecaster_datamodel.md).
+the [database model diagram](docs/flood-forecaster-datamodel.md).
 
 ---
 

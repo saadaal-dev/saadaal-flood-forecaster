@@ -12,6 +12,14 @@ For reporting a bug, you can [open an issue]( https://github.com/saadaal-dev/saa
 - Write test if necessary and make sure all tests pass
 - Create a [Pull Request](https://github.com/saadaal-dev/saadaal-flood-forecaster/compare)
 
+#### Documentation filenames and links
+
+- Use lowercase kebab-case for Markdown filenames, for example `improvement-backlog.md`.
+- Keep conventional repository-level names such as `README.md`, `CONTRIBUTING.md`, and `LICENSE` unchanged.
+- Rename a document and update every incoming link in the same pull request.
+- Preserve exact filename casing in links so they work on case-sensitive filesystems.
+- For case-only renames on case-insensitive systems, rename through a temporary filename so Git records the change.
+
 #### Style guides
 
 In the [README.md](https://github.com/saadaal-dev/saadaal-flood-forecaster/README.md#-code-guidelines--validation)
