@@ -452,11 +452,36 @@ where `risk_level IS NULL`. A changed prediction can retain a stale classificati
 **Problem:** Predictions store a reference date and horizon, but alert output labels the reference date as “Prediction
 date.” `get_df_by_date()` computes a forecast date and immediately overwrites it with the reference date.
 
+**Evidence and starting points** (all in `src/flood_forecaster/alert_module/flood_status.py`, verified 2026-09-23):
+
+- Line 36 computes `result_df['date'] + forecast_days`; line 37 immediately overwrites it with
+  `result_df['date'].dt.date`. Line 36 is therefore dead code and the emitted value is the reference date.
+- Line 36 is also inconsistent with the formula in the first checklist item below: it adds `forecast_days` with no
+  `- 1`, so the discarded value is itself a day beyond the intended target date. Deleting line 37 is **not** a
+  sufficient fix; the formula has to be decided and applied deliberately.
+- Line 43 renames the resulting column to `Prediction date`, which is the label an operator reads in the alert email.
+  That string is the user-visible half of this item.
+- The empty-result branch above returns different column names entirely
+  (`location_name`, `flood_risk`, `water_level_m`, `predicted_flood_date`) from the populated branch
+  (`Station`, `Flood risk`, `Water level (m)`, `Prediction date`). Whichever labels are chosen should be made
+  consistent across both branches.
+
+**Tests that pin the current behavior and must be updated together with the fix:**
+
+- `src/tests/unit/test_flood_status.py::TestGetDfByDate::test_prediction_date_is_a_date_value` asserts that
+  `Prediction date` equals the stored reference date. That assertion is deliberate (it guards the RISK-006 `.dt`
+  crash), but it encodes pre-RISK-002 semantics and will fail once the target date is emitted. Keep an assertion on
+  the column's *type* and add one for the new target-date *value*.
+- `test_filters_earlier_dates_and_other_risk_levels` in the same file fixes `forecast_days=3` for every row, so it is
+  a convenient place to assert the chosen formula.
+
 **Done when:**
 
 - [ ] A single target-date formula (`reference date + forecast_days - 1`) is used consistently.
 - [ ] Alert tables label reference and target dates unambiguously.
 - [ ] Queries, views, freshness checks, and tests use the intended date.
+- [ ] The dead computation on line 36 is removed rather than left overwritten.
+- [ ] Empty and populated results from `get_df_by_date()` use the same column labels.
 - [ ] Data-model and alert documentation match the final semantics.
 
 ### RISK-003 — Make alert policy and freshness handling configurable
