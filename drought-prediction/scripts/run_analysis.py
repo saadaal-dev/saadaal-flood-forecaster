@@ -8,15 +8,34 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from drought_prediction.data_cleaning import remove_quotes
+from drought_prediction.data_cleaning import (
+    pivot_sensor_values,
+    remove_error_rows,
+    remove_quotes,
+)
 from drought_prediction.predictive_analysis import forecast_cdi
 
 
 def main() -> None:
-    input_path = next((PROJECT_ROOT / "data").glob("export_indicator_data*.csv"))
-    indicators = remove_quotes(pd.read_csv(input_path))
+    data_path = PROJECT_ROOT / "data"
+    indicators = remove_quotes(
+        pd.read_csv(next(data_path.glob("export_indicator_data*.csv")))
+    )
     baydhaba = indicators.loc[indicators["district"] == "Baydhaba"]
-    print(forecast_cdi(baydhaba).to_string(index=False))
+
+    sensor_data = remove_quotes(
+        pd.read_csv(next(data_path.glob("export_sensor_readings_*.csv")))
+    )
+    sensor_data, _ = remove_error_rows(sensor_data)
+    station_data = sensor_data.loc[sensor_data["station_id"] == "BAIDOA_MOH"]
+    sensor_pivot = pivot_sensor_values(station_data)
+    sensor_pivot[["00WD", "00WS"]] = sensor_pivot[["00WD", "00WS"]].apply(
+        pd.to_numeric, errors="coerce"
+    )
+    sensor_pivot["WNDW"] = sensor_pivot["00WD"] * sensor_pivot["00WS"]
+    weather_data = sensor_pivot.drop(columns=["00WD", "00WS"])
+
+    print(forecast_cdi(weather_data, baydhaba).to_string(index=False))
 
 
 if __name__ == "__main__":

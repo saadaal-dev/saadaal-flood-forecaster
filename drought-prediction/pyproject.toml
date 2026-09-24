@@ -11,6 +11,7 @@ dependencies = [
     "numpy>=1.26",
     "pandas>=2.0",
     "matplotlib>=3.7",
+    "scikit-learn>=1.5",
 ]
 
 [tool.setuptools]
