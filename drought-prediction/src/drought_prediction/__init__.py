@@ -1,0 +1,1 @@
+"""Drought data preparation and CDI prediction package."""
