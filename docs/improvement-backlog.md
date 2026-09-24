@@ -1,10 +1,12 @@
 # Improvement backlog
 
 This is the canonical list of known gaps, risks, incomplete features, and worthwhile technical improvements in Saadaal
-Flood Forecaster. It was verified against the repository on 2026-09-22.
+Flood Forecaster. It was verified against the repository on 2026-09-23.
 
-The backlog describes work that is **not yet complete**. Current behavior and operator warnings remain in the relevant
-domain guides; priority, status, and completion criteria live here to avoid maintaining two competing task lists.
+The backlog describes work that is **not yet complete**, with the exception of items explicitly marked `Done`, which are
+retained so that their stable IDs keep old pull request and incident references understandable. Current behavior and
+operator warnings remain in the relevant domain guides; priority, status, and completion criteria live here to avoid
+maintaining two competing task lists.
 
 ## How to use this backlog
 
@@ -47,7 +49,7 @@ domain guides; priority, status, and completion criteria live here to avoid main
 | DATA-001 | P1       | Data                 | Define and test timestamp/timezone semantics                | Open   |
 | DATA-002 | P1       | Data                 | Replace implicit missing-data behavior with explicit policy | Open   |
 | DATA-003 | P2       | Data                 | Verify historical Open-Meteo incremental boundaries         | Open   |
-| DATA-004 | P2       | Data                 | Harden SWALIM parsing and calendar handling                 | Open   |
+| DATA-004 | P1       | Data                 | Harden SWALIM parsing and calendar handling                 | Open   |
 | DATA-005 | P2       | Data                 | Enforce historical river-level uniqueness                   | Open   |
 | DATA-006 | P2       | Data                 | Consolidate river-station metadata ownership                | Open   |
 | DATA-007 | P3       | Data                 | Normalize loader date-range APIs                            | Open   |
@@ -62,6 +64,8 @@ domain guides; priority, status, and completion criteria live here to avoid main
 | RISK-002 | P1       | Alerts               | Correct reference-date versus target-date display           | Open   |
 | RISK-003 | P2       | Alerts               | Make alert policy and freshness handling configurable       | Open   |
 | RISK-004 | P3       | Alerts               | Configure and test failed-email output                      | Open   |
+| RISK-005 | P1       | Alerts               | Detect per-station ingestion and prediction staleness       | Open   |
+| RISK-006 | P0       | Alerts               | Fix alert crash from Date/datetime regression               | Done   |
 | DB-001   | P1       | Database             | Repair non-authoritative SQL views                          | Open   |
 | DB-002   | P2       | Database             | Unify bootstrap and migration behavior                      | Open   |
 | DB-003   | P3       | Database             | Define referential-integrity strategy                       | Open   |
@@ -192,23 +196,46 @@ date and `max_date + one day` logic.
 
 ### DATA-004 — Harden SWALIM parsing and calendar handling
 
-- **Priority:** P2
+- **Priority:** P1 (raised from P2 on 2026-09-22: this is no longer hypothetical, see below)
 - **Status:** Open
 - **Issue/PR:** —
 
 **Problem:** Latest-level ingestion depends on the first seven HTML rows; chart history derives an endpoint by string
 replacement and skips leap-day conversion failures. Upstream format changes can silently reduce coverage.
 
-**Evidence:** `fetch_latest_river_data()` and `fetch_river_data_from_chart_api()` in
-`src/flood_forecaster/data_ingestion/swalim/river_level_api.py`.
+**This has now happened in production.** On 2026-05-12 SWALIM inserted a new station, `Deefow`, into the
+`maps-data-grid` table on <https://frrims.faoswalim.org/rivers/levels>. That pushed `Jowhar` from row 7 to row 8, where
+`df.head(7)` discards it. Jowhar river levels stopped being ingested that day and Jowhar predictions stopped 30 days
+later, when the last reading aged out of the inference lag window. The outage went undetected for over four months.
+
+**Evidence:**
+
+- `fetch_latest_river_data()` truncates with `df = df.head(7)  # Get the 7 stations`, and
+  `_get_new_river_levels()` skips non-matching stations via `if row_list:` with no `else` branch, so a dropped station
+  produces no log line at all. Both in `src/flood_forecaster/data_ingestion/swalim/river_level_api.py`.
+- Live page row order as at 2026-09-23: `Dollow, Luuq, Bardheere, Bualle, Belet Weyne, Deefow, Bulo Burti, Jowhar`.
+  Simulating `head(7)` against this order predicts exactly six ingested stations
+  (`Bardheere, Belet Weyne, Bualle, Bulo Burti, Dollow, Luuq`) and Jowhar missing.
+- Production data matches that prediction exactly: `flood_forecaster.historical_river_level` recorded 7 stations per day
+  through 2026-05-11 and 6 per day from 2026-05-12, with `Jowhar` the only one absent.
+- `Deefow` is not present in `data/static/station-metadata.csv`, `flood_forecaster.river_station_metadata`, or
+  `public.station`, so no station inventory would have flagged its arrival.
+- `fetch_river_data_from_chart_api()` is unaffected: it POSTs to `/rivers/graph` with an explicit `station_id` and the
+  response self-identifies via `otherDetails.stationName`. For Jowhar it returned 134/134 days of the outage window.
 
 **Done when:**
 
-- [ ] Expected station identities are selected by stable identifiers/names, not HTML row position.
+- [ ] Expected station identities are selected by stable identifiers/names, not HTML row position; `head(7)` is removed.
+- [ ] A station present in the configured inventory but absent from the upstream response logs an actionable warning
+      and is reflected in the command's exit status.
+- [ ] An unrecognized upstream station (such as `Deefow`) is reported so the inventory can be reviewed deliberately.
 - [ ] Endpoint configuration is explicit.
 - [ ] Leap years and missing `previous_year`/`gaugeReadingList` structures are handled safely.
-- [ ] Fixture tests cover changed HTML, empty responses, malformed JSON, leap day, and partial station data.
+- [ ] Fixture tests cover changed HTML, empty responses, malformed JSON, leap day, and partial station data, including a
+      regression fixture with eight rows and a new station inserted above `Jowhar`.
 - [ ] Failures produce actionable logs and non-success status where appropriate.
+- [ ] A decision is recorded on whether `/rivers/graph` (per-station, self-identifying) should replace the HTML scrape as
+      the primary daily source; see the note under RISK-005 on source completeness.
 
 ### DATA-005 — Enforce historical river-level uniqueness
 
@@ -425,11 +452,36 @@ where `risk_level IS NULL`. A changed prediction can retain a stale classificati
 **Problem:** Predictions store a reference date and horizon, but alert output labels the reference date as “Prediction
 date.” `get_df_by_date()` computes a forecast date and immediately overwrites it with the reference date.
 
+**Evidence and starting points** (all in `src/flood_forecaster/alert_module/flood_status.py`, verified 2026-09-23):
+
+- Line 36 computes `result_df['date'] + forecast_days`; line 37 immediately overwrites it with
+  `result_df['date'].dt.date`. Line 36 is therefore dead code and the emitted value is the reference date.
+- Line 36 is also inconsistent with the formula in the first checklist item below: it adds `forecast_days` with no
+  `- 1`, so the discarded value is itself a day beyond the intended target date. Deleting line 37 is **not** a
+  sufficient fix; the formula has to be decided and applied deliberately.
+- Line 43 renames the resulting column to `Prediction date`, which is the label an operator reads in the alert email.
+  That string is the user-visible half of this item.
+- The empty-result branch above returns different column names entirely
+  (`location_name`, `flood_risk`, `water_level_m`, `predicted_flood_date`) from the populated branch
+  (`Station`, `Flood risk`, `Water level (m)`, `Prediction date`). Whichever labels are chosen should be made
+  consistent across both branches.
+
+**Tests that pin the current behavior and must be updated together with the fix:**
+
+- `src/tests/unit/test_flood_status.py::TestGetDfByDate::test_prediction_date_is_a_date_value` asserts that
+  `Prediction date` equals the stored reference date. That assertion is deliberate (it guards the RISK-006 `.dt`
+  crash), but it encodes pre-RISK-002 semantics and will fail once the target date is emitted. Keep an assertion on
+  the column's *type* and add one for the new target-date *value*.
+- `test_filters_earlier_dates_and_other_risk_levels` in the same file fixes `forecast_days=3` for every row, so it is
+  a convenient place to assert the chosen formula.
+
 **Done when:**
 
 - [ ] A single target-date formula (`reference date + forecast_days - 1`) is used consistently.
 - [ ] Alert tables label reference and target dates unambiguously.
 - [ ] Queries, views, freshness checks, and tests use the intended date.
+- [ ] The dead computation on line 36 is removed rather than left overwritten.
+- [ ] Empty and populated results from `get_df_by_date()` use the same column labels.
 - [ ] Data-model and alert documentation match the final semantics.
 
 ### RISK-003 — Make alert policy and freshness handling configurable
@@ -464,6 +516,91 @@ prediction exists before comparing dates.
 - [ ] Writes are atomic and failures are surfaced.
 - [ ] Tests cover writable and unwritable destinations.
 - [ ] Operations documentation identifies where failed alerts are stored.
+
+### RISK-005 — Detect per-station ingestion and prediction staleness
+
+- **Priority:** P1
+- **Status:** Open
+- **Issue/PR:** —
+
+**Problem:** Every freshness and failure check in the pipeline is aggregate, so a single station can stop producing
+predictions indefinitely while monitoring stays green. Jowhar stopped on 2026-06-10 and the gap was found four months
+later by manual inspection, not by any alert (see DATA-004 for the root cause).
+
+**Evidence:**
+
+- `alert.py` checks `db_client.get_max_date(PredictedRiverLevel)` across all locations, with no `GROUP BY`
+  `location_name`. Four healthy stations keep the check passing.
+- `scripts/amadeus_saadaal_flood_forecaster_resilient.sh` catches a failed per-station inference and continues
+  ("⚠️ Inference failed for $STATION, continuing with other stations"), exiting `2` on partial success. Nothing
+  downstream consumes that exit code.
+- `_get_new_river_levels()` emits no log line for a station that produced no row, so the ingestion gap that started the
+  incident was silent at every layer.
+- This is the alerting counterpart to OPS-001, which covers run-level observability; this item covers per-station data
+  and prediction coverage specifically.
+
+**Done when:**
+
+- [ ] Ingestion and prediction freshness are evaluated per station against the configured production station list, not
+      only in aggregate.
+- [ ] A station missing from ingestion, or with no prediction newer than a configured maximum age, raises an alert that
+      names the station.
+- [ ] Partial-success exit status from the orchestration script reaches monitoring/Sentry distinctly from full success.
+- [ ] Tests cover one station stale with the rest healthy, all stations stale, and an empty prediction table.
+- [ ] Operations documentation states the per-station thresholds and the response procedure.
+
+**Note on source selection (informs DATA-004):** `public.station_river_data` is fed from SWALIM's `/rivers/graph` JSON
+endpoint and therefore kept Jowhar flowing throughout the outage, but it is *less* complete than the scrape for healthy
+stations (73 vs 86 days out of 90 for Belet Weyne and Bulo Burti; Bardheere and Bualle stop at 2026-08-17). Querying
+`/rivers/graph` directly is the more complete option: 134/134 days for Jowhar's outage window versus 124 from
+`public.station_river_data`. Any source change should be validated on completeness per station, not only on whether it
+survived this incident.
+
+### RISK-006 — Fix alert crash from Date/datetime regression
+
+- **Priority:** P0
+- **Status:** Done (2026-09-23, branch `fix/risk-006-alert-date-regression`)
+- **Issue/PR:** —
+
+**Problem:** The `flood-cli alert` command crashed on every run before any alert could be evaluated or sent, so the
+entire alerting phase (Phase 4) was non-functional in production. Because this is the delivery path for flood warnings,
+the outage was a safety risk, not only a correctness one.
+
+**Evidence:**
+
+- Production log (2026-09-23, Phase 4 "Send alerts") ended with
+  `AttributeError: 'datetime.date' object has no attribute 'date'` and `flood-cli alert` exiting with code 1.
+- `get_df_by_date()` in `src/flood_forecaster/alert_module/flood_status.py` filtered with
+  `func.date(PredictedRiverLevel.date) >= date_begin.date()`, calling `.date()` on `date_begin`.
+- `date_begin` is supplied by `main()` in `src/flood_forecaster/alert_module/alert.py` as
+  `latest_db_date = db_client.get_max_date(PredictedRiverLevel)`.
+- `PredictedRiverLevel.date` is `Column(Date)` (see `src/flood_forecaster/data_model/river_level.py`), so
+  `get_max_date()` returns a `datetime.date`, which has no `.date()` method. The parameter was annotated
+  `date_begin: datetime`, masking the mismatch.
+- **Second crash on the same path:** a `Date` column is returned by `pd.read_sql()` as object-dtype `datetime.date`
+  values, so `result_df['date'] + pd.to_timedelta(...)` raised
+  `TypeError: unsupported operand type(s) for +: 'TimedeltaArray' and 'datetime.date'` and `result_df['date'].dt.date`
+  raised `AttributeError: Can only use .dt accessor with datetimelike values`. This was latent behind the first crash and
+  triggered only when the query returned rows, meaning it would have surfaced precisely when an alert had to be sent.
+- Regression origin: commit `c79bd7c` ("Refactor date handling in predicted_river_level ... Now one prediction per
+  day") changed the column from `DateTime` to `Date` without updating either site. Under the previous `DateTime` column,
+  `get_max_date()` returned a `datetime.datetime` and the column arrived as `datetime64`, so both worked.
+
+**Done when:**
+
+- [x] `get_df_by_date()` no longer calls `.date()` on a value that is already a `datetime.date`; the date filter compares
+      directly against the `Date` column and the redundant `func.date(...)` wrapper is removed.
+- [x] `get_df_by_date()` accepts the actual type returned by `get_max_date()`; the annotation is
+      `Union[date, datetime]` and a `datetime` is narrowed to its calendar day.
+- [x] The retrieved `date` column is normalized to a datetime dtype before `.dt` is used, so returning rows no longer
+      raises.
+- [x] `flood-cli alert` completes without raising on a database whose `predicted_river_level.date` is a `Date` column.
+- [x] A regression test exercises the alert query path against `Date`-typed prediction dates so a future column-type
+      change cannot silently break delivery again
+      (`src/tests/unit/test_flood_status.py`, verified to fail against the pre-fix code).
+
+**Not addressed here (still open):** the displayed "Prediction date" remains the stored reference date rather than the
+forecast target date; that semantic fix stays with RISK-002, which owns the target-date formula.
 
 ## Database
 
@@ -754,7 +891,7 @@ so future searches lead here.
 |-----------------------------------|-----------------------------------------------------------|------------------------------|
 | `data_ingestion/load.py`          | Optional ranges, timezone, missing dates, fill edge cases | DATA-001, DATA-002, DATA-007 |
 | `openmeteo/historical_weather.py` | Yesterday/incremental duplicate boundaries                | DATA-003                     |
-| `swalim/river_level_api.py`       | Station IDs, endpoint, leap years                         | DATA-004, DATA-006           |
+| `swalim/river_level_api.py`       | Station IDs, endpoint, leap years, `head(7)` truncation   | DATA-004, DATA-006, RISK-005 |
 | `data_model/river_station.py`     | Replace static metadata with model/database read          | DATA-006                     |
 | `config/config.ini`               | Move lag/horizon settings into model configuration        | ML-002                       |
 | `ml_model/api.py`, `registry.py`  | Preprocessor/model/input abstractions                     | ML-002, ML-003, ML-006       |
