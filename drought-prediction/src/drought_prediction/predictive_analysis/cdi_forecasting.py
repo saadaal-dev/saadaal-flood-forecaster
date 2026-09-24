@@ -1,4 +1,9 @@
-"""Machine-learning CDI forecasts extracted from the analysis notebook."""
+"""Machine-learning CDI forecasts extracted from the analysis notebook.
+
+The module intentionally keeps the two notebook forecasts separate: the first
+uses the four BAIDOA_MOH weather features, while the second uses rainfall plus
+the current CDI value as temporal context. Neither function creates charts.
+"""
 
 import numpy as np
 import pandas as pd
@@ -7,6 +12,7 @@ from sklearn.metrics import mean_absolute_error
 
 
 def prepare_indicator_data(indicator_dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Create one monthly row containing the available CDI and rainfall values."""
     return (
         indicator_dataframe.loc[
             indicator_dataframe["indicator"].isin(["cdi", "rainfall"])
@@ -30,6 +36,7 @@ def prepare_indicator_data(indicator_dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def _monthly_cdi(indicator_dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Extract the monthly CDI target series used by both forecast paths."""
     indicator_data = prepare_indicator_data(indicator_dataframe)
     if "cdi" not in indicator_data.columns:
         raise ValueError("Indicator data must contain CDI values.")
@@ -37,11 +44,13 @@ def _monthly_cdi(indicator_dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def _validate_holdout(dataframe: pd.DataFrame, test_months: int) -> None:
+    """Ensure a chronological test window can be separated from training data."""
     if test_months < 1 or len(dataframe) <= test_months:
         raise ValueError("Not enough monthly observations for the requested holdout.")
 
 
 def _monthly_weather(weather_dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Convert timestamped BAIDOA_MOH readings into monthly model features."""
     feature_columns = ["00AT", "00RH", "WNDW", "RAIN"]
     missing = [column for column in feature_columns if column not in weather_dataframe]
     if missing:
@@ -54,6 +63,8 @@ def _monthly_weather(weather_dataframe: pd.DataFrame) -> pd.DataFrame:
     weather_data[feature_columns] = weather_data[feature_columns].apply(
         pd.to_numeric, errors="coerce"
     )
+    # Temperature, humidity, and weighted wind are averaged; rainfall is a
+    # monthly accumulation because it represents a total quantity.
     return (
         weather_data.groupby("month", as_index=False)
         .agg({"00AT": "mean", "00RH": "mean", "WNDW": "mean", "RAIN": "sum"})
@@ -66,7 +77,12 @@ def forecast_weather_cdi(
     indicator_dataframe: pd.DataFrame,
     test_months: int = 6,
 ) -> pd.DataFrame:
-    """Forecast CDI from monthly BAIDOA_MOH weather features."""
+    """Forecast CDI from monthly BAIDOA_MOH weather features.
+
+    The target is the CDI value in the month after each weather observation.
+    The final chronological holdout is used for MAE, then the same model is
+    refit on all historical pairs before predicting the next month.
+    """
     feature_columns = ["00AT", "00RH", "WNDW", "RAIN"]
     monthly_weather = _monthly_weather(weather_dataframe)
     cdi_data = _monthly_cdi(indicator_dataframe)
@@ -85,6 +101,7 @@ def forecast_weather_cdi(
 
     X = model_data[feature_columns]
     y = model_data["target_cdi"]
+    # Preserve time order: future months must never influence the holdout fit.
     X_train, X_test = X.iloc[:-test_months], X.iloc[-test_months:]
     y_train, y_test = y.iloc[:-test_months], y.iloc[-test_months:]
     model = RandomForestRegressor(
@@ -93,6 +110,7 @@ def forecast_weather_cdi(
     model.fit(X_train, y_train)
     test_mae = mean_absolute_error(y_test, model.predict(X_test))
 
+    # Refit with all known pairs for the production next-month prediction.
     model.fit(X, y)
     latest_weather = monthly_weather.sort_values("month").iloc[-1]
     next_month = latest_weather["month"] + pd.offsets.MonthBegin(1)
@@ -113,7 +131,12 @@ def forecast_rainfall_cdi(
     indicator_dataframe: pd.DataFrame,
     test_months: int = 6,
 ) -> pd.DataFrame:
-    """Forecast CDI from rainfall and the current month's CDI value."""
+    """Forecast CDI from rainfall and the current month's CDI value.
+
+    Log-transformed rainfall reduces the influence of unusually large rainfall
+    values, while current CDI supplies the recent drought state. A robust
+    gradient-boosting loss limits the effect of noisy historical observations.
+    """
     indicator_data = prepare_indicator_data(indicator_dataframe)
     required = {"month", "cdi", "rainfall"}
     if not required.issubset(indicator_data.columns):
@@ -141,6 +164,8 @@ def forecast_rainfall_cdi(
     feature_columns = ["rainfall", "log_rainfall", "cdi"]
     X = model_data[feature_columns]
     y = model_data["target_cdi"]
+    # Evaluate only on the latest months to match the notebook's forecasting
+    # setup and avoid random train/test leakage across time.
     X_train, X_test = X.iloc[:-test_months], X.iloc[-test_months:]
     y_train, y_test = y.iloc[:-test_months], y.iloc[-test_months:]
     model = GradientBoostingRegressor(
@@ -153,6 +178,7 @@ def forecast_rainfall_cdi(
     model.fit(X_train, y_train)
     test_mae = mean_absolute_error(y_test, model.predict(X_test))
 
+    # Fit the final predictor on every available historical training pair.
     model.fit(X, y)
     latest = indicator_data.dropna(subset=["cdi", "rainfall"]).iloc[-1]
     prediction_input = pd.DataFrame(
@@ -181,7 +207,7 @@ def forecast_cdi(
     indicator_dataframe: pd.DataFrame,
     test_months: int = 6,
 ) -> pd.DataFrame:
-    """Return both weather-based and rainfall-context CDI forecasts."""
+    """Return both notebook-aligned CDI forecasts in one comparison table."""
     return pd.concat(
         [
             forecast_weather_cdi(weather_dataframe, indicator_dataframe, test_months),

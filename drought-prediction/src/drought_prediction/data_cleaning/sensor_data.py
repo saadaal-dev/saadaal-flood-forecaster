@@ -1,4 +1,9 @@
-"""Cleaning and aggregation helpers for sensor and indicator data."""
+"""Cleaning and aggregation helpers for sensor and indicator data.
+
+The exported sensor files contain quoted identifiers, mixed numeric/text values,
+and sentinel values for failed readings. These helpers make those files usable
+for monthly CDI prediction while retaining the original dataframe structure.
+"""
 
 import re
 
@@ -7,6 +12,7 @@ import pandas as pd
 
 
 def create_station_datasets(dataframe: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Split sensor readings into one dataframe per normalized station ID."""
     station_datasets = {}
     normalized_station_ids = dataframe["station_id"].astype(str).str.strip("'\"")
     for station_id in normalized_station_ids.dropna().unique():
@@ -20,6 +26,12 @@ def create_station_datasets(dataframe: pd.DataFrame) -> dict[str, pd.DataFrame]:
 def remove_error_rows(
     source_df: pd.DataFrame, error_df: pd.DataFrame | None = None
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Remove ``---`` and ``-999`` sensor readings and collect them separately.
+
+    The source exports use both string and numeric representations, so values
+    are normalized before the error mask is calculated. The returned error
+    dataframe keeps the rejected rows available for quality-control reporting.
+    """
     normalized_values = source_df["value"].map(
         lambda value: value.strip("'\"") if isinstance(value, str) else value
     )
@@ -33,6 +45,7 @@ def remove_error_rows(
 
 
 def remove_quotes(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Remove export-layer single or double quotes from every string field."""
     cleaned_dataframe = dataframe.copy()
     for column in cleaned_dataframe.columns:
         cleaned_dataframe[column] = cleaned_dataframe[column].map(
@@ -42,6 +55,7 @@ def remove_quotes(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Normalize quoted fields, sensor dates, and numeric sensor values."""
     cleaned_dataframe = remove_quotes(dataframe)
     if "original_date" in cleaned_dataframe:
         cleaned_dataframe["original_date"] = pd.to_datetime(
@@ -55,6 +69,12 @@ def clean_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def pivot_sensor_values(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Turn one row per sensor reading into one row per timestamp.
+
+    Sensor IDs become columns so downstream aggregation and machine-learning
+    code can select weather variables directly. Duplicate readings at one
+    timestamp are reduced to the first available value.
+    """
     return (
         dataframe.pivot_table(
             index=["original_date", "original_time"],
@@ -68,10 +88,18 @@ def pivot_sensor_values(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def aggregate_sensor_values_by_day(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate sensor readings by day using rules tied to sensor meaning.
+
+    Atmospheric measurements use means, rainfall and solar radiation use sums,
+    and wind direction uses a circular mean so directions near 0/360 degrees do
+    not produce an artificial average near 180 degrees.
+    """
     daily_dataframe = dataframe.copy()
     daily_dataframe["original_date"] = pd.to_datetime(
         daily_dataframe["original_date"], errors="coerce"
     ).dt.normalize()
+    # Each sensor's physical meaning determines whether daily values are means,
+    # totals, or circular directional averages.
     aggregation_rules = {
         "00AP": "mean", "00AT": "mean", "00DP": "mean", "00RH": "mean",
         "00WD": "circular_mean", "00WS": "mean", "RAIN": "sum", "SOLR": "sum",
@@ -98,4 +126,5 @@ def aggregate_sensor_values_by_day(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_column_correlations(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Calculate pairwise correlations for numeric columns only."""
     return dataframe.select_dtypes(include="number").corr()
