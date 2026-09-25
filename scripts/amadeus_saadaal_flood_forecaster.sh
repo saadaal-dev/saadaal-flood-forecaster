@@ -50,8 +50,22 @@ else
 fi
 echo "Virtual environment activated $VIRTUAL_ENV"
 
-# Load .env variables
-source "$REPOSITORY_ROOT_PATH/.env"
+# Load .env variables.
+# Parsed rather than sourced: the file is unquoted KEY=value for python-dotenv,
+# so `source` would word-split/execute values containing spaces, '#' or '$'.
+# Exporting also makes the values visible to child processes (flood-cli).
+if [ -f "$REPOSITORY_ROOT_PATH/.env" ]; then
+    while IFS='=' read -r _key _value || [ -n "$_key" ]; do
+        case "$_key" in
+            ''|'#'*) continue ;;
+        esac
+        _key="${_key#"${_key%%[![:space:]]*}"}"
+        _key="${_key%"${_key##*[![:space:]]}"}"
+        [ -z "$_key" ] && continue
+        export "$_key=$_value"
+    done < "$REPOSITORY_ROOT_PATH/.env"
+    unset _key _value
+fi
 
 # List of stations for inference
 STATIONS=("Belet Weyne" "Bulo Burti" "Jowhar" "Dollow" "Luuq")
