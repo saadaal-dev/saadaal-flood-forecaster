@@ -403,129 +403,126 @@ ValueError: Missing river level data for locations: {'Belet Weyne'}
 
 ### `fill_river_data_gaps.py`
 
-**Purpose**: Fill gaps in historical river level data using the public.station_river_data table.
+**Purpose**: Fill gaps in `flood_forecaster.historical_river_level`, from SWALIM's chart API or from
+`public.station_river_data`.
 
-**Description**: Identifies gaps in the `flood_forecaster.historical_river_level` table and fills them by fetching data
-from `public.station_river_data` using the station mapping in `river_station_metadata`. This solves the critical issue
-where data gaps prevent catchup predictions from working.
+**Description**: Finds dates with no usable reading for each station inside a window, fetches what the chosen source can
+supply, and inserts the missing rows. Dry run by default: nothing is written unless `--apply` is passed.
 
 **Usage**:
 
 ```bash
-python scripts/fill_river_data_gaps.py
+# What is missing for Jowhar, up to today (writes nothing)
+python scripts/fill_river_data_gaps.py --station Jowhar
+
+# Repair a known outage window
+python scripts/fill_river_data_gaps.py --station Jowhar --from 2026-05-12 --apply
+
+# Every station, bounded window, no prompt
+python scripts/fill_river_data_gaps.py --from 2026-01-01 --apply --yes
+
+# Compare what the fallback source could offer
+python scripts/fill_river_data_gaps.py --station Jowhar --source public-schema
 ```
+
+**Options**:
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--station NAME` | all mapped stations | Station to process; repeatable |
+| `--from YYYY-MM-DD` | station's earliest stored row | Start of the window |
+| `--to YYYY-MM-DD` | **today** | End of the window |
+| `--source` | `chart-api` | `chart-api` or `public-schema` |
+| `--apply` | off | Actually insert; without it the run is read-only |
+| `--yes` | off | Skip the confirmation prompt when applying |
+| `--config PATH` | `../config/config.ini` | Alternate configuration file |
+| `--max-listed N` | 12 | How many individual dates to print per station |
+
+**Sources**:
+
+- **`chart-api`** (default) — SWALIM's `/rivers/graph` endpoint, addressed per station by id. Returns the current year
+  plus the previous year in one call, so it can repair long gaps, and it is immune to the HTML row-position failure in
+  backlog item DATA-004. Measured on 2026-09-23 it covered 134/134 days of the Jowhar outage.
+- **`public-schema`** — `public.station_river_data`, joined through `river_station_metadata.swalim_internal_id`. This
+  table is written by a host cron outside this project's control and is less complete: 124/134 days for the same window.
+  Treat it as a fallback and a cross-check, not a primary source. See RISK-005.
 
 **How It Works**:
 
-1. Loads station mapping from `river_station_metadata` (station_name → swalim_internal_id)
-2. For each station, identifies date gaps in `historical_river_level`
-3. Fetches missing data from `public.station_river_data` using the SWALIM ID
-4. Inserts missing records into `historical_river_level`
-5. Reports success/failure statistics
-
-**What It Shows**:
-
-- Station mapping (name to SWALIM ID)
-- Existing data range per station
-- Number of gaps detected
-- Records fetched from source table
-- Records successfully inserted
-- Records still missing (if source doesn't have them)
+1. Loads the station mapping from `river_station_metadata` (`station_name` → `swalim_internal_id`)
+2. Resolves a window per station; `--to` defaults to today so trailing gaps are visible
+3. Lists dates with no non-NULL `level_m` in that window
+4. Fetches candidate readings from the chosen source
+5. Reports gaps, what is fillable, and what the source lacks
+6. On `--apply`, inserts everything in a single transaction using `ON CONFLICT DO NOTHING`
 
 **When to Use**:
 
-- **When catchup fails with "Missing river level data" error**
-- After identifying gaps with `check_river_data_availability.py`
-- To backfill historical data from the public schema
-- After system downtime that caused data collection gaps
+- When inference fails with `Missing river level data for locations: {...}`
+- When a station's predictions have stopped while others continue
+- After downtime that interrupted river data collection
+- To audit coverage without changing anything (the default dry run)
 
 **Prerequisites**:
 
-- `public.station_river_data` table must exist and contain historical data
-- `river_station_metadata.swalim_internal_id` must be populated
-- Database connection with access to both schemas
+- `river_station_metadata.swalim_internal_id` populated
+- `POSTGRES_PASSWORD` and `DB_HOST` set in the environment
+- Network access to `frrims.faoswalim.org` for `--source chart-api`
+- Read access to `public.station_river_data` for `--source public-schema`
 
 **Output Example**:
 
 ```
-================================================================================
+==============================================================================
 FILL GAPS IN HISTORICAL RIVER LEVEL DATA
-================================================================================
+==============================================================================
+Source : chart-api
+Window : 2026-05-12 .. 2026-09-22
+Mode   : DRY RUN - nothing will be written
 
-Step 1: Loading station mapping
---------------------------------------------------------------------------------
-Found 5 stations with SWALIM IDs:
-  - Belet Weyne: SWALIM ID 123
-  - Bulo Burti: SWALIM ID 124
-  - Dollow: SWALIM ID 125
-  - Jowhar: SWALIM ID 126
-  - Luuq: SWALIM ID 127
+Stations: Jowhar
+------------------------------------------------------------------------------
 
-Step 2: Analyzing data gaps
---------------------------------------------------------------------------------
-📍 Belet Weyne
-   Date range: 2025-09-15 to 2025-12-04
-   Existing records: 3
-   Expected records: 81
-   ⚠️  Gaps detected: 78 missing days
-   Missing dates: 78
-      First: 2025-09-16
-      Last: 2025-12-03
+📍 Jowhar  (SWALIM id 6)
+   window 2026-05-12 .. 2026-09-22  (134 days)
+   usable readings stored: 0
+   ⚠️  missing: 134 day(s)
+      2026-05-12, 2026-05-13, 2026-05-14 ... 2026-09-20, 2026-09-21, 2026-09-22
+   source offers 134 reading(s) in window; 134 match a gap, 0 unavailable
 
-📍 Bulo Burti
-   Date range: 2025-09-15 to 2025-12-04
-   Existing records: 3
-   Expected records: 81
-   ⚠️  Gaps detected: 78 missing days
+==============================================================================
+Gaps found         : 134
+Fillable from source: 134
+==============================================================================
 
-📊 Total gaps found: 156 missing days across 2 stations
-
-⚠️  This will fetch data from public.station_river_data and fill the gaps.
-
-Do you want to proceed? (yes/no): yes
-
-Step 3: Filling gaps from public.station_river_data
---------------------------------------------------------------------------------
-📍 Belet Weyne (SWALIM ID: 123)
-   Fetching data for 78 missing dates...
-   Found 78 records in source table
-   Inserting 78 records...
-   ✅ Successfully inserted 78 records
-
-📍 Bulo Burti (SWALIM ID: 124)
-   Fetching data for 78 missing dates...
-   Found 78 records in source table
-   Inserting 78 records...
-   ✅ Successfully inserted 78 records
-
-================================================================================
-GAP FILLING COMPLETE
-================================================================================
-Total gaps found: 156
-Successfully filled: 156
-Still missing (no source data): 0
-
-✅ Gaps have been filled! Run check_river_data_availability.py to verify.
-
-Next steps:
-  1. Verify gaps are filled: python scripts/check_river_data_availability.py
-  2. Run catchup: python scripts/catchup_missing_predictions.py
-================================================================================
+Dry run. Re-run with --apply to insert the rows above.
 ```
 
-**Safety Features**:
+**Safety**:
 
-- Shows analysis before making changes
-- Requires "yes" confirmation before filling
-- Uses `ON CONFLICT DO NOTHING` to avoid duplicates
-- Reports detailed statistics
-- Continues on individual errors
+- Read-only unless `--apply` is given, and then it still prompts unless `--yes`
+- All inserts run in one transaction, so a failure leaves nothing half-applied
+- `ON CONFLICT DO NOTHING`, and insert counts come from `rowcount`, so re-running is safe and reports honestly
+- A source failure is reported per station and does not abort the other stations
+
+**Notes**:
+
+- Rows with a NULL `level_m` count as gaps, because the loader drops NULL levels before building features. A NULL row
+  would otherwise occupy the date and keep the gap permanently unfixable.
+- Two defects were fixed on 2026-09-24. The source query ordered by a column named `date`, which does not exist on
+  `public.station_river_data` (it is `reading_date`); every fetch raised, the error was swallowed, and the script filled
+  nothing. Separately, the gap search was bounded by `MAX(date)`, so a station that had stopped reporting appeared
+  continuous and its trailing gap was invisible.
 
 **Troubleshooting**:
 
-- **"No station mapping found"**: Check that `swalim_internal_id` is populated in `river_station_metadata`
-- **"No data found in public.station_river_data"**: The source table may not have data for those dates/stations
-- **"Error querying public.station_river_data"**: Check table exists and you have access permissions
+- **"No station mapping found"**: check `swalim_internal_id` in `river_station_metadata`
+- **"Unknown station(s)"**: the name must match `river_station_metadata.station_name`; available names are listed
+- **"no existing rows; pass --from"**: the station has no data at all, so there is no natural window start
+- **Gaps exist but the source has nothing**: try the other `--source`; if both are short, the reading was never published
+
+---
+
 
 ---
 
