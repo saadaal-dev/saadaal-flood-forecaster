@@ -139,7 +139,9 @@ python scripts/catchup_missing_predictions.py
 ```
 
 **Where to Run**:
-This script connects to the PostgreSQL database using the configuration in `config/config.ini` (host: `68.183.13.232`).
+This script connects to the PostgreSQL database using `dbname`/`user`/`port` from `config/config.ini` and the host from
+the `DB_HOST` environment variable. The host was hardcoded in `config.ini` until March 2026; it is now env-only, so
+`DB_HOST` must be set wherever the script runs.
 You can run it from:
 
 - ✅ **Inside the Docker container**: Most common for production
@@ -325,9 +327,10 @@ Unsupported stations (skipped): 1
 **Prerequisites**:
 
 - **Database Access**:
-    - Database connection configured in `config/config.ini`
-    - `POSTGRES_PASSWORD` environment variable set (loaded from `.env` file)
-    - Network connectivity to database host (default: `68.183.13.232:5432`)
+    - `dbname`, `user` and `port` configured in `config/config.ini`
+    - `DB_HOST` and `POSTGRES_PASSWORD` environment variables set (loaded from `.env` file). There is no default host -
+      a missing `DB_HOST` raises `ValueError: DB_HOST environment variable not set.`
+    - Network connectivity to the database host on port `5432`
 - **Environment**:
     - `flood-cli` command available in PATH (installed via `install.sh`)
     - Python virtual environment activated (if running outside container)
