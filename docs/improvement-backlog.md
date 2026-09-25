@@ -533,9 +533,15 @@ later by manual inspection, not by any alert (see DATA-004 for the root cause).
   `location_name`. Four healthy stations keep the check passing.
 - `scripts/amadeus_saadaal_flood_forecaster_resilient.sh` catches a failed per-station inference and continues
   ("⚠️ Inference failed for $STATION, continuing with other stations"), exiting `2` on partial success. Nothing
-  downstream consumes that exit code.
+  downstream consumes that exit code. **Confirmed as the deployed variant:** the crontab inside the running
+  `srv-captain--saadaal-flood-forecaster` container is `0 12 * * * root bash .../amadeus_saadaal_flood_forecaster_resilient.sh`,
+  which matches the daily template in `amadeus_saadaal_flood_forecaster_cron` (the only cron file the `Dockerfile`
+  installs) rather than `..._cron_frequent`.
 - `_get_new_river_levels()` emits no log line for a station that produced no row, so the ingestion gap that started the
   incident was silent at every layer.
+- `flood_forecaster.predicted_river_level.created_at` is NULL on all 4694 rows, so there is no record of when any
+  prediction was actually produced. The outage had to be dated from the `date` column instead. This removes the
+  cheapest available forensic signal and compounds the detection gap; see also OPS-001 and DB-002.
 - This is the alerting counterpart to OPS-001, which covers run-level observability; this item covers per-station data
   and prediction coverage specifically.
 
@@ -549,12 +555,29 @@ later by manual inspection, not by any alert (see DATA-004 for the root cause).
 - [ ] Tests cover one station stale with the rest healthy, all stations stale, and an empty prediction table.
 - [ ] Operations documentation states the per-station thresholds and the response procedure.
 
-**Note on source selection (informs DATA-004):** `public.station_river_data` is fed from SWALIM's `/rivers/graph` JSON
-endpoint and therefore kept Jowhar flowing throughout the outage, but it is *less* complete than the scrape for healthy
-stations (73 vs 86 days out of 90 for Belet Weyne and Bulo Burti; Bardheere and Bualle stop at 2026-08-17). Querying
-`/rivers/graph` directly is the more complete option: 134/134 days for Jowhar's outage window versus 124 from
-`public.station_river_data`. Any source change should be validated on completeness per station, not only on whether it
-survived this incident.
+**Note on source selection (informs DATA-004):** `public.station_river_data` kept Jowhar flowing throughout the outage,
+which makes it tempting as a replacement source. It should not become the primary one, for two independent reasons.
+
+*It is outside this project's control.* The table is written by `/usr/bin/fetch_river.sh`, invoked from the **host** root
+crontab as `0 10 * * *`. The host OS timezone is EAT (UTC+3), so that is 07:00 UTC, which matches the observed write
+clock on `created_at` exactly. The script's implementation has not been inspected and it is not owned by this
+repository. An earlier revision of this note claimed the table was populated from SWALIM's `/rivers/graph`; that was
+inferred from `legacy/data-extractor/new_river.py`, which is neither used nor owned here, and the claim is withdrawn.
+Reading the table as a fallback is acceptable; depending on it couples the forecaster to an unverified upstream that can
+change without notice.
+
+*It is less complete.* Over a 90-day window it carried 73 days for Belet Weyne and Bulo Burti against 86 from the
+scrape, and Bardheere and Bualle stop at 2026-08-17. Each run writes only a 0-1 day window, so it shares the scrape's
+property that a missed day is lost permanently.
+
+Querying SWALIM's `/rivers/graph` directly is the more complete option, verified live on 2026-09-23: 134/134 days of
+Jowhar's outage window against 124 from `public.station_river_data`. It is addressed by `station_id` and the response
+self-identifies through `otherDetails.stationName`, making it immune to the row-position failure described in DATA-004.
+Two caveats: it is an undocumented internal endpoint with no stability contract or versioning, and no public SWALIM API
+is documented anywhere. Requesting a supported data feed from FAO SWALIM would remove that risk and is worth pursuing
+independently of any code change.
+
+Any source change should be validated on completeness per station, not only on whether it survived this incident.
 
 ### RISK-006 — Fix alert crash from Date/datetime regression
 
