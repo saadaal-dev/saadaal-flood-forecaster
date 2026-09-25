@@ -47,10 +47,11 @@ possible.
 - Copies and renders the cron definition.
 - Uses `docker-entrypoint.sh` as entrypoint.
 
-At startup, the entrypoint writes all process environment variables to root `.env`, creates the log file, starts cron,
-and runs `tail -F` on the log as PID 1. This makes cron output visible through container logs.
+At startup, the entrypoint snapshots an explicit allowlist of environment variables to root `.env` (mode `0600`),
+creates the log file, starts cron, and runs `tail -F` on the log as PID 1. This makes cron output visible through
+container logs. The snapshot exists because cron jobs do not inherit the container's runtime environment.
 
-Required deployment values include:
+Required deployment values:
 
 ```text
 DB_HOST
@@ -59,8 +60,19 @@ MAILJET_API_KEY
 MAILJET_API_SECRET
 ```
 
-Sentry variables are optional. Because the entrypoint copies the full environment to disk, limit file/container access
-and avoid injecting unrelated secrets.
+Optional: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `LOG_LEVEL`, `CONTACT_LIST_ID`.
+
+Only allowlisted variables reach `.env`, and only if they are actually set in the container. The allowlist lives in
+`docker-entrypoint.sh` and must be kept in sync with the variables read via `os.getenv()` in the codebase - a variable
+that is missing from the allowlist, or missing from the deployment config, is invisible to the pipeline.
+
+`DB_HOST` and `POSTGRES_PASSWORD` are validated at startup: the entrypoint prints the names it captured and an explicit
+error block if either is missing, and the pipeline script aborts immediately rather than retrying doomed commands.
+Startup log lines to check after a deploy:
+
+```text
+[entrypoint] Captured into .env: DB_HOST POSTGRES_PASSWORD ...
+```
 
 ## PostgreSQL deployment modes
 
