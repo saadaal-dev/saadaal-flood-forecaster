@@ -73,9 +73,47 @@ else
 fi
 echo -e "${GREEN}✅ Virtual environment activated: $VIRTUAL_ENV${NC}"
 
-# Load .env variables
+# Load .env variables.
+#
+# We deliberately do NOT `source` the file: it is written in unquoted
+# KEY=value form for python-dotenv, and `source` would word-split and execute
+# values containing spaces, '#' or '$' (e.g. a password like "p@ss w#rd" would
+# try to run `w#rd` as a command). Parsing line by line and exporting is both
+# safe and, unlike `source`, actually puts the values in the *environment* so
+# child processes such as flood-cli inherit them instead of relying on
+# python-dotenv finding this file on its own.
 if [ -f "$REPOSITORY_ROOT_PATH/.env" ]; then
-    source "$REPOSITORY_ROOT_PATH/.env"
+    while IFS='=' read -r _key _value || [ -n "$_key" ]; do
+        # Skip blanks and comments.
+        case "$_key" in
+            ''|'#'*) continue ;;
+        esac
+        _key="${_key#"${_key%%[![:space:]]*}"}"   # trim leading whitespace
+        _key="${_key%"${_key##*[![:space:]]}"}"   # trim trailing whitespace
+        [ -z "$_key" ] && continue
+        export "$_key=$_value"
+    done < "$REPOSITORY_ROOT_PATH/.env"
+    unset _key _value
+else
+    echo -e "${YELLOW}⚠️  No .env file at $REPOSITORY_ROOT_PATH/.env${NC}"
+fi
+
+# Fail fast on missing database credentials. Without this the pipeline burns
+# ~2 minutes on 6 doomed retries and then reports a misleading
+# "stale forecast data" abort, which hides the real cause.
+MISSING_ENV=()
+for _required in DB_HOST POSTGRES_PASSWORD; do
+    [ -z "${!_required:-}" ] && MISSING_ENV+=("$_required")
+done
+if [ "${#MISSING_ENV[@]}" -gt 0 ]; then
+    echo -e "${RED}❌ CONFIGURATION ERROR: missing required environment variable(s): ${MISSING_ENV[*]}${NC}"
+    echo -e "${RED}   Every database read and write will fail, so the pipeline cannot run.${NC}"
+    echo -e "${RED}   Set them in the deployment environment (CapRover: App Configs ->${NC}"
+    echo -e "${RED}   Environmental Variables), redeploy/restart the app, and re-run.${NC}"
+    echo "============================================================================"
+    echo "❌ PIPELINE ABORTED DUE TO INCOMPLETE CONFIGURATION"
+    echo "============================================================================"
+    exit 1
 fi
 
 # Function to retry command with exponential backoff
