@@ -9,14 +9,15 @@ and removes older duplicates.
 This should be run BEFORE adding the unique constraint to the historical_weather table.
 
 Usage:
-    python scripts/remove_duplicate_historical_weather.py [--dry-run]
+    python scripts/maintenance/remove_duplicate_historical_weather.py [--dry-run]
 """
 import argparse
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-src_path = Path(__file__).parent.parent / "src"
+# Add src to path for imports.
+# parents[2] is the repository root: scripts/maintenance/<this file>.
+src_path = Path(__file__).parents[2] / "src"
 sys.path.insert(0, str(src_path))
 
 from flood_forecaster.data_ingestion.openmeteo.historical_weather import (

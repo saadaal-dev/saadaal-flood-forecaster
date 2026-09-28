@@ -11,6 +11,9 @@ container, cron, and test files on 2026-09-22.
 - [Contributing](../CONTRIBUTING.md) — contribution workflow.
 - [Improvement backlog](improvement-backlog.md) — prioritized gaps, planned improvements, completion criteria, and
   status workflow.
+- [Studies](studies/) — dated evidence from research sessions, currently
+  [June 2026 improvement studies](studies/2026-06-improvement-studies.md): data-source, drought, weather-sensor, ML, UI,
+  and AI-reporting findings, including cross-repository work in `saadaal-collab` and `saadaal-scripts`.
 
 ## Component guides
 
@@ -43,6 +46,9 @@ container, cron, and test files on 2026-09-22.
 - `docker-compose.yml` starts a local PostgreSQL service only; the application image is built separately with
   `Dockerfile`.
 - Files describing one-off incidents or historical fixes are not part of this current-state documentation set.
+- `studies/` records what was measured on a given date, including findings about other repositories. It is evidence, not
+  current-state behavior, and it is not updated when the implementation moves on; the backlog item that cites it carries
+  the work forward.
 - Documentation filenames use lowercase kebab-case. Conventional repository-level names such as `README.md`,
   `CONTRIBUTING.md`, and `LICENSE` are exceptions.
 

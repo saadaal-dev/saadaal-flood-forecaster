@@ -47,18 +47,23 @@ independently query source/prediction freshness.
 tail -F logs/logs_amadeus_saadaal_flood_forecaster.log
 
 # Inspect forecast coverage
-python scripts/diagnose_forecast_data.py
+python scripts/diagnostics/diagnose_forecast_data.py
 
 # Remove the local Open-Meteo request cache
-python scripts/clear_cache.py
+python scripts/maintenance/clear_cache.py
 
 # Re-fetch forecast data
-python scripts/force_refresh_forecast.py
+python scripts/maintenance/force_refresh_forecast.py
 
 # Inspect river availability and gaps
-python scripts/check_river_data_availability.py
+python scripts/diagnostics/check_river_data_availability.py
 # After reviewing the script source and taking a backup
-python scripts/fill_river_data_gaps.py
+python scripts/backfill/fill_river_data_gaps.py
+
+# Same, but also replace stored readings that disagree with the source.
+# Destructive and unrecoverable from this table: snapshot first, and review the
+# "old -> new" list the dry run prints before adding --apply.
+python scripts/backfill/fill_river_data_gaps.py --from 2026-05-01 --overwrite
 ```
 
 Gap filling and forced refresh can mutate data; inspect each script's help/source and take a backup before production

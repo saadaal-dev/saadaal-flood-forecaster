@@ -19,7 +19,7 @@ The project is organized as follows:
 | `src/flood_forecaster_cli/`                      | Command-line client for flood_forecaster.                                                                          |
 | `src/tests`                                      | Unit and integration tests.                                                                                        |
 | `install.sh`                                     | Local environment and package installation script.                                                                 |
-| `scripts/`                                       | Cron-scheduled automation jobs for running models. See [Scripts Reference](docs/scripts-reference.md) for details. |
+| `scripts/`                                       | Cron-scheduled pipeline orchestrator at the root, plus `ops/`, `backfill/`, `diagnostics/`, `maintenance/` and `legacy/` helpers. See [Scripts Reference](docs/scripts-reference.md) and [scripts/README.md](scripts/README.md). |
 | `sql/`                                           | Database schema and setup scripts for PostgreSQL.                                                                  |
 | `data/interim`                                   | Data used for ML model training and validation.                                                                    |
 | `data/raw`                                       | Sample environmental data from exploration phase.                                                                  |

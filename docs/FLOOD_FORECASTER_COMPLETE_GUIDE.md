@@ -340,22 +340,26 @@ These shell scripts wire the individual `flood-cli` commands together into the f
 described in [§2](#2-how-it-works-end-to-end), and are meant to be run automatically once a day
 via `cron` (a Linux task scheduler) or inside the Docker container.
 
+Only the production orchestrator sits at the root of `scripts/`; everything else is grouped into
+`scripts/ops/`, `scripts/backfill/`, `scripts/diagnostics/`, `scripts/maintenance/` and
+`scripts/legacy/`. See [scripts-reference.md](scripts-reference.md#directory-layout) for the full map.
+
 | Script | Purpose |
 |---|---|
-| `scripts/amadeus_saadaal_flood_forecaster.sh` | **Main production script.** Runs the full pipeline in sequence: fetch historical weather → fetch forecast weather → fetch river data → run inference for all 5 stations (7-day-ahead Prophet model) → risk assessment → alert. **Fails immediately** (`set -euo pipefail`) if any single step fails, so a broken step stops the whole run — this guarantees you never get a partial/inconsistent run silently. |
-| `scripts/amadeus_saadaal_flood_forecaster_resilient.sh` | Same pipeline as above, but **keeps going even if a step fails**, logging colored success/failure/warning messages and printing a final summary of what worked and what didn't. Preferred for production environments with flaky networks, since one failed API call won't block the whole day's alerting. |
-| `scripts/batch_infer_and_risk_assess.sh` | Runs inference + risk assessment for all configured stations without also re-fetching data or sending alerts — useful for manually re-running just the modeling step. |
+| `scripts/amadeus_saadaal_flood_forecaster_resilient.sh` | **Main production script**, and the one the container cron job runs. Runs the full pipeline in sequence: fetch historical weather → fetch forecast weather → fetch river data → run inference for all 5 stations (7-day-ahead Prophet model) → risk assessment → alert. **Keeps going when a step fails**: ingestion is retried with exponential backoff, one station's failure doesn't block the others, and only missing or stale forecast weather aborts the run. Logs colored success/failure/warning messages and prints a final summary. Exits `0` on full success, `2` on partial success, `1` on failure. |
+| `scripts/legacy/amadeus_saadaal_flood_forecaster.sh` | The original strict variant of the same pipeline. **Fails immediately** (`set -euo pipefail`) if any single step fails, so one transient API timeout costs the whole day's alerting. Superseded in production by the resilient script; kept for local debugging when you want the run to stop at the first error. |
+| `scripts/backfill/batch_infer_and_risk_assess.sh` | Runs inference + risk assessment for all configured stations without also re-fetching data or sending alerts — useful for manually re-running just the modeling step. |
 
 **Usage (all three take the same arguments):**
 
 ```bash
-./scripts/amadeus_saadaal_flood_forecaster.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
+./scripts/amadeus_saadaal_flood_forecaster_resilient.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
 ```
 
 **Example cron entry** (runs daily at noon):
 
 ```
-0 12 * * * /root/Amadeus/saadaal-flood-forecaster/scripts/amadeus_saadaal_flood_forecaster.sh /root/Amadeus/saadaal-flood-forecaster /root/Amadeus/saadaal-flood-forecaster/.venv >> /root/Amadeus/saadaal-flood-forecaster/logs/logs_amadeus_saadaal_flood_forecaster.log 2>&1
+0 12 * * * /root/Amadeus/saadaal-flood-forecaster/scripts/amadeus_saadaal_flood_forecaster_resilient.sh /root/Amadeus/saadaal-flood-forecaster /root/Amadeus/saadaal-flood-forecaster/.venv >> /root/Amadeus/saadaal-flood-forecaster/logs/logs_amadeus_saadaal_flood_forecaster.log 2>&1
 ```
 
 💡 In the Docker-based deployment (see [§13](#13-deployment-docker--caprover--cron)), this
@@ -366,9 +370,14 @@ automatically inside the container — no manual cron setup is needed there.
 
 | Script | Purpose |
 |---|---|
-| `scripts/trigger_forecast_now.sh [--resilient]` | Runs the full pipeline immediately inside the container instead of waiting for the next cron tick — useful right after a deployment to confirm everything works end to end. Add `--resilient` to run the fault-tolerant variant instead of the strict one. |
-| `scripts/switch_to_resilient_cron.sh` | Edits the container's live cron file (`/etc/cron.d/amadeus_saadaal_flood_forecaster_cron`) in place so it calls `amadeus_saadaal_flood_forecaster_resilient.sh` instead of the strict script, backs up the previous cron file first, and restarts the cron daemon to pick up the change. |
-| `amadeus_saadaal_flood_forecaster_cron_frequent` | An alternate cron schedule (every 30 minutes instead of once daily) meant for quickly verifying a fresh deployment. Swap it in for the default cron file while testing, then switch back to the daily schedule once verified. |
+| `scripts/ops/trigger_forecast_now.sh [--resilient]` | Runs the full pipeline immediately inside the container instead of waiting for the next cron tick — useful right after a deployment to confirm everything works end to end. Add `--resilient` to run the fault-tolerant variant instead of the strict one. |
+| `scripts/ops/switch_to_resilient_cron.sh` | Edits the container's live cron file (`/etc/cron.d/amadeus_saadaal_flood_forecaster_cron`) in place so it calls `amadeus_saadaal_flood_forecaster_resilient.sh` instead of the strict script, backs up the previous cron file first, and restarts the cron daemon to pick up the change. |
+
+⚠️ Do not put the pipeline on a more frequent schedule to smoke-test a deployment. Alerting is not idempotent
+(see RISK-008 in [docs/improvement-backlog.md](improvement-backlog.md)), so every run that finds a `full` prediction
+sends another email to the contact list. Use `scripts/ops/trigger_forecast_now.sh --resilient` for a one-off
+verification run instead. A 30-minute test schedule (`amadeus_saadaal_flood_forecaster_cron_frequent`) used to ship in
+this repo and was removed for exactly this reason.
 
 ---
 
@@ -379,31 +388,31 @@ fixing — for example, after the server was offline for a while, or when foreca
 
 | Script | Purpose | When to use |
 |---|---|---|
-| `scripts/catchup_missing_predictions.py` | Interactively finds **every gap** in predictions (including gaps in the middle, not just at the end), lets you pick which stations and a start date, then re-fetches data and re-runs inference/risk-assessment for exactly the missing dates. | After the daily cron job failed for one or more days, or when onboarding a brand-new station with no prediction history yet. |
-| `scripts/check_river_data_availability.py` | Reports, per station, the earliest/latest date with river-level data, flags stations with little or stale data, and recommends a safe start date for catch-up. | Before running the catch-up script, or whenever you get a "missing river level data" error. |
-| `scripts/fill_river_data_gaps.py` | Fills gaps in the `historical_river_level` table by copying data from a separate `public.station_river_data` source table (matched via each station's SWALIM ID). Uses `ON CONFLICT DO NOTHING` so it never creates duplicates. | When the catch-up script fails because historical river-level data itself has holes. |
-| `scripts/remove_duplicate_historical_weather.py [--dry-run]` | Finds duplicate `(location_name, date)` rows in `historical_weather` and deletes the older copies, keeping the most recent one. Must be run once before applying `sql/add_historical_weather_unique_constraint.sql` (see [§9](#9-the-database)), since that constraint will fail to create if duplicates still exist. | Before adding the unique constraint, or whenever duplicate weather rows are suspected. |
-| `scripts/clear_cache.py` | Deletes the local HTTP cache files (`.cache*`) used by the weather API client, forcing the next fetch to get completely fresh data. | Forecast data looks outdated; least invasive fix — try this first. |
-| `scripts/diagnose_forecast_data.py` | Prints statistics about the forecast weather table: total record count, overall date range, and per-location min/max dates and counts. | Investigating why forecasts seem missing, wrong, or out of date. |
-| `scripts/force_refresh_forecast.py` | **⚠️ Destructive "nuclear option."** Deletes **all** forecast weather rows from the database, then re-fetches everything fresh from Open-Meteo. Requires typing `yes` to confirm. | Only after cache-clearing and re-ingestion have failed to fix persistently stale/corrupt forecast data. |
+| `scripts/backfill/catchup_missing_predictions.py` | Interactively finds **every gap** in predictions (including gaps in the middle, not just at the end), lets you pick which stations and a start date, then re-fetches data and re-runs inference/risk-assessment for exactly the missing dates. | After the daily cron job failed for one or more days, or when onboarding a brand-new station with no prediction history yet. |
+| `scripts/diagnostics/check_river_data_availability.py` | Reports, per station, the earliest/latest date with river-level data, flags stations with little or stale data, and recommends a safe start date for catch-up. | Before running the catch-up script, or whenever you get a "missing river level data" error. |
+| `scripts/backfill/fill_river_data_gaps.py` | Fills gaps in the `historical_river_level` table by copying data from a separate `public.station_river_data` source table (matched via each station's SWALIM ID). Uses `ON CONFLICT DO NOTHING` so it never creates duplicates. | When the catch-up script fails because historical river-level data itself has holes. |
+| `scripts/maintenance/remove_duplicate_historical_weather.py [--dry-run]` | Finds duplicate `(location_name, date)` rows in `historical_weather` and deletes the older copies, keeping the most recent one. Must be run once before applying `sql/add_historical_weather_unique_constraint.sql` (see [§9](#9-the-database)), since that constraint will fail to create if duplicates still exist. | Before adding the unique constraint, or whenever duplicate weather rows are suspected. |
+| `scripts/maintenance/clear_cache.py` | Deletes the local HTTP cache files (`.cache*`) used by the weather API client, forcing the next fetch to get completely fresh data. | Forecast data looks outdated; least invasive fix — try this first. |
+| `scripts/diagnostics/diagnose_forecast_data.py` | Prints statistics about the forecast weather table: total record count, overall date range, and per-location min/max dates and counts. | Investigating why forecasts seem missing, wrong, or out of date. |
+| `scripts/maintenance/force_refresh_forecast.py` | **⚠️ Destructive "nuclear option."** Deletes **all** forecast weather rows from the database, then re-fetches everything fresh from Open-Meteo. Requires typing `yes` to confirm. | Only after cache-clearing and re-ingestion have failed to fix persistently stale/corrupt forecast data. |
 
 ### Recommended recovery order after downtime
 
 ```bash
 # 1. Understand what river data is available
-python scripts/check_river_data_availability.py
+python scripts/diagnostics/check_river_data_availability.py
 
 # 2. Fill any gaps found
-python scripts/fill_river_data_gaps.py
+python scripts/backfill/fill_river_data_gaps.py
 
 # 3. Make sure weather data is fresh
-python scripts/clear_cache.py
+python scripts/maintenance/clear_cache.py
 flood-cli data-ingestion fetch-openmeteo historical
 flood-cli data-ingestion fetch-openmeteo forecast
 flood-cli data-ingestion fetch-river-data
 
 # 4. Backfill any missing predictions
-python scripts/catchup_missing_predictions.py
+python scripts/backfill/catchup_missing_predictions.py
 
 # 5. Let the normal daily cron job resume
 ```
@@ -411,15 +420,15 @@ python scripts/catchup_missing_predictions.py
 ### Typical "stale forecast data" troubleshooting order
 
 ```bash
-python scripts/diagnose_forecast_data.py        # 1. See the scope of the problem
-python scripts/clear_cache.py                    # 2. Try the gentle fix
+python scripts/diagnostics/diagnose_forecast_data.py        # 1. See the scope of the problem
+python scripts/maintenance/clear_cache.py                    # 2. Try the gentle fix
 flood-cli data-ingestion fetch-openmeteo forecast # 3. Re-fetch
-python scripts/force_refresh_forecast.py         # 4. Nuclear option, only if still broken
+python scripts/maintenance/force_refresh_forecast.py         # 4. Nuclear option, only if still broken
 ```
 
 Full narrative documentation with sample console output for each script is available in
-[docs/SCRIPTS_REFERENCE.md](SCRIPTS_REFERENCE.md) and the quick command list in
-[docs/SERVER_QUICK_REFERENCE.md](SERVER_QUICK_REFERENCE.md).
+[docs/scripts-reference.md](scripts-reference.md) and the quick command list in
+[docs/server-quick-reference.md](server-quick-reference.md).
 
 ---
 
@@ -433,7 +442,7 @@ The system uses **PostgreSQL** as its single source of truth. Setup files live i
 | `sql/database_indexes.sql` | Adds performance indexes (optional, recommended). |
 | `sql/database_views.sql` | Defines convenience database views for common queries. |
 | `sql/database_migration_predicted_river_level.sql` | Migration script for changes to the predictions table. |
-| `sql/add_historical_weather_unique_constraint.sql` | Adds a `UNIQUE (location_name, date)` constraint to `historical_weather` so duplicate rows can no longer be inserted (ingestion already uses `ON CONFLICT DO UPDATE`). Run `scripts/remove_duplicate_historical_weather.py` first to clear any existing duplicates, or this migration will fail. |
+| `sql/add_historical_weather_unique_constraint.sql` | Adds a `UNIQUE (location_name, date)` constraint to `historical_weather` so duplicate rows can no longer be inserted (ingestion already uses `ON CONFLICT DO UPDATE`). Run `scripts/maintenance/remove_duplicate_historical_weather.py` first to clear any existing duplicates, or this migration will fail. |
 
 ### Core tables (`flood_forecaster` schema)
 
@@ -449,7 +458,7 @@ There is also a `public.sensor_readings` table, owned by a separate mobile app (
 this tool only **reads** from — see [§10](#10-sensor-integration-iot-rain-gauges).
 
 A full entity diagram is available in
-[docs/flood_forecaster_datamodel.md](flood_forecaster_datamodel.md).
+[docs/flood-forecaster-datamodel.md](flood-forecaster-datamodel.md).
 
 ### Setting up the database from scratch
 
@@ -478,7 +487,7 @@ app), stored in `public.sensor_readings`.
   flood-cli database-model compare-sensor-weather -l <location> --date-from <date> --date-to <date>
   ```
 
-Full technical details: [docs/sensor_readings_integration.md](sensor_readings_integration.md).
+Full technical details: [docs/sensor-readings-integration.md](sensor-readings-integration.md).
 
 ---
 
@@ -545,7 +554,7 @@ export LOG_LEVEL="INFO"                   # or DEBUG for verbose logging
 
 In a CapRover deployment, these are set under **App Configs → Environment Variables**.
 
-Full details: [docs/SENTRY_INTEGRATION.md](SENTRY_INTEGRATION.md).
+Full details: [docs/sentry-integration.md](sentry-integration.md).
 
 ---
 
@@ -594,7 +603,7 @@ cd /root/Amadeus/saadaal-flood-forecaster
 source .venv/bin/activate
 ```
 
-Full command list: [docs/SERVER_QUICK_REFERENCE.md](SERVER_QUICK_REFERENCE.md).
+Full command list: [docs/server-quick-reference.md](server-quick-reference.md).
 
 ---
 
@@ -602,14 +611,14 @@ Full command list: [docs/SERVER_QUICK_REFERENCE.md](SERVER_QUICK_REFERENCE.md).
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Forecast data looks old / stale | Cached HTTP responses from the weather API | `python scripts/clear_cache.py`, then re-run `flood-cli data-ingestion fetch-openmeteo forecast` |
-| Predictions missing for one or more days | Cron job failed / server was down | `python scripts/catchup_missing_predictions.py` |
-| Catch-up script errors with "Missing river level data" | Historical river-level data itself has gaps for that date range | Run `python scripts/check_river_data_availability.py` to find a safe date range, then `python scripts/fill_river_data_gaps.py` to backfill |
+| Forecast data looks old / stale | Cached HTTP responses from the weather API | `python scripts/maintenance/clear_cache.py`, then re-run `flood-cli data-ingestion fetch-openmeteo forecast` |
+| Predictions missing for one or more days | Cron job failed / server was down | `python scripts/backfill/catchup_missing_predictions.py` |
+| Catch-up script errors with "Missing river level data" | Historical river-level data itself has gaps for that date range | Run `python scripts/diagnostics/check_river_data_availability.py` to find a safe date range, then `python scripts/backfill/fill_river_data_gaps.py` to backfill |
 | A station is skipped during catch-up | No trained ML model exists for that station/forecast-days combination | Train one with `flood-cli ml build-model <station> -f <days> -m <model_type>`, or accept the station is unsupported for now |
 | No alert emails are being sent | Risk assessment hasn't run yet, or predictions are all `low`/`moderate`, or Mailjet credentials are missing | Confirm `flood-cli risk-assessment` ran after inference; check `MAILJET_API_KEY`/`MAILJET_API_SECRET` are set |
-| Forecast data still broken after clearing cache | Deeper data corruption or long outage | `python scripts/force_refresh_forecast.py` (⚠️ deletes and re-fetches ALL forecast data — confirm before running) |
-| Duplicate rows in `historical_weather` | Ingestion inserted the same `(location_name, date)` twice before the DB-level unique constraint existed | `python scripts/remove_duplicate_historical_weather.py --dry-run` to preview, rerun without `--dry-run` to delete, then apply `sql/add_historical_weather_unique_constraint.sql` once to prevent recurrence |
-| Need to know what's wrong right now | — | `python scripts/diagnose_forecast_data.py` for a data snapshot, or check Sentry / `logs/logs_amadeus_saadaal_flood_forecaster.log` |
+| Forecast data still broken after clearing cache | Deeper data corruption or long outage | `python scripts/maintenance/force_refresh_forecast.py` (⚠️ deletes and re-fetches ALL forecast data — confirm before running) |
+| Duplicate rows in `historical_weather` | Ingestion inserted the same `(location_name, date)` twice before the DB-level unique constraint existed | `python scripts/maintenance/remove_duplicate_historical_weather.py --dry-run` to preview, rerun without `--dry-run` to delete, then apply `sql/add_historical_weather_unique_constraint.sql` once to prevent recurrence |
+| Need to know what's wrong right now | — | `python scripts/diagnostics/diagnose_forecast_data.py` for a data snapshot, or check Sentry / `logs/logs_amadeus_saadaal_flood_forecaster.log` |
 
 ---
 
@@ -645,14 +654,14 @@ flood-cli alert
 ./scripts/amadeus_saadaal_flood_forecaster_resilient.sh $(pwd) $(pwd)/.venv
 
 # ---- Recovery after downtime ----
-python scripts/check_river_data_availability.py
-python scripts/fill_river_data_gaps.py
-python scripts/catchup_missing_predictions.py
+python scripts/diagnostics/check_river_data_availability.py
+python scripts/backfill/fill_river_data_gaps.py
+python scripts/backfill/catchup_missing_predictions.py
 
 # ---- Troubleshooting stale data ----
-python scripts/diagnose_forecast_data.py
-python scripts/clear_cache.py
-python scripts/force_refresh_forecast.py   # destructive, last resort
+python scripts/diagnostics/diagnose_forecast_data.py
+python scripts/maintenance/clear_cache.py
+python scripts/maintenance/force_refresh_forecast.py   # destructive, last resort
 ```
 
 ---
@@ -665,8 +674,8 @@ A round of PRs merged on 2026-09-23 touched several areas this guide describes. 
 |---|---|
 | **Security fix — `.env` no longer dumps the whole container environment** | `docker-entrypoint.sh` now writes only an explicit allowlist of variables (`DB_HOST`, `POSTGRES_PASSWORD`, `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `LOG_LEVEL`, `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `CONTACT_LIST_ID`) to `.env`, with `0600` permissions instead of world-readable defaults. See [§13](#13-deployment-docker--caprover--cron). |
 | **Fix — `flood-cli alert` no longer crashes** (RISK-006) | The alert step previously raised `AttributeError: 'datetime.date' object has no attribute 'date'` whenever `predicted_river_level.date` returned rows, which meant alert emails silently never went out in production. This is now fixed and covered by a regression test. |
-| **New: resilient forecast operations tooling** | `scripts/trigger_forecast_now.sh`, `scripts/switch_to_resilient_cron.sh`, and the `amadeus_saadaal_flood_forecaster_cron_frequent` test schedule make it easier to manually trigger and validate a fresh deployment. See [§7.1](#71-manually-triggering-the-pipeline--switching-cron-schedules). |
-| **New: historical weather deduplication** | `scripts/remove_duplicate_historical_weather.py` plus `sql/add_historical_weather_unique_constraint.sql` clean up and then prevent duplicate `(location_name, date)` rows in `historical_weather`. See [§8](#8-maintenance--troubleshooting-scripts) and [§9](#9-the-database). |
+| **New: resilient forecast operations tooling** | `scripts/ops/trigger_forecast_now.sh` and `scripts/ops/switch_to_resilient_cron.sh` make it easier to manually trigger and validate a fresh deployment. See [§7.1](#71-manually-triggering-the-pipeline--switching-cron-schedules). |
+| **New: historical weather deduplication** | `scripts/maintenance/remove_duplicate_historical_weather.py` plus `sql/add_historical_weather_unique_constraint.sql` clean up and then prevent duplicate `(location_name, date)` rows in `historical_weather`. See [§8](#8-maintenance--troubleshooting-scripts) and [§9](#9-the-database). |
 | **New: on-demand CapRover deployment workflow** | `.github/workflows/deploy-caprover.yml` lets a maintainer trigger a CapRover build/deploy manually from the GitHub Actions tab (with retries and clear failure diagnostics), instead of only via the CapRover UI's "Force Build" button. |
 | **Documentation reorganized** | Several docs were renamed/split into topic-specific files under `docs/` (see updated links below); `docs/improvement-backlog.md` now tracks open risks/issues (e.g. RISK-002, DATA-004) referenced from code comments and commit messages. |
 

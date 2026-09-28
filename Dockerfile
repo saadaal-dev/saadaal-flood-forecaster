@@ -43,9 +43,8 @@ RUN uv sync \
         --no-dev \
         --no-editable
 
-# Ensure scripts are executable
-RUN chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster.sh && \
-    chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster_resilient.sh
+# Ensure the pipeline orchestrator is executable.
+RUN chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster_resilient.sh
 
 # Copy cron job definition, replace placeholders  and set proper permissions
 ARG CRON_FILE_PATH="/etc/cron.d/amadeus_saadaal_flood_forecaster_cron"

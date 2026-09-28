@@ -130,5 +130,5 @@ in [Scripts reference](../scripts-reference.md).
 - Entrypoint: `docker-entrypoint.sh`
 - Schedule: `amadeus_saadaal_flood_forecaster_cron`
 - Production orchestrator: `scripts/amadeus_saadaal_flood_forecaster_resilient.sh`
-- Strict orchestrator: `scripts/amadeus_saadaal_flood_forecaster.sh`
+- Strict orchestrator: `scripts/legacy/amadeus_saadaal_flood_forecaster.sh`
 - Local PostgreSQL: `docker-compose.yml`

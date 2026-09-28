@@ -72,7 +72,7 @@ if [ "${#missing[@]}" -gt 0 ]; then
   echo "[entrypoint] Every database operation will fail until these are set."
   echo "[entrypoint] Set them in the CapRover app config (App Configs ->"
   echo "[entrypoint] Environmental Variables), save & update, then re-run the"
-  echo "[entrypoint] pipeline with scripts/trigger_forecast_now.sh --resilient."
+  echo "[entrypoint] pipeline with scripts/ops/trigger_forecast_now.sh --resilient."
   echo "[entrypoint] ============================================================"
 fi
 

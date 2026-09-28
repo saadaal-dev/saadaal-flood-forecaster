@@ -14,7 +14,7 @@ source .venv/bin/activate
 ### Clear stale API cache ⚠️ IMPORTANT
 
 ```bash
-python scripts/clear_cache.py
+python scripts/maintenance/clear_cache.py
 # or manually:
 rm -f .cache .cache.sqlite .cache.sqlite-shm .cache.sqlite-wal
 ```
@@ -22,7 +22,7 @@ rm -f .cache .cache.sqlite .cache.sqlite-shm .cache.sqlite-wal
 ### Check forecast data status
 
 ```bash
-python scripts/diagnose_forecast_data.py
+python scripts/diagnostics/diagnose_forecast_data.py
 ```
 
 ### Monitor live logs
@@ -34,7 +34,7 @@ tail -f logs/logs_amadeus_saadaal_flood_forecaster.log
 ### Force refresh forecast data
 
 ```bash
-python scripts/force_refresh_forecast.py
+python scripts/maintenance/force_refresh_forecast.py
 ```
 
 ## Manual Database Queries
@@ -105,7 +105,7 @@ flood-cli data-ingestion fetch-river-data
 flood-cli ml infer -f 7 -m Prophet_001 -o database "Belet Weyne"
 
 # Run all stations (via script)
-bash scripts/batch_infer_and_risk_assess.sh
+bash scripts/backfill/batch_infer_and_risk_assess.sh
 ```
 
 ### Risk assessment
@@ -223,7 +223,7 @@ psql -h 68.183.13.232 -U <username> -d postgres -c "SELECT 1;"
 ### If forecast data completely missing
 
 ```bash
-python scripts/force_refresh_forecast.py
+python scripts/maintenance/force_refresh_forecast.py
 ```
 
 ### If models are missing

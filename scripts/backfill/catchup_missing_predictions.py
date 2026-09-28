@@ -32,8 +32,9 @@ from pathlib import Path
 from sqlalchemy import select, func, distinct
 from sqlalchemy.orm import Session
 
-# Add the src directory to the path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add the src directory to the path.
+# parents[2] is the repository root: scripts/backfill/<this file>.
+sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.database_helper import DatabaseConnection
@@ -268,7 +269,7 @@ def main():
     print()
 
     # Configuration
-    config_path = Path(__file__).parent.parent / "config" / "config.ini"
+    config_path = Path(__file__).parents[2] / "config" / "config.ini"
     if not config_path.exists():
         print(f"❌ Configuration file not found at {config_path}")
         sys.exit(1)
