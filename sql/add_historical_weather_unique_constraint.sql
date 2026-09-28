@@ -30,7 +30,7 @@ $$
         IF duplicate_count > 0 THEN
             RAISE NOTICE 'WARNING: Found % duplicate (location_name, date) combinations in historical_weather', duplicate_count;
             RAISE NOTICE 'You should run the deduplication script first:';
-            RAISE NOTICE 'python scripts/remove_duplicate_historical_weather.py';
+            RAISE NOTICE 'python scripts/maintenance/remove_duplicate_historical_weather.py';
             RAISE EXCEPTION 'Cannot add unique constraint with existing duplicates';
         ELSE
             RAISE NOTICE 'No duplicates found. Safe to add unique constraint.';

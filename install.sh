@@ -50,8 +50,11 @@ rm -rf $REPOSITORY_ROOT_PATH/*.egg-info/
 echo "Installing flood-forecaster package in editable mode..."
 pip3 install -e $REPOSITORY_ROOT_PATH
 
-# Ensure the script is executable
-chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster.sh
+# Ensure the pipeline orchestrators are executable.
+# The production one lives at the root of scripts/; the superseded strict
+# variant is kept under scripts/legacy/ (see scripts/README.md).
+chmod +x "$REPOSITORY_ROOT_PATH"/scripts/amadeus_saadaal_flood_forecaster_resilient.sh
+chmod +x "$REPOSITORY_ROOT_PATH"/scripts/legacy/amadeus_saadaal_flood_forecaster.sh
 
 echo "Installation completed successfully!"
 echo "To use the CLI, activate the virtual environment first:"

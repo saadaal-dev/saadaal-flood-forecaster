@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
 Check available historical river level data in the database.
-Use this to determine the valid date range for catchup_missing_predictions.py
+Use this to determine the valid date range for
+scripts/backfill/catchup_missing_predictions.py
 """
 
 import sys
@@ -10,8 +11,9 @@ from pathlib import Path
 
 from sqlalchemy import select, func, text
 
-# Add the src directory to the path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add the src directory to the path.
+# parents[2] is the repository root: scripts/diagnostics/<this file>.
+sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from flood_forecaster.utils.configuration import Config
 from flood_forecaster.utils.database_helper import DatabaseConnection
@@ -26,7 +28,7 @@ def main():
     print()
 
     # Configuration
-    config_path = Path(__file__).parent.parent / "config" / "config.ini"
+    config_path = Path(__file__).parents[2] / "config" / "config.ini"
     if not config_path.exists():
         print(f"❌ Configuration file not found at {config_path}")
         sys.exit(1)
@@ -47,7 +49,8 @@ def main():
         if total_count == 0:
             print()
             print("⚠️  No river level data found in database!")
-            print("   You cannot run catchup_missing_predictions.py without river data.")
+            print("   You cannot run scripts/backfill/catchup_missing_predictions.py")
+            print("   without river data.")
             print("   The ML models require historical river levels as input.")
             print()
             sys.exit(1)
@@ -189,7 +192,7 @@ def main():
 
         print("💡 Usage Example:")
         print()
-        print("   python scripts/catchup_missing_predictions.py")
+        print("   python scripts/backfill/catchup_missing_predictions.py")
         print(f"   # When prompted, enter start date: {latest_start}")
         print()
         print("=" * 80)

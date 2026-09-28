@@ -7,26 +7,40 @@ support deployment, automation, maintenance, and troubleshooting of the Flood Fo
 
 ## 📋 Table of Contents
 
-- [Production Scripts](#production-scripts)
+- [Directory Layout](#directory-layout)
+- [Pipeline Scripts](#pipeline-scripts)
 - [Maintenance & Troubleshooting Scripts](#maintenance--troubleshooting-scripts)
 - [Script Usage Examples](#script-usage-examples)
 
 ---
 
-## Production Scripts
+## Directory Layout
 
-### `amadeus_saadaal_flood_forecaster.sh`
+The scripts are grouped by purpose, and the only file at the root of `scripts/` is the orchestrator the production cron
+job runs. The folder map is maintained in **[scripts/README.md](../scripts/README.md#layout)** — it lives next to the
+scripts so it cannot drift from them. This document is the detailed per-script reference.
 
-**Purpose**: Main production pipeline script for automated flood forecasting.
+Python helpers resolve the repository root from their own location, so they can be run from anywhere. Commands in this
+guide are written relative to the repository root.
 
-**Description**: This script orchestrates the complete flood forecasting pipeline in a sequential manner. It performs
-data ingestion, model inference, risk assessment, and alert dispatch. Designed to run as a CRON job for regular
-automated forecasting.
+---
+
+## Pipeline Scripts
+
+### `scripts/amadeus_saadaal_flood_forecaster_resilient.sh`
+
+**Purpose**: The production pipeline script for automated flood forecasting. This is the one the container cron job
+runs.
+
+**Description**: Orchestrates the complete pipeline — data ingestion, model inference for every configured station, risk
+assessment, alert dispatch — and degrades gracefully instead of failing fast. Ingestion steps are retried with
+exponential backoff, a single station's inference failure does not stop the others, and the run only aborts outright
+when forecast weather is missing or too stale for predictions to mean anything.
 
 **Usage**:
 
 ```bash
-./scripts/amadeus_saadaal_flood_forecaster.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
+./scripts/amadeus_saadaal_flood_forecaster_resilient.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
 ```
 
 **Parameters**:
@@ -37,57 +51,50 @@ automated forecasting.
 
 **Key Features**:
 
-- Activates virtual environment
-- Loads environment variables from `.env`
-- Executes data ingestion (historical, forecast, river data)
-- Runs ML inference for all configured stations
-- Performs risk assessment
-- Dispatches alerts if needed
-- Logs all operations
+- Activates the virtual environment and exports the variables from `.env`
+- Fails immediately with an explicit message if `DB_HOST` or `POSTGRES_PASSWORD` are missing
+- Retries each ingestion step up to 3 times with exponential backoff
+- Continues past a failed station so the remaining stations still get predictions
+- Colored output for success (green), failure (red), and warnings (yellow)
+- Prints a summary of successes and failures at the end
+
+**Exit Behavior**: `0` when everything succeeded, `2` on partial success, `1` when the run failed completely or was
+aborted for missing configuration or stale forecast data.
 
 **CRON Setup Example**:
 
 ```bash
 # Run daily at 12:00 PM
-0 12 * * * /root/Amadeus/saadaal-flood-forecaster/scripts/amadeus_saadaal_flood_forecaster.sh /root/Amadeus/saadaal-flood-forecaster /root/Amadeus/saadaal-flood-forecaster/.venv >> /root/Amadeus/saadaal-flood-forecaster/logs/logs_amadeus_saadaal_flood_forecaster.log 2>&1
+0 12 * * * /root/Amadeus/saadaal-flood-forecaster/scripts/amadeus_saadaal_flood_forecaster_resilient.sh /root/Amadeus/saadaal-flood-forecaster /root/Amadeus/saadaal-flood-forecaster/.venv >> /root/Amadeus/saadaal-flood-forecaster/logs/logs_amadeus_saadaal_flood_forecaster.log 2>&1
 ```
-
-**Exit Behavior**: Fails fast on any error (`set -euo pipefail`)
 
 ---
 
-### `amadeus_saadaal_flood_forecaster_resilient.sh`
+### `scripts/legacy/amadeus_saadaal_flood_forecaster.sh`
 
-**Purpose**: Resilient version of the main pipeline with graceful error handling.
+**Purpose**: The original fail-fast orchestrator. Superseded by the resilient script above and kept for reference.
 
-**Description**: Similar to the main script, but implements graceful degradation. This version continues execution even
-if individual steps fail, logging errors and attempting to complete as much of the pipeline as possible.
+**Description**: Runs exactly the same sequence of `flood-cli` commands as the production script, but under
+`set -euo pipefail` and with no retries, so the first failure ends the run. A transient Open-Meteo timeout during
+ingestion therefore costs the whole day's inference, risk assessment and alerting — which is why production no longer
+uses it.
 
 **Usage**:
 
 ```bash
-./scripts/amadeus_saadaal_flood_forecaster_resilient.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
+./scripts/legacy/amadeus_saadaal_flood_forecaster.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
 ```
 
-**Parameters**: Same as `amadeus_saadaal_flood_forecaster.sh`
+**Parameters**: Same as the resilient script.
 
-**Key Features**:
+**Exit Behavior**: Fails fast on any error (`set -euo pipefail`)
 
-- Colored output for success (green), failure (red), and warnings (yellow)
-- Tracks success/failure/skipped operation counts
-- Continues on errors instead of failing fast
-- Provides summary report at the end
-- Better suited for unreliable network conditions
-
-**When to Use**:
-
-- Production environments with unstable network connections
-- When partial pipeline execution is acceptable
-- During debugging to see all failures in one run
+**When to Use**: When you deliberately want the run to stop at the first error, for example while debugging a single
+stage locally. For anything unattended, use the resilient script.
 
 ---
 
-### `batch_infer_and_risk_assess.sh`
+### `scripts/backfill/batch_infer_and_risk_assess.sh`
 
 **Purpose**: Batch processing script for running inference and risk assessment across multiple stations.
 
@@ -97,7 +104,7 @@ each. Useful for manual batch operations or custom automation scenarios.
 **Usage**:
 
 ```bash
-./scripts/batch_infer_and_risk_assess.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
+./scripts/backfill/batch_infer_and_risk_assess.sh <REPOSITORY_ROOT_PATH> <VENV_PATH> [--windows]
 ```
 
 **Parameters**: Same as other automation scripts
@@ -121,7 +128,7 @@ each. Useful for manual batch operations or custom automation scenarios.
 
 ## Maintenance & Troubleshooting Scripts
 
-### `catchup_missing_predictions.py`
+### `scripts/backfill/catchup_missing_predictions.py`
 
 **Purpose**: Backfill missing river level predictions when the automated pipeline has failed.
 
@@ -135,7 +142,7 @@ data continuity after system downtime or pipeline failures.
 **Usage**:
 
 ```bash
-python scripts/catchup_missing_predictions.py
+python scripts/backfill/catchup_missing_predictions.py
 ```
 
 **Where to Run**:
@@ -148,7 +155,7 @@ You can run it from:
   ```bash
   docker exec -it <container-id> bash
   cd /root/Amadeus/saadaal-flood-forecaster
-  python scripts/catchup_missing_predictions.py
+  python scripts/backfill/catchup_missing_predictions.py
   ```
 - ✅ **Outside the container**: If you have network access to the database server
     - Requires `POSTGRES_PASSWORD` environment variable set in `.env` file
@@ -372,7 +379,7 @@ ValueError: Missing river level data for locations: {'Belet Weyne'}
 
 1. **Check available river data** using the helper script:
    ```bash
-   python scripts/check_river_data_availability.py
+   python scripts/diagnostics/check_river_data_availability.py
    ```
    This will show you:
     - Date range of available river data per location
@@ -404,7 +411,7 @@ ValueError: Missing river level data for locations: {'Belet Weyne'}
 
 ---
 
-### `fill_river_data_gaps.py`
+### `scripts/backfill/fill_river_data_gaps.py`
 
 **Purpose**: Fill gaps in `flood_forecaster.historical_river_level`, from SWALIM's chart API or from
 `public.station_river_data`.
@@ -416,16 +423,21 @@ supply, and inserts the missing rows. Dry run by default: nothing is written unl
 
 ```bash
 # What is missing for Jowhar, up to today (writes nothing)
-python scripts/fill_river_data_gaps.py --station Jowhar
+python scripts/backfill/fill_river_data_gaps.py --station Jowhar
 
 # Repair a known outage window
-python scripts/fill_river_data_gaps.py --station Jowhar --from 2026-05-12 --apply
+python scripts/backfill/fill_river_data_gaps.py --station Jowhar --from 2026-05-12 --apply
 
 # Every station, bounded window, no prompt
-python scripts/fill_river_data_gaps.py --from 2026-01-01 --apply --yes
+python scripts/backfill/fill_river_data_gaps.py --from 2026-01-01 --apply --yes
 
 # Compare what the fallback source could offer
-python scripts/fill_river_data_gaps.py --station Jowhar --source public-schema
+python scripts/backfill/fill_river_data_gaps.py --station Jowhar --source public-schema
+
+# Backfill since May 2026 AND replace readings that disagree with the source.
+# Inspect the "old -> new" list first, then apply.
+python scripts/backfill/fill_river_data_gaps.py --from 2026-05-01 --overwrite
+python scripts/backfill/fill_river_data_gaps.py --from 2026-05-01 --overwrite --apply
 ```
 
 **Options**:
@@ -436,10 +448,40 @@ python scripts/fill_river_data_gaps.py --station Jowhar --source public-schema
 | `--from YYYY-MM-DD` | station's earliest stored row | Start of the window |
 | `--to YYYY-MM-DD` | **today** | End of the window |
 | `--source` | `chart-api` | `chart-api` or `public-schema` |
-| `--apply` | off | Actually insert; without it the run is read-only |
+| `--overwrite` | off | Also replace stored readings that disagree with the source, and repair NULL-level rows in place. **Destructive** |
+| `--apply` | off | Actually write; without it the run is read-only |
 | `--yes` | off | Skip the confirmation prompt when applying |
-| `--config PATH` | `../config/config.ini` | Alternate configuration file |
+| `--config PATH` | `<repo root>/config/config.ini` | Alternate configuration file |
 | `--max-listed N` | 12 | How many individual dates to print per station |
+
+**What gets written**:
+
+Without `--overwrite` the script is insert-only. It fills dates that hold no usable reading and leaves everything else
+alone, even if the source now disagrees with what is stored. Upstream corrections are not always improvements, so
+rewriting stored history is not the default.
+
+`--overwrite` adds replacement. Per date in the window:
+
+| Stored state | Source has a reading | Action |
+|---|---|---|
+| no row | yes | `INSERT` |
+| row with `level_m` NULL | yes | `UPDATE` that row |
+| row with a different `level_m` | yes | `UPDATE` that row |
+| row with the same `level_m` | yes | left alone |
+| any | no | left alone, counted as "not in source" |
+
+"Different" means the values differ by more than `LEVEL_TOLERANCE_M` (0.001 m), so floating-point representation noise
+is not mistaken for a correction. The dry run prints each replacement as `date: old -> new`, so you can review exactly
+what would change before passing `--apply`.
+
+The NULL case is worth calling out. Without `--overwrite`, a NULL-level row is treated as an absent reading and a
+**second** row is inserted for that date, because `historical_river_level` has no unique constraint on
+`(location_name, date)` — backlog item DATA-005. With `--overwrite` the existing row is updated instead, so no duplicate
+appears. Where duplicate rows already exist for a date, the update converges all of them onto the source value.
+
+⚠️ `--overwrite` is the only mode that can destroy a reading, and the previous value is not recorded anywhere. Take a
+database snapshot first (`db-snapshot/01-dump.sh`). Overwritten readings are model inputs, so any prediction already
+built from them is stale: re-run `scripts/backfill/catchup_missing_predictions.py` afterwards.
 
 **Sources**:
 
@@ -455,9 +497,12 @@ python scripts/fill_river_data_gaps.py --station Jowhar --source public-schema
 1. Loads the station mapping from `river_station_metadata` (`station_name` → `swalim_internal_id`)
 2. Resolves a window per station; `--to` defaults to today so trailing gaps are visible
 3. Lists dates with no non-NULL `level_m` in that window
-4. Fetches candidate readings from the chosen source
-5. Reports gaps, what is fillable, and what the source lacks
-6. On `--apply`, inserts everything in a single transaction using `ON CONFLICT DO NOTHING`
+4. Fetches candidate readings from the chosen source. Under `--overwrite` this happens even when there are no gaps,
+   since a fully populated window can still hold readings that disagree with the source
+5. Reports gaps, what is fillable, what would be replaced, and what the source lacks
+6. On `--apply`, writes everything in a single transaction: inserts carry `ON CONFLICT DO NOTHING`, and updates are
+   guarded by `level_m IS DISTINCT FROM :level` so re-running writes nothing and the reported counts are rows actually
+   changed rather than rows examined
 
 **When to Use**:
 
@@ -494,24 +539,52 @@ Stations: Jowhar
    source offers 134 reading(s) in window; 134 match a gap, 0 unavailable
 
 ==============================================================================
-Gaps found         : 134
-Fillable from source: 134
+Gaps found          : 134
+To insert           : 134
 ==============================================================================
 
-Dry run. Re-run with --apply to insert the rows above.
+Dry run. Re-run with --apply to write the changes above.
+```
+
+**Output example with `--overwrite`** (a populated window holding two disagreements):
+
+```
+Writes : INSERT gaps + OVERWRITE disagreeing readings
+         ⚠️  --overwrite replaces stored readings; the previous values are not kept.
+
+📍 Jowhar  (SWALIM id 6)
+   window 2026-05-01 .. 2026-09-28  (151 days)
+   usable readings stored: 149
+   rows with a NULL level: 1
+   ⚠️  missing: 2 day(s)
+      2026-07-04, 2026-08-19
+   source offers 151 reading(s) in window; 2 match a gap, 0 unavailable
+   → 1 to insert, 3 to overwrite
+      2026-07-04: NULL -> 1.12
+      2026-08-11: 0.98 -> 1.05
+      2026-09-02: 1.44 -> 1.41
+
+==============================================================================
+Gaps found          : 2
+To insert           : 1
+To overwrite        : 3
+==============================================================================
 ```
 
 **Safety**:
 
 - Read-only unless `--apply` is given, and then it still prompts unless `--yes`
-- All inserts run in one transaction, so a failure leaves nothing half-applied
-- `ON CONFLICT DO NOTHING`, and insert counts come from `rowcount`, so re-running is safe and reports honestly
+- Everything runs in one transaction, so a failure leaves nothing half-applied
+- Insert and update counts come from `rowcount`, so the run reports what the database actually did
+- Updates carry `level_m IS DISTINCT FROM :level`, so re-running the same repair writes nothing
+- Without `--overwrite` no stored reading can be modified or removed; the worst case is an extra row
 - A source failure is reported per station and does not abort the other stations
 
 **Notes**:
 
 - Rows with a NULL `level_m` count as gaps, because the loader drops NULL levels before building features. A NULL row
-  would otherwise occupy the date and keep the gap permanently unfixable.
+  would otherwise occupy the date and keep the gap permanently unfixable. Use `--overwrite` to repair such a row in
+  place instead of inserting a second row for the same date.
 - Two defects were fixed on 2026-09-24. The source query ordered by a column named `date`, which does not exist on
   `public.station_river_data` (it is `reading_date`); every fetch raised, the error was swallowed, and the script filled
   nothing. Separately, the gap search was bounded by `MAX(date)`, so a station that had stopped reporting appeared
@@ -529,7 +602,7 @@ Dry run. Re-run with --apply to insert the rows above.
 
 ---
 
-### `check_river_data_availability.py`
+### `scripts/diagnostics/check_river_data_availability.py`
 
 **Purpose**: Check what historical river level data is available in the database.
 
@@ -539,7 +612,7 @@ for the catchup script. Essential for understanding what dates you can backfill.
 **Usage**:
 
 ```bash
-python scripts/check_river_data_availability.py
+python scripts/diagnostics/check_river_data_availability.py
 ```
 
 **What It Shows**:
@@ -591,7 +664,7 @@ RECOMMENDATIONS FOR CATCHUP SCRIPT
 
 💡 Usage Example:
 
-   python scripts/catchup_missing_predictions.py
+   python scripts/backfill/catchup_missing_predictions.py
    # When prompted, enter start date: 2024-11-01
 
 ================================================================================
@@ -599,7 +672,7 @@ RECOMMENDATIONS FOR CATCHUP SCRIPT
 
 ---
 
-### `clear_cache.py`
+### `scripts/maintenance/clear_cache.py`
 
 **Purpose**: Clear the requests cache to force fresh API data retrieval.
 
@@ -609,7 +682,7 @@ where forecast data was cached indefinitely and never refreshed.
 **Usage**:
 
 ```bash
-python scripts/clear_cache.py
+python scripts/maintenance/clear_cache.py
 ```
 
 **What It Does**:
@@ -641,7 +714,7 @@ python scripts/clear_cache.py
 
 ---
 
-### `diagnose_forecast_data.py`
+### `scripts/diagnostics/diagnose_forecast_data.py`
 
 **Purpose**: Diagnostic tool to analyze forecast weather data in the database.
 
@@ -651,7 +724,7 @@ identify data gaps, date range issues, and location-specific problems.
 **Usage**:
 
 ```bash
-python scripts/diagnose_forecast_data.py
+python scripts/diagnostics/diagnose_forecast_data.py
 ```
 
 **Information Provided**:
@@ -690,7 +763,7 @@ Bulo Burti                              2025-12-01            2025-12-17        
 
 ---
 
-### `force_refresh_forecast.py`
+### `scripts/maintenance/force_refresh_forecast.py`
 
 **Purpose**: Force complete refresh of forecast weather data.
 
@@ -700,7 +773,7 @@ fetches fresh data from the Open-Meteo API, bypassing all caches.
 **Usage**:
 
 ```bash
-python scripts/force_refresh_forecast.py
+python scripts/maintenance/force_refresh_forecast.py
 ```
 
 **⚠️ WARNING**: This script DELETES all forecast data. Use with caution in production!
@@ -773,19 +846,19 @@ When the system has been offline and predictions are missing:
 
 ```bash
 # Step 1: Check for river data gaps
-python scripts/check_river_data_availability.py
+python scripts/diagnostics/check_river_data_availability.py
 
 # Step 2: Fill any gaps in river data (if gaps detected)
-python scripts/fill_river_data_gaps.py
+python scripts/backfill/fill_river_data_gaps.py
 
 # Step 3: Ensure fresh weather data
-python scripts/clear_cache.py
+python scripts/maintenance/clear_cache.py
 flood-cli data-ingestion fetch-openmeteo historical
 flood-cli data-ingestion fetch-openmeteo forecast
 flood-cli data-ingestion fetch-river-data
 
 # Step 4: Catch up missing predictions
-python scripts/catchup_missing_predictions.py
+python scripts/backfill/catchup_missing_predictions.py
 
 # Step 5: Resume normal operations with CRON
 ```
@@ -796,16 +869,16 @@ When forecast data appears stale or missing:
 
 ```bash
 # Step 1: Diagnose the issue
-python scripts/diagnose_forecast_data.py
+python scripts/diagnostics/diagnose_forecast_data.py
 
 # Step 2: Try cache clearing first (least invasive)
-python scripts/clear_cache.py
+python scripts/maintenance/clear_cache.py
 
 # Step 3: Re-run data ingestion
 flood-cli data-ingestion fetch-openmeteo forecast
 
 # Step 4: If issue persists, force refresh (nuclear option)
-python scripts/force_refresh_forecast.py
+python scripts/maintenance/force_refresh_forecast.py
 ```
 
 ### Manual Production Run
@@ -821,7 +894,7 @@ cd /path/to/saadaal-flood-forecaster
 
 ```bash
 cd /path/to/saadaal-flood-forecaster
-./scripts/batch_infer_and_risk_assess.sh $(pwd) $(pwd)/.venv
+./scripts/backfill/batch_infer_and_risk_assess.sh $(pwd) $(pwd)/.venv
 ```
 
 ---

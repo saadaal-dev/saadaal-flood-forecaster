@@ -45,14 +45,14 @@ Prediction catch-up requires continuous river-level inputs. For deployments that
 
 ```bash
 # Inspect available ranges and gaps
-python scripts/check_river_data_availability.py
+python scripts/diagnostics/check_river_data_availability.py
 
 # After reviewing the script source, run it interactively
-python scripts/fill_river_data_gaps.py
+python scripts/backfill/fill_river_data_gaps.py
 
 # Verify continuity before generating missing predictions
-python scripts/check_river_data_availability.py
-python scripts/catchup_missing_predictions.py
+python scripts/diagnostics/check_river_data_availability.py
+python scripts/backfill/catchup_missing_predictions.py
 ```
 
 Gap filling reads `public.station_river_data` and inserts missing rows into `flood_forecaster.historical_river_level`.
@@ -95,8 +95,8 @@ the [improvement backlog](../improvement-backlog.md).
 flood-cli data-ingestion fetch-openmeteo historical
 flood-cli data-ingestion fetch-openmeteo forecast
 flood-cli data-ingestion fetch-river-data
-python scripts/diagnose_forecast_data.py
-python scripts/clear_cache.py
+python scripts/diagnostics/diagnose_forecast_data.py
+python scripts/maintenance/clear_cache.py
 ```
 
 ## Key implementation paths

@@ -10,8 +10,9 @@ from pathlib import Path
 
 from sqlalchemy import select, func
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add src to path.
+# parents[2] is the repository root: scripts/diagnostics/<this file>.
+sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from flood_forecaster.data_model.weather import ForecastWeather
 from flood_forecaster.utils.configuration import Config
