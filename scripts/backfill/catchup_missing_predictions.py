@@ -23,6 +23,7 @@ DEPLOYMENT:
 - Requires POSTGRES_PASSWORD environment variable
 - Requires flood-cli installed and accessible
 """
+from __future__ import annotations
 
 import subprocess
 import sys
