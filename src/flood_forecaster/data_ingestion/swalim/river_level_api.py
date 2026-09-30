@@ -1,9 +1,12 @@
-from typing import Generator, List, Optional
+from collections import OrderedDict
+from datetime import date, datetime
+from typing import List, Optional
 
 import pandas as pd
 import pandera.pandas as pa
 import requests
 from bs4 import BeautifulSoup
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from flood_forecaster import DatabaseConnection
@@ -70,45 +73,241 @@ def _get_new_river_levels(config, df) -> List[HistoricalRiverLevel]:
     return new_level_data
 
 
-def __filter_river_data_exists(river_levels: List[HistoricalRiverLevel], session: Session) -> Generator[HistoricalRiverLevel, None, None]:
+def _normalize_reading_date(value) -> Optional[date]:
     """
-    Check if the river levels already exist in the database.
-    :param river_levels: List of HistoricalRiverLevel objects to check.
-    :param session: SQLAlchemy session to use for the database query.
-    :return: Generator yielding HistoricalRiverLevel objects that do not exist in the database.
+    Reduce any supported date representation to a calendar date.
+
+    Callers supply a mix of `datetime.date`, `datetime.datetime` and
+    `pandas.Timestamp`. Those never compare or hash equal to each other, so
+    without normalization two representations of the same day look like two
+    different days and slip past in-batch deduplication, only to collide in the
+    database. `historical_river_level.date` is a DATE column, so the calendar day
+    is the real key.
     """
+    if value is None:
+        return None
+    if isinstance(value, pd.Timestamp):
+        return value.date()
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    # Strings and numpy datetimes: let pandas do the parsing.
+    parsed = pd.to_datetime(value, errors="coerce")
+    return None if pd.isna(parsed) else parsed.date()
+
+
+def _collapse_duplicate_levels(river_levels: List[HistoricalRiverLevel]) -> List[dict]:
+    """
+    Reduce a batch to at most one row per (location_name, date).
+
+    `ON CONFLICT DO UPDATE` raises "cannot affect row a second time" if a single
+    statement carries two rows with the same conflict key, so the batch has to be
+    collapsed before it reaches the database.
+
+    The last occurrence wins, matching `keep="last"` used by the CSV reconciliation
+    in `load_river_data_from_csvs()` and by the loader deduplication in
+    `load.py`. Rows with no location or no usable date are dropped: they cannot be
+    addressed by the uniqueness key.
+    """
+    collapsed: "OrderedDict[tuple, dict]" = OrderedDict()
+    skipped = 0
+
     for level in river_levels:
-        existing_entry = session.query(HistoricalRiverLevel.date, HistoricalRiverLevel.level_m).filter(
-            HistoricalRiverLevel.location_name == level.location_name,
-            HistoricalRiverLevel.date == level.date
-        ).first()
-        if existing_entry:
-            logger.debug(
-                f"River level for {level.location_name} on {level.date} already exists in the database. Skipping insertion.")
-            if existing_entry.level_m != level.level_m:
-                logger.warning(
-                    f"WARNING: Existing level {existing_entry.level_m} does not match new level {level.level_m}.")
-        else:
-            yield level
+        reading_date = _normalize_reading_date(level.date)
+        if level.location_name is None or reading_date is None:
+            skipped += 1
+            continue
+        key = (level.location_name, reading_date)
+        collapsed[key] = {
+            "location_name": level.location_name,
+            "date": reading_date,
+            "level_m": None if pd.isna(level.level_m) else float(level.level_m),
+        }
+
+    if skipped:
+        logger.warning(f"Skipped {skipped} river level(s) with no location name or no parsable date.")
+
+    duplicates = len(river_levels) - skipped - len(collapsed)
+    if duplicates > 0:
+        logger.info(
+            f"Collapsed {duplicates} duplicate (station, date) river level(s) within the batch; last value wins."
+        )
+
+    return list(collapsed.values())
+
+
+def _river_level_upsert(dialect_name: str, rows: List[dict]):
+    """
+    Build an INSERT ... ON CONFLICT (location_name, date) DO UPDATE for river levels.
+
+    PostgreSQL is the production target; SQLite is supported so that the write
+    path can be tested without a live server, the same way the RISK-006 alert
+    regression tests do.
+
+    A later reading replaces an earlier one for the same station and day. That is
+    not an arbitrary choice: all nine conflicting (station, date) pairs in the
+    2026-09-22 production snapshot were arbitrated against `public.station_river_data`
+    and in every case the more recently ingested value was the correct one, three of
+    them correcting a whole-metre transcription error. So a differing upstream value
+    is treated as a correction, not as something to reject (DATA-005).
+
+    The update is skipped when the incoming level is NULL, so a station that
+    reports no reading cannot erase a reading already stored. NULL means "no usable
+    reading" throughout the gap logic, and overwriting a real value with it would
+    manufacture a gap (see DATA-010).
+    """
+    if dialect_name == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as dialect_insert
+    else:
+        from sqlalchemy.dialects.postgresql import insert as dialect_insert
+
+    statement = dialect_insert(HistoricalRiverLevel).values(rows)
+    return statement.on_conflict_do_update(
+        index_elements=["location_name", "date"],
+        set_={"level_m": statement.excluded.level_m},
+        where=statement.excluded.level_m.isnot(None),
+    )
 
 
 # Insert river data into database
 def insert_river_data(river_levels: List[HistoricalRiverLevel], config: Config, avoid_duplicates: bool = True) -> int:
+    """
+    Upsert river levels, keyed on (location_name, date).
+
+    Repeated runs over the same window are idempotent: an unchanged reading is a
+    no-op and a changed reading updates in place. Before DATA-005 this function
+    issued one SELECT per candidate row and then `add_all()`, which left a
+    read-modify-write race and could not update a corrected value. The database
+    now enforces uniqueness, so the guard is a single statement.
+
+    :param river_levels: rows to store.
+    :param config: configuration object.
+    :param avoid_duplicates: deprecated and ignored. Duplicate suppression is no
+        longer optional: `(location_name, date)` is enforced by the database.
+    :return: number of rows written, counting inserts and updates.
+    """
+    if not avoid_duplicates:
+        logger.warning(
+            "insert_river_data(avoid_duplicates=False) is ignored: (location_name, date) "
+            "uniqueness is enforced by the database. Duplicate rows can no longer be inserted."
+        )
+
+    rows = _collapse_duplicate_levels(river_levels)
+    if not rows:
+        logger.warning("No storable river levels in the batch; nothing to insert.")
+        return 0
+
     database_connection = DatabaseConnection(config)
 
     with database_connection.engine.connect() as conn:
         with Session(bind=conn) as session:
-            if avoid_duplicates:
-                _river_levels = list(__filter_river_data_exists(river_levels, session))
-            else:
-                # keep all river levels, even if they already exist in the database
-                _river_levels = river_levels
-
-            logger.debug(f"Inserting {len(_river_levels)} river levels into the database...")
-            session.add_all(_river_levels)
+            logger.debug(f"Upserting {len(rows)} river levels into the database...")
+            result = session.execute(
+                _river_level_upsert(session.bind.dialect.name, rows)
+            )
             session.commit()
-    
-    return len(_river_levels)
+
+    written = result.rowcount if result.rowcount and result.rowcount > 0 else 0
+    logger.info(
+        f"Upserted {written} river level(s) into the database "
+        f"({len(rows)} submitted after deduplication)."
+    )
+    return written
+
+
+def remove_duplicates_historical_river_level_from_db(config: Config, dry_run: bool = True) -> int:
+    """
+    Collapse duplicate (location_name, date) rows in historical_river_level.
+
+    Run this before applying `sql/add_historical_river_level_unique_constraint.sql`;
+    the migration refuses to add the constraint while duplicates remain.
+
+    Retention rule, in order: keep a row with a non-NULL `level_m` over a NULL one,
+    then keep the highest `id`, i.e. the most recently ingested. The highest id was
+    verified correct against `public.station_river_data` for all nine value-conflicting
+    pairs in the 2026-09-22 snapshot. The non-NULL preference is a safety belt; no
+    mixed NULL/real pair existed in that snapshot, but the rule must not be able to
+    discard a real reading in favour of an empty one.
+
+    :param config: configuration object.
+    :param dry_run: when True, report what would be deleted and change nothing.
+    :return: number of excess rows deleted, or that would be deleted in a dry run.
+    """
+    database_connection = DatabaseConnection(config)
+
+    # Rank rows within each (location_name, date) group and keep rank 1.
+    ranked = """
+        SELECT id,
+               location_name,
+               date,
+               level_m,
+               ROW_NUMBER() OVER (
+                   PARTITION BY location_name, date
+                   ORDER BY (level_m IS NOT NULL) DESC, id DESC
+               ) AS rn
+        FROM flood_forecaster.historical_river_level
+    """
+
+    with database_connection.engine.connect() as conn:
+        summary = conn.execute(text(f"""
+            WITH ranked AS ({ranked})
+            SELECT COUNT(*) AS excess_rows,
+                   COUNT(DISTINCT (location_name, date)) AS affected_pairs
+            FROM ranked WHERE rn > 1
+        """)).fetchone()
+
+        excess_rows, affected_pairs = (summary[0] or 0), (summary[1] or 0)
+
+        if not excess_rows:
+            logger.info("No duplicate (station, date) river levels found.")
+            return 0
+
+        logger.warning(
+            f"Found {excess_rows} excess row(s) across {affected_pairs} duplicate (station, date) pair(s)."
+        )
+
+        # Report the pairs where the retained value actually differs from a discarded
+        # one. These are the only cases where the retention rule changes a reading.
+        conflicts = conn.execute(text(f"""
+            WITH ranked AS ({ranked})
+            SELECT location_name, date,
+                   MAX(CASE WHEN rn = 1 THEN level_m END) AS kept,
+                   MIN(level_m) AS lowest,
+                   MAX(level_m) AS highest
+            FROM ranked
+            GROUP BY location_name, date
+            HAVING COUNT(*) > 1 AND COUNT(DISTINCT level_m) > 1
+            ORDER BY location_name, date
+        """)).fetchall()
+
+        if conflicts:
+            logger.warning(
+                f"{len(conflicts)} pair(s) hold conflicting values; keeping the most recently ingested:"
+            )
+            for row in conflicts:
+                logger.warning(
+                    f" - {row.location_name} {row.date}: keeping {row.kept} "
+                    f"(range {row.lowest}..{row.highest})"
+                )
+        else:
+            logger.info("All duplicate pairs agree on level_m; no reading changes value.")
+
+        if dry_run:
+            logger.info(f"Dry run: {excess_rows} row(s) would be deleted.")
+            return excess_rows
+
+        result = conn.execute(text(f"""
+            DELETE FROM flood_forecaster.historical_river_level
+            WHERE id IN (
+                SELECT id FROM ({ranked}) ranked WHERE rn > 1
+            )
+        """))
+        conn.commit()
+
+        deleted = result.rowcount if result.rowcount and result.rowcount > 0 else 0
+        logger.info(f"Deleted {deleted} duplicate river level row(s).")
+        return deleted
 
 
 def __load_snrfa_river_data(file_path: str, location_name: str) -> pa.typing.DataFrame[StationDataFrameSchema]:

@@ -386,9 +386,9 @@ ValueError: Missing river level data for locations: {'Belet Weyne'}
     - Safe start date where all locations have data
     - Locations with limited or outdated data
 
-   Or check directly in the database:
+   Or check directly in the database. Count distinct dates, not rows, so that coverage is not over-reported:
    ```sql
-   SELECT location_name, MIN(date) as first_date, MAX(date) as last_date, COUNT(*) as records
+   SELECT location_name, MIN(date) as first_date, MAX(date) as last_date, COUNT(DISTINCT date) as days
    FROM flood_forecaster.historical_river_level
    GROUP BY location_name
    ORDER BY location_name;
@@ -474,10 +474,12 @@ rewriting stored history is not the default.
 is not mistaken for a correction. The dry run prints each replacement as `date: old -> new`, so you can review exactly
 what would change before passing `--apply`.
 
-The NULL case is worth calling out. Without `--overwrite`, a NULL-level row is treated as an absent reading and a
-**second** row is inserted for that date, because `historical_river_level` has no unique constraint on
-`(location_name, date)` — backlog item DATA-005. With `--overwrite` the existing row is updated instead, so no duplicate
-appears. Where duplicate rows already exist for a date, the update converges all of them onto the source value.
+The NULL case is worth calling out. A NULL-level row holds no usable reading, so both modes repair it by filling that row
+in place and neither creates a second row for the date. `historical_river_level` is unique on `(location_name, date)`
+(DATA-005), so a duplicate insert is rejected by the database rather than silently accepted as it was before. Filling a
+placeholder does not count as rewriting history, which is why it happens without `--overwrite`; replacing a date that
+already holds a real reading still requires that flag. Against a database where duplicate rows still exist for a date,
+`--overwrite` converges all of them onto the source value.
 
 ⚠️ `--overwrite` is the only mode that can destroy a reading, and the previous value is not recorded anywhere. Take a
 database snapshot first (`db-snapshot/01-dump.sh`). Overwritten readings are model inputs, so any prediction already
@@ -834,6 +836,57 @@ Step 5: Verifying data was written to database...
 ================================================================================
 REFRESH COMPLETE
 ================================================================================
+```
+
+---
+
+### `scripts/maintenance/remove_duplicate_historical_river_level.py`
+
+**Purpose**: Collapse duplicate `(location_name, date)` rows in `flood_forecaster.historical_river_level` so that
+`sql/add_historical_river_level_unique_constraint.sql` can be applied (DATA-005).
+
+**Description**: One row survives per station per day. Retention order: a row with a non-NULL `level_m` beats a NULL one,
+then the highest `id` wins, i.e. the most recently ingested.
+
+The highest-id rule was verified rather than assumed. All nine value-conflicting pairs in the 2026-09-22 production
+snapshot were arbitrated against `public.station_river_data`, and the more recently ingested value was correct in every
+case — three of them correcting a whole-metre transcription error. That is also why ingestion treats a differing upstream
+value as a correction and updates in place.
+
+Pairs whose values disagree are listed individually before anything is deleted, so the only readings that change value
+are visible up front. A dry run reports and writes nothing; a live run prompts for confirmation unless `--yes` is passed.
+
+**Usage**:
+
+```bash
+# preview
+python scripts/maintenance/remove_duplicate_historical_river_level.py --dry-run
+
+# delete, with confirmation prompt
+python scripts/maintenance/remove_duplicate_historical_river_level.py
+
+# delete, non-interactive
+python scripts/maintenance/remove_duplicate_historical_river_level.py --yes
+
+# then add the constraint
+psql -h <host> -U postgres -d postgres -f sql/add_historical_river_level_unique_constraint.sql
+```
+
+**Order matters**: the migration refuses to add the constraint while duplicates remain. Both the cleanup and the
+migration are idempotent, so re-running either is safe.
+
+**Expected output** (dry run against the 2026-09-22 snapshot):
+
+```
+============================================================
+DRY RUN MODE - No changes will be made to the database
+============================================================
+Found 962 excess row(s) across 962 duplicate (station, date) pair(s).
+9 pair(s) hold conflicting values; keeping the most recently ingested:
+ - Belet Weyne 2024-03-15: keeping 2.12 (range 2.12..2.13)
+ - Belet Weyne 2024-03-19: keeping 2.3 (range 2.1..2.3)
+ ...
+Dry run: 962 row(s) would be deleted.
 ```
 
 ---

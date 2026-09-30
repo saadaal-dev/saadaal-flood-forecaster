@@ -18,7 +18,7 @@ runtime records; Pandera models validate selected data-frame boundaries.
 |--------------------------|-----------------------------------------------------|----------------------------------|------------------------------------------------------------------------------------------------------------|
 | `historical_weather`     | Open-Meteo historical ingestion                     | Training and inference loaders   | Unique `(location_name, date)`; upserted                                                                   |
 | `forecast_weather`       | Open-Meteo forecast ingestion                       | Inference loader                 | Unique `(location_name, date)`; upserted, old forecasts are retained                                       |
-| `historical_river_level` | SWALIM latest data or CSV backfill                  | Training and inference loaders   | **DATA-005:** no SQL uniqueness; ingestion checks station/date before insert                               |
+| `historical_river_level` | SWALIM latest data or CSV backfill                  | Training and inference loaders   | Unique `(location_name, date)`; upserted, a later reading corrects an earlier one                          |
 | `predicted_river_level`  | ML inference                                        | Risk assessment, alerting, views | Unique `(location_name, date, ml_model_name)`; **RISK-001:** prediction upsert does not clear `risk_level` |
 | `river_station_metadata` | Bootstrap/static loading outside the daily pipeline | Optional views/reference queries | Unique `station_name`; **DATA-006:** daily risk logic currently uses the static CSV instead                |
 

@@ -37,12 +37,12 @@ With --overwrite it also rewrites readings that disagree with the source:
 "Different" means the two values differ by more than LEVEL_TOLERANCE_M, so
 floating-point representation noise does not count as a change.
 
-Note the placeholder case. Without --overwrite a NULL-level row is treated as an
-absent reading and a *second* row is inserted for the same date, because
-historical_river_level has no unique constraint on (location_name, date) - see
-backlog item DATA-005. With --overwrite the existing row is updated instead, so
-no duplicate is created. Where duplicate rows already exist for a date, the
-update converges all of them onto the source value.
+Note the placeholder case. A NULL-level row holds no usable reading, so both modes
+repair it by filling that row in place; neither creates a second row for the date.
+DATA-005 enforces one row per (location_name, date), so a duplicate insert is
+rejected by the database rather than silently accepted as it was before. Against a
+database where duplicate rows still exist for a date, --overwrite converges all of
+them onto the source value.
 
 --overwrite obeys the dry run: combine it with no --apply to see exactly which
 readings would change, printed as "old -> new" per date.
@@ -179,9 +179,15 @@ def get_station_mapping(conn) -> Dict[str, int]:
 
 
 def get_existing_range(conn, location: str) -> Tuple[Optional[date], Optional[date], int]:
-    """(first_date, last_date, row_count) currently stored for a location."""
+    """
+    (first_date, last_date, covered_days) currently stored for a location.
+
+    Counts DISTINCT dates, not rows. Coverage measured as COUNT(*) over-reports
+    wherever duplicates exist and can make a station look complete when it is not
+    (DATA-005).
+    """
     row = conn.execute(text("""
-        SELECT MIN(date), MAX(date), COUNT(*)
+        SELECT MIN(date), MAX(date), COUNT(DISTINCT date)
         FROM flood_forecaster.historical_river_level
         WHERE location_name = :location
     """), {"location": location}).fetchone()
@@ -196,16 +202,15 @@ def get_existing_levels(conn, location: str, start: date, end: date) -> Dict[dat
     reading. The value is None when rows exist for the date but all of them have
     a NULL level_m.
 
-    Grouping matters because historical_river_level has no unique constraint on
-    (location_name, date) - see backlog item DATA-005 - so a date can legitimately
-    carry several rows today. MAX() ignores NULLs, so a date holding both a NULL
-    placeholder and a real reading reports the real one.
+    The GROUP BY is retained even though DATA-005 now enforces one row per
+    (location_name, date): it makes the query correct against a database where the
+    constraint has not yet been applied, and MAX() ignores NULLs, so a date holding
+    both a NULL placeholder and a real reading reports the real one.
 
     A NULL-level row counts as "present but unusable" rather than "absent": the
     loader drops NULL levels before building features, so such a row occupies the
-    date without being usable. identify_gaps() therefore treats it as a gap, while
-    --overwrite can tell it apart from a date with no row at all and update it in
-    place instead of inserting a duplicate.
+    date without being usable. identify_gaps() therefore treats it as a gap, and
+    insert_rows() repairs it by filling the placeholder in place.
     """
     rows = conn.execute(text("""
         SELECT date, MAX(level_m) AS level
@@ -328,26 +333,36 @@ def fetch_from_chart_api(config: Config, station: str, start: date, end: date) -
 # --------------------------------------------------------------------------- #
 def insert_rows(conn, location: str, rows: List[Tuple[date, float]]) -> int:
     """
-    Insert readings for dates that have no row yet.
+    Fill dates that hold no usable reading: no row at all, or a NULL placeholder.
 
     Returns the number of rows the database actually accepted, taken from
     rowcount. The previous implementation incremented a counter per attempt, so
     conflicts were reported as successful inserts.
 
-    The ON CONFLICT DO NOTHING is a safety net that currently cannot fire:
-    historical_river_level has no unique constraint on (location_name, date),
-    so there is no index for a conflict to be detected against (backlog item
-    DATA-005). Not inserting over an existing reading is therefore guaranteed by
-    the caller, which only passes dates absent from get_existing_levels(). The
-    clause is kept so that adding the constraint makes this statement correct
-    rather than newly failing.
+    DATA-005 added uq_historical_river_level_location_date on
+    (location_name, date), which changes what this statement has to do. Before the
+    constraint, a date carrying a NULL placeholder was repaired by inserting a
+    *second* row for the same date, and the bare `ON CONFLICT DO NOTHING` could
+    never fire because there was no index to detect a conflict against. With the
+    constraint in place that second insert would be rejected, so a plain
+    DO NOTHING would silently leave every placeholder date unrepaired — and NULL
+    levels are not rare.
+
+    So the conflict action fills the placeholder in place, guarded by
+    `WHERE historical_river_level.level_m IS NULL`. That keeps the insert-only
+    contract intact: a date that already holds a real reading is still left
+    untouched even when the source disagrees, because rewriting stored history is
+    --overwrite's job, not gap repair's. Filling a NULL is not rewriting history;
+    by this script's own definition that date holds no reading.
     """
     if not rows:
         return 0
     statement = text("""
         INSERT INTO flood_forecaster.historical_river_level (location_name, date, level_m)
         VALUES (:location, :date, :level)
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (location_name, date) DO UPDATE
+            SET level_m = EXCLUDED.level_m
+            WHERE historical_river_level.level_m IS NULL
     """)
     inserted = 0
     for day, level in rows:
@@ -369,9 +384,10 @@ def update_rows(conn, location: str, rows: List[Tuple[date, Optional[float], flo
     because `NULL <> 0.5` evaluates to NULL, not true, which would skip exactly
     the placeholder rows this mode exists to repair.
 
-    The WHERE clause is deliberately not restricted to a single row: where
-    duplicate rows exist for one date (possible until DATA-005 lands) every one
-    of them converges on the source value.
+    The WHERE clause is deliberately not restricted to a single row. DATA-005 now
+    enforces one row per (location_name, date), but against a database where the
+    constraint has not yet been applied every duplicate row for that date
+    converges on the source value.
     """
     if not rows:
         return 0

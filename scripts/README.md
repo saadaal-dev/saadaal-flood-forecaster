@@ -66,6 +66,7 @@ not have a section in `scripts-reference.md` yet.
 | `clear_cache.py` | Deletes the local Open-Meteo HTTP cache (`.cache*`) so the next fetch is fresh. Least invasive fix for stale forecasts. | [reference](../docs/scripts-reference.md#scriptsmaintenanceclear_cachepy) |
 | `force_refresh_forecast.py` | **Destructive.** Deletes all forecast weather rows, then re-fetches. Requires typing `yes`. Last resort. | [reference](../docs/scripts-reference.md#scriptsmaintenanceforce_refresh_forecastpy) |
 | `remove_duplicate_historical_weather.py` | Removes duplicate `(location_name, date)` rows. Run before applying `sql/add_historical_weather_unique_constraint.sql`. Supports `--dry-run`. | script header |
+| `remove_duplicate_historical_river_level.py` | Removes duplicate `(location_name, date)` rows from `historical_river_level`, keeping the most recently ingested reading. Run before applying `sql/add_historical_river_level_unique_constraint.sql`. Supports `--dry-run` and `--yes`. | [reference](../docs/scripts-reference.md#scriptsmaintenanceremove_duplicate_historical_river_levelpy) |
 
 ### `legacy/`
 
