@@ -13,12 +13,23 @@
 --   * The 2026-09-22 production snapshot held 962 excess rows across 962 duplicate
 --     (location_name, date) pairs, 9 of which disagreed on level_m.
 --
+-- ORDER MATTERS: apply this BEFORE deploying the code.
+--
+-- The new ingestion code uses ON CONFLICT (location_name, date), which PostgreSQL
+-- can only satisfy when a matching unique index exists. Deploying it first makes
+-- every river ingestion fail with "there is no unique or exclusion constraint
+-- matching the ON CONFLICT specification". Applying this migration early is safe for
+-- the currently deployed code: its insert path checks for an existing row first, and
+-- the gap-fill script uses a bare ON CONFLICT DO NOTHING, which needs no index.
+--
 -- Prerequisites:
---   1. Deploy the code version that upserts (insert_river_data uses
---      ON CONFLICT (location_name, date) DO UPDATE).
---   2. Remove existing duplicates first:
---        python scripts/maintenance/remove_duplicate_historical_river_level.py --dry-run
---        python scripts/maintenance/remove_duplicate_historical_river_level.py
+--   1. Take a snapshot: ./db-snapshot/01-dump.sh
+--   2. Remove existing duplicates. Use the psql-only cleanup, since the Python
+--      script ships with the code that is not deployed yet:
+--        psql ... -v ON_ERROR_STOP=1 -v apply=0 -f sql/deduplicate_historical_river_level.sql
+--        psql ... -v ON_ERROR_STOP=1 -v apply=1 -f sql/deduplicate_historical_river_level.sql
+--      Once the code is deployed, the equivalent is
+--        python scripts/maintenance/remove_duplicate_historical_river_level.py [--dry-run]
 --
 -- Usage:
 --   psql -h <host> -U postgres -d postgres -f sql/add_historical_river_level_unique_constraint.sql

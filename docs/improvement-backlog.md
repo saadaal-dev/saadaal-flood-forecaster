@@ -347,6 +347,12 @@ structural blocker for running gap repair as part of the daily pipeline: without
       `sql/add_historical_river_level_unique_constraint.sql` adds `uq_historical_river_level_location_date`; it refuses
       to run while duplicates remain and is idempotent. The constraint is also declared on the SQLAlchemy model and in
       `sql/database_bootstrap.sql`, so a fresh install gets it without the migration.
+      **Deployment order is not free:** `ON CONFLICT (location_name, date)` needs a matching unique index, so the new
+      code fails outright ("there is no unique or exclusion constraint matching the ON CONFLICT specification") against a
+      database without the constraint. The constraint must therefore be applied *before* the code ships, which the
+      previously deployed code tolerates. Since the Python cleanup ships with that code,
+      `sql/deduplicate_historical_river_level.sql` provides a psql-only equivalent so the database can be prepared ahead
+      of the deployment. Both directions were verified against a copy of the snapshot.
 - [x] Every ingestion/backfill path uses conflict-safe bulk inserts or upserts; the per-row `SELECT` pre-check in
       `__filter_river_data_exists()` is removed.
       `insert_river_data()` is a single `ON CONFLICT (location_name, date) DO UPDATE`. Batches are collapsed to one row
