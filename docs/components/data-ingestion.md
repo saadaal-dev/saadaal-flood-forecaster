@@ -34,8 +34,26 @@ The daily command scrapes the SWALIM HTML table and inserts only station/date co
 existing value differs, it logs a warning but does not update the stored row. Historical backfill can use SNRFA/SWALIM
 CSV exports or the SWALIM chart helper commands.
 
-Unlike weather tables, `historical_river_level` has no database unique constraint in the bootstrap schema. Normal
-ingestion prevents duplicates in application code, but direct inserts do not.
+`historical_river_level` is unique on `(location_name, date)` via `uq_historical_river_level_location_date`, so every
+write path is guarded by the database rather than by application bookkeeping. `insert_river_data()` upserts: repeated
+ingestion over an overlapping window is a no-op for unchanged readings, and a changed reading updates in place because a
+differing upstream value is treated as a correction. A NULL incoming level is the one exception; it never overwrites a
+stored reading, because NULL means "no usable reading" to the gap logic and overwriting would manufacture a gap.
+
+Two consequences worth remembering:
+
+- Measure coverage as `COUNT(DISTINCT date)`. Counting rows over-reports wherever duplicates exist and can report a
+  station as complete when it is not.
+- A batch handed to `insert_river_data()` is collapsed to one row per station-day before it reaches the database, since
+  `ON CONFLICT DO UPDATE` cannot touch the same row twice in one statement. The last occurrence wins.
+
+Existing deployments acquire the constraint by removing duplicates and then running the migration:
+
+```bash
+python scripts/maintenance/remove_duplicate_historical_river_level.py --dry-run
+python scripts/maintenance/remove_duplicate_historical_river_level.py
+psql -h <host> -U postgres -d postgres -f sql/add_historical_river_level_unique_constraint.sql
+```
 
 ### Historical river-gap recovery
 

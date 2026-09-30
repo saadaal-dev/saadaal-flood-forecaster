@@ -77,8 +77,9 @@ erDiagram
 - `forecast_weather`: unique `(location_name, date)`.
 - `predicted_river_level`: unique `(location_name, date, ml_model_name)`.
 - `river_station_metadata`: unique `station_name`.
-- **DATA-005:** `historical_river_level` has no uniqueness constraint; ingestion prevents duplicates in application
-  code.
+- `historical_river_level`: unique `(location_name, date)`, named `uq_historical_river_level_location_date`. Ingestion
+  upserts against it; a later reading for the same station and day replaces an earlier one, except that a NULL level
+  never overwrites a stored reading. Measure coverage as `COUNT(DISTINCT date)`, never `COUNT(*)`.
 - **RISK-002:** `predicted_river_level.date` is the inference reference date. The target date is
   `date + forecast_days - 1`.
 - Risk labels are lowercase `low`, `moderate`, `high`, or `full`.
