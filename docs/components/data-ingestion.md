@@ -47,13 +47,31 @@ Two consequences worth remembering:
 - A batch handed to `insert_river_data()` is collapsed to one row per station-day before it reaches the database, since
   `ON CONFLICT DO UPDATE` cannot touch the same row twice in one statement. The last occurrence wins.
 
-Existing deployments acquire the constraint by removing duplicates and then running the migration:
+### Applying the constraint to an existing database
+
+**The constraint must be in place before this code is deployed.** `ON CONFLICT (location_name, date)` requires a matching
+unique index, so the new ingestion path fails outright against a database without it:
+
+```
+there is no unique or exclusion constraint matching the ON CONFLICT specification
+```
+
+Applying it early is safe for the previously deployed code, whose insert path checks for an existing row first and whose
+gap-fill used a bare `ON CONFLICT DO NOTHING` that needs no index.
+
+Because the Python cleanup script ships with the code that is not deployed yet, the duplicate removal has a psql-only
+form. It previews unless `-v apply=1` is passed:
 
 ```bash
-python scripts/maintenance/remove_duplicate_historical_river_level.py --dry-run
-python scripts/maintenance/remove_duplicate_historical_river_level.py
-psql -h <host> -U postgres -d postgres -f sql/add_historical_river_level_unique_constraint.sql
+./db-snapshot/01-dump.sh                                    # 1. snapshot; deleted values are not recoverable
+psql ... -v ON_ERROR_STOP=1 -v apply=0 -f sql/deduplicate_historical_river_level.sql   # 2. preview
+psql ... -v ON_ERROR_STOP=1 -v apply=1 -f sql/deduplicate_historical_river_level.sql   # 3. delete duplicates
+psql ... -v ON_ERROR_STOP=1 -f sql/add_historical_river_level_unique_constraint.sql    # 4. add the constraint
+                                                            # 5. then deploy
 ```
+
+The migration refuses to run while duplicates remain, and every step is idempotent. Once the code is deployed,
+`python scripts/maintenance/remove_duplicate_historical_river_level.py [--dry-run]` is the equivalent of steps 2 and 3.
 
 ### Historical river-gap recovery
 

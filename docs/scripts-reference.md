@@ -875,6 +875,10 @@ psql -h <host> -U postgres -d postgres -f sql/add_historical_river_level_unique_
 **Order matters**: the migration refuses to add the constraint while duplicates remain. Both the cleanup and the
 migration are idempotent, so re-running either is safe.
 
+**Before the first deployment**, use `sql/deduplicate_historical_river_level.sql` instead of this script. The constraint
+has to exist before the upserting code ships, and this script ships with that code, so it is not available yet. See
+[Data ingestion](components/data-ingestion.md) for the full sequence.
+
 **Expected output** (dry run against the 2026-09-22 snapshot):
 
 ```
