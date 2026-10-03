@@ -3,16 +3,30 @@ from dataclasses import dataclass
 import pandas as pd
 import pandera.pandas as pa
 from pandera.typing import Series
-from sqlalchemy import Column, Integer, String, DateTime, Float, Date
+from sqlalchemy import Column, Integer, String, DateTime, Float, Date, UniqueConstraint
 from sqlalchemy.sql import func
 
 from . import Base
+
+# Name of the (location_name, date) uniqueness constraint on historical_river_level.
+# Declared here so the model, the bootstrap DDL, the migration and the upsert all
+# agree on one identifier (DATA-005).
+HISTORICAL_RIVER_LEVEL_UNIQUE_CONSTRAINT = "uq_historical_river_level_location_date"
 
 
 @dataclass
 class HistoricalRiverLevel(Base):
     __tablename__ = 'historical_river_level'
-    __table_args__ = {"schema": "flood_forecaster"}  # Specify the schema
+    __table_args__ = (
+        # One reading per station per calendar day. Without this, repeated or
+        # concurrent ingestion silently duplicates rows, and any coverage check
+        # based on COUNT(*) over-reports (DATA-005).
+        UniqueConstraint(
+            "location_name", "date",
+            name=HISTORICAL_RIVER_LEVEL_UNIQUE_CONSTRAINT,
+        ),
+        {"schema": "flood_forecaster"},  # Specify the schema
+    )
 
     id = Column(Integer, primary_key=True)
     location_name = Column(String(100))

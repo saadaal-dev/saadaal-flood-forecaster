@@ -71,11 +71,14 @@ def main():
         print(f"{'Location':<30} {'First Date':<15} {'Last Date':<15} {'Records':<10} {'Days':<10}")
         print("-" * 80)
 
+        # COUNT(DISTINCT date), not COUNT(*): coverage measured in rows over-reports
+        # wherever duplicates exist and can report a station as complete when it is
+        # not (DATA-005).
         query = text("""
                      SELECT location_name,
                             MIN(date)               as first_date,
                             MAX(date)               as last_date,
-                            COUNT(*)                as record_count,
+                            COUNT(DISTINCT date)    as record_count,
                             (MAX(date) - MIN(date)) as date_range
                      FROM flood_forecaster.historical_river_level
                      GROUP BY location_name

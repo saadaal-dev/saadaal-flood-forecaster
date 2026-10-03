@@ -20,7 +20,11 @@ CREATE TABLE IF NOT EXISTS historical_river_level
     id            SERIAL PRIMARY KEY,
     location_name VARCHAR(100),
     date          DATE,
-    level_m       DOUBLE PRECISION
+    level_m       DOUBLE PRECISION,
+    -- One reading per station per calendar day. Also the ON CONFLICT target used by
+    -- insert_river_data() and by scripts/backfill/fill_river_data_gaps.py (DATA-005).
+    -- Existing deployments get this via sql/add_historical_river_level_unique_constraint.sql.
+    CONSTRAINT uq_historical_river_level_location_date UNIQUE (location_name, date)
 );
 
 -- =========================================

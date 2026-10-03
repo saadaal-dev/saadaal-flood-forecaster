@@ -54,7 +54,7 @@ Items that originate in a research session cite their measurements rather than r
 | DATA-002 | P1       | Data                 | Replace implicit missing-data behavior with explicit policy | Open   |
 | DATA-003 | P2       | Data                 | Verify historical Open-Meteo incremental boundaries         | Open   |
 | DATA-004 | P1       | Data                 | Replace positional SWALIM scraping with per-station fetch   | Open   |
-| DATA-005 | P1       | Data                 | Enforce historical river-level uniqueness                   | Open   |
+| DATA-005 | P1       | Data                 | Enforce historical river-level uniqueness                   | Done   |
 | DATA-006 | P2       | Data                 | Consolidate river-station metadata ownership                | Open   |
 | DATA-007 | P3       | Data                 | Normalize loader date-range APIs                            | Open   |
 | DATA-009 | P1       | Data                 | Guarantee a complete lag window per station                 | Open   |
@@ -303,14 +303,15 @@ later, when the last reading aged out of the inference lag window. The outage we
       station inserted above `Jowhar`.
 - [ ] `docs/components/data-ingestion.md` describes the new source precedence and the HTML page's reduced role.
 
-**Related:** DATA-005 (prerequisite for idempotent daily writes), DATA-006 (station identity and thresholds), DATA-009
+**Related:** DATA-005 (prerequisite for idempotent daily writes; `Done` as at 2026-09-30), DATA-006 (station identity and
+thresholds), DATA-009
 (consumes the chart endpoint as its repair source), DATA-010 (null-reading semantics), RISK-005 (detection and
 alerting).
 
 ### DATA-005 — Enforce historical river-level uniqueness
 
 - **Priority:** P1 (raised from P2 on 2026-09-24: duplicates are now measured, and this blocks DATA-009)
-- **Status:** Open
+- **Status:** Done (2026-09-30, branch `fix/data-005-river-level-uniqueness`)
 - **Issue/PR:** —
 
 **Problem:** `historical_river_level` has no database uniqueness constraint; duplicate prevention is
@@ -337,18 +338,45 @@ structural blocker for running gap repair as part of the daily pipeline: without
 
 **Done when:**
 
-- [ ] Existing duplicates are audited and resolved with an explicit retention rule (962 pairs as at 2026-09-22).
-- [ ] A migration adds an appropriate station/date uniqueness constraint, following the pattern already used in
+- [x] Existing duplicates are audited and resolved with an explicit retention rule (962 pairs as at 2026-09-22).
+      `scripts/maintenance/remove_duplicate_historical_river_level.py` keeps a non-NULL `level_m` over a NULL one, then
+      the highest `id`. Verified on a copy of the snapshot: exactly 962 rows deleted, all 88,320 distinct station-days
+      preserved.
+- [x] A migration adds an appropriate station/date uniqueness constraint, following the pattern already used in
       `sql/add_historical_weather_unique_constraint.sql`.
-- [ ] Every ingestion/backfill path uses conflict-safe bulk inserts or upserts; the per-row `SELECT` pre-check in
+      `sql/add_historical_river_level_unique_constraint.sql` adds `uq_historical_river_level_location_date`; it refuses
+      to run while duplicates remain and is idempotent. The constraint is also declared on the SQLAlchemy model and in
+      `sql/database_bootstrap.sql`, so a fresh install gets it without the migration.
+      **Deployment order is not free:** `ON CONFLICT (location_name, date)` needs a matching unique index, so the new
+      code fails outright ("there is no unique or exclusion constraint matching the ON CONFLICT specification") against a
+      database without the constraint. The constraint must therefore be applied *before* the code ships, which the
+      previously deployed code tolerates. Since the Python cleanup ships with that code,
+      `sql/deduplicate_historical_river_level.sql` provides a psql-only equivalent so the database can be prepared ahead
+      of the deployment. Both directions were verified against a copy of the snapshot.
+- [x] Every ingestion/backfill path uses conflict-safe bulk inserts or upserts; the per-row `SELECT` pre-check in
       `__filter_river_data_exists()` is removed.
-- [ ] A decision is recorded on whether a differing upstream value should update the stored row or be rejected, rather
+      `insert_river_data()` is a single `ON CONFLICT (location_name, date) DO UPDATE`. Batches are collapsed to one row
+      per station-day first, because one statement cannot touch the same conflict target twice.
+      `scripts/backfill/fill_river_data_gaps.py` now fills a NULL placeholder in place instead of inserting a second row
+      for the date, which the constraint would have rejected.
+- [x] A decision is recorded on whether a differing upstream value should update the stored row or be rejected, rather
       than being warned about and dropped.
-- [ ] Coverage and gap calculations count distinct dates, not rows.
-- [ ] Database integration tests cover duplicate attempts, repeated ingestion of the same window, and migration of
+      **Decided: update.** All nine value-conflicting pairs were arbitrated against `public.station_river_data` and the
+      more recently ingested value was correct in 9/9, three of them correcting a whole-metre transcription error. One
+      exception: a NULL incoming level never overwrites a stored reading, since that would manufacture a gap (DATA-010).
+- [x] Coverage and gap calculations count distinct dates, not rows.
+      `get_existing_range()` in `scripts/backfill/fill_river_data_gaps.py` and the per-location query in
+      `scripts/diagnostics/check_river_data_availability.py` both use `COUNT(DISTINCT date)`.
+- [x] Database integration tests cover duplicate attempts, repeated ingestion of the same window, and migration of
       existing data.
+      `src/tests/integration/test_river_level_api.py` covers constraint presence, in-batch duplicates, repeated
+      ingestion, in-place update, NULL non-overwrite, and rejection of a raw duplicate `INSERT`.
+      `src/tests/unit/test_river_level_upsert.py` covers the same write path plus date-representation normalization on
+      SQLite. Migration of existing data was rehearsed end to end against a copy of the 2026-09-22 snapshot: the
+      migration refuses while duplicates exist, applies once they are gone, and is idempotent on re-run.
 
-**Blocks:** DATA-009 (daily per-station repair is only cheap and safe once this is done).
+**Unblocks:** DATA-009 (daily per-station repair is now cheap and safe: there is a stable `ON CONFLICT` target, and
+coverage can be measured in distinct dates).
 
 ### DATA-006 — Consolidate river-station metadata ownership
 
@@ -443,7 +471,8 @@ daily job.
 - [ ] `docs/components/data-ingestion.md` and `docs/components/scheduling-and-deployment.md` describe the completeness
       precondition and the repair cascade.
 
-**Related:** DATA-005 (blocks this), DATA-004 (root cause of the motivating outage, and the source this item repairs
+**Related:** DATA-005 (was blocking this; `Done` as at 2026-09-30, so the `ON CONFLICT` target and distinct-date coverage
+this item needs now exist), DATA-004 (root cause of the motivating outage, and the source this item repairs
 from), RISK-005 (detection and alerting; this item is the repair counterpart), ML-003 (inference behaviour on incomplete
 inputs).
 

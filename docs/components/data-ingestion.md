@@ -34,8 +34,44 @@ The daily command scrapes the SWALIM HTML table and inserts only station/date co
 existing value differs, it logs a warning but does not update the stored row. Historical backfill can use SNRFA/SWALIM
 CSV exports or the SWALIM chart helper commands.
 
-Unlike weather tables, `historical_river_level` has no database unique constraint in the bootstrap schema. Normal
-ingestion prevents duplicates in application code, but direct inserts do not.
+`historical_river_level` is unique on `(location_name, date)` via `uq_historical_river_level_location_date`, so every
+write path is guarded by the database rather than by application bookkeeping. `insert_river_data()` upserts: repeated
+ingestion over an overlapping window is a no-op for unchanged readings, and a changed reading updates in place because a
+differing upstream value is treated as a correction. A NULL incoming level is the one exception; it never overwrites a
+stored reading, because NULL means "no usable reading" to the gap logic and overwriting would manufacture a gap.
+
+Two consequences worth remembering:
+
+- Measure coverage as `COUNT(DISTINCT date)`. Counting rows over-reports wherever duplicates exist and can report a
+  station as complete when it is not.
+- A batch handed to `insert_river_data()` is collapsed to one row per station-day before it reaches the database, since
+  `ON CONFLICT DO UPDATE` cannot touch the same row twice in one statement. The last occurrence wins.
+
+### Applying the constraint to an existing database
+
+**The constraint must be in place before this code is deployed.** `ON CONFLICT (location_name, date)` requires a matching
+unique index, so the new ingestion path fails outright against a database without it:
+
+```
+there is no unique or exclusion constraint matching the ON CONFLICT specification
+```
+
+Applying it early is safe for the previously deployed code, whose insert path checks for an existing row first and whose
+gap-fill used a bare `ON CONFLICT DO NOTHING` that needs no index.
+
+Because the Python cleanup script ships with the code that is not deployed yet, the duplicate removal has a psql-only
+form. It previews unless `-v apply=1` is passed:
+
+```bash
+./db-snapshot/01-dump.sh                                    # 1. snapshot; deleted values are not recoverable
+psql ... -v ON_ERROR_STOP=1 -v apply=0 -f sql/deduplicate_historical_river_level.sql   # 2. preview
+psql ... -v ON_ERROR_STOP=1 -v apply=1 -f sql/deduplicate_historical_river_level.sql   # 3. delete duplicates
+psql ... -v ON_ERROR_STOP=1 -f sql/add_historical_river_level_unique_constraint.sql    # 4. add the constraint
+                                                            # 5. then deploy
+```
+
+The migration refuses to run while duplicates remain, and every step is idempotent. Once the code is deployed,
+`python scripts/maintenance/remove_duplicate_historical_river_level.py [--dry-run]` is the equivalent of steps 2 and 3.
 
 ### Historical river-gap recovery
 
