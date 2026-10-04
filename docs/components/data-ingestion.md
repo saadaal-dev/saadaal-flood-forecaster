@@ -45,7 +45,11 @@ Two consequences worth remembering:
 - Measure coverage as `COUNT(DISTINCT date)`. Counting rows over-reports wherever duplicates exist and can report a
   station as complete when it is not.
 - A batch handed to `insert_river_data()` is collapsed to one row per station-day before it reaches the database, since
-  `ON CONFLICT DO UPDATE` cannot touch the same row twice in one statement. The last occurrence wins.
+  `ON CONFLICT DO UPDATE` cannot touch the same row twice in one statement. The rule is **the latest available
+  measurement wins**: the last row carrying a reading is kept, and a NULL never displaces a reading that arrived earlier
+  in the same batch. So `[4.70, NULL]` stores 4.70 and `[4.70, 4.80, NULL]` stores 4.80, while `[NULL, NULL]` stores
+  NULL because nothing was ever reported. It is recency among readings, not magnitude: `[4.80, 4.70, NULL]` stores 4.70.
+  Ignored NULLs are logged.
 
 ### Applying the constraint to an existing database
 

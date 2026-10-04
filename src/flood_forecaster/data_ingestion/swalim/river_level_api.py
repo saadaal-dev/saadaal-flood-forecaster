@@ -105,33 +105,71 @@ def _collapse_duplicate_levels(river_levels: List[HistoricalRiverLevel]) -> List
     statement carries two rows with the same conflict key, so the batch has to be
     collapsed before it reaches the database.
 
-    The last occurrence wins, matching `keep="last"` used by the CSV reconciliation
-    in `load_river_data_from_csvs()` and by the loader deduplication in
-    `load.py`. Rows with no location or no usable date are dropped: they cannot be
-    addressed by the uniqueness key.
+    The rule is **the latest available measurement wins**: among the rows for one
+    station-day, the last one carrying a reading is kept, and a NULL never displaces
+    a reading that arrived earlier in the same batch.
+
+        [4.70, NULL]        -> 4.70
+        [4.70, 4.80, NULL]  -> 4.80
+        [NULL, 4.70]        -> 4.70
+        [4.80, 4.70, NULL]  -> 4.70   (latest reading, not the largest)
+        [NULL, NULL]        -> NULL   (nothing was ever reported)
+
+    Plain "last wins" would discard 4.70 in the first case. NULL means the reading
+    was unavailable; it is not a measurement and it is not a retraction, so it must
+    not outrank one. Expressing a genuine upstream retraction needs the
+    representation DATA-010 will introduce; until then nothing in a batch can mean
+    "delete the value I sent you a moment ago".
+
+    This is the same preference applied at the other two layers, so all three now
+    agree: `_river_level_upsert()` skips the UPDATE when the incoming level is NULL,
+    and `remove_duplicates_historical_river_level_from_db()` ranks by
+    `(level_m IS NOT NULL) DESC, id DESC`. Note it is recency among readings, not
+    magnitude: the fourth example keeps 4.70 because it arrived after 4.80.
+
+    Rows with no location or no usable date are dropped: they cannot be addressed by
+    the uniqueness key.
     """
     collapsed: "OrderedDict[tuple, dict]" = OrderedDict()
     skipped = 0
+    null_ignored = 0
 
     for level in river_levels:
         reading_date = _normalize_reading_date(level.date)
         if level.location_name is None or reading_date is None:
             skipped += 1
             continue
+
         key = (level.location_name, reading_date)
+        level_m = None if pd.isna(level.level_m) else float(level.level_m)
+
+        existing = collapsed.get(key)
+        if existing is not None and level_m is None and existing["level_m"] is not None:
+            # Keep the reading already seen for this station-day. Retains its
+            # original position in the batch, since the entry is left untouched.
+            null_ignored += 1
+            continue
+
         collapsed[key] = {
             "location_name": level.location_name,
             "date": reading_date,
-            "level_m": None if pd.isna(level.level_m) else float(level.level_m),
+            "level_m": level_m,
         }
 
     if skipped:
         logger.warning(f"Skipped {skipped} river level(s) with no location name or no parsable date.")
 
+    if null_ignored:
+        logger.warning(
+            f"Ignored {null_ignored} NULL river level(s) that would have displaced a reading "
+            f"for the same station and date."
+        )
+
     duplicates = len(river_levels) - skipped - len(collapsed)
     if duplicates > 0:
         logger.info(
-            f"Collapsed {duplicates} duplicate (station, date) river level(s) within the batch; last value wins."
+            f"Collapsed {duplicates} duplicate (station, date) river level(s) within the batch; "
+            f"latest available measurement wins."
         )
 
     return list(collapsed.values())

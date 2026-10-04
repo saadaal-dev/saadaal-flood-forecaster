@@ -100,6 +100,73 @@ class TestCollapseDuplicateLevels(unittest.TestCase):
         ])
         self.assertEqual([r["level_m"] for r in rows], [3.30])
 
+
+class TestCollapseKeepsLatestAvailableMeasurement(unittest.TestCase):
+    """
+    A NULL must not displace a reading seen earlier in the same batch.
+
+    NULL means the reading was unavailable. It is not a measurement and it is not a
+    retraction, so plain "last wins" silently destroyed valid data before it ever
+    reached the database, defeating the NULL guard in `_river_level_upsert()` one
+    layer below. Raised in PR review on the DATA-005 branch.
+    """
+
+    DAY = date(2026, 5, 12)
+
+    def _collapse(self, values):
+        rows = _collapse_duplicate_levels([_level(STATION, self.DAY, v) for v in values])
+        self.assertEqual(len(rows), 1, "one station-day must collapse to one row")
+        return rows[0]["level_m"]
+
+    def test_null_after_a_reading_keeps_the_reading(self):
+        self.assertEqual(self._collapse([4.70, None]), 4.70)
+
+    def test_null_after_two_readings_keeps_the_later_reading(self):
+        self.assertEqual(self._collapse([4.70, 4.80, None]), 4.80)
+
+    def test_reading_after_a_null_replaces_it(self):
+        self.assertEqual(self._collapse([None, 4.70]), 4.70)
+
+    def test_latest_reading_wins_not_the_largest(self):
+        """Recency, not magnitude: 4.70 arrived after 4.80."""
+        self.assertEqual(self._collapse([4.80, 4.70, None]), 4.70)
+
+    def test_all_null_stays_null(self):
+        """Nothing was ever reported, so the placeholder is preserved (DATA-010)."""
+        self.assertIsNone(self._collapse([None, None]))
+
+    def test_trailing_nulls_do_not_accumulate_damage(self):
+        self.assertEqual(self._collapse([4.70, None, None, None]), 4.70)
+
+    def test_reading_recovers_after_interleaved_nulls(self):
+        self.assertEqual(self._collapse([4.70, None, 4.90, None]), 4.90)
+
+    def test_nan_is_treated_as_null_not_as_a_measurement(self):
+        """`pd.to_numeric(errors="coerce")` yields NaN, which must behave like NULL."""
+        self.assertEqual(self._collapse([4.70, float("nan")]), 4.70)
+
+    def test_other_station_days_are_unaffected(self):
+        rows = _collapse_duplicate_levels([
+            _level("Jowhar", self.DAY, 4.70),
+            _level("Jowhar", self.DAY, None),
+            _level("Luuq", self.DAY, None),
+        ])
+        self.assertEqual(
+            {(r["location_name"], r["level_m"]) for r in rows},
+            {("Jowhar", 4.70), ("Luuq", None)},
+        )
+
+    def test_ignored_null_keeps_its_original_batch_position(self):
+        rows = _collapse_duplicate_levels([
+            _level(STATION, date(2026, 5, 11), 1.0),
+            _level(STATION, date(2026, 5, 12), 2.0),
+            _level(STATION, date(2026, 5, 11), None),
+        ])
+        self.assertEqual(
+            [(r["date"], r["level_m"]) for r in rows],
+            [(date(2026, 5, 11), 1.0), (date(2026, 5, 12), 2.0)],
+        )
+
     def test_distinct_stations_on_the_same_day_are_both_kept(self):
         rows = _collapse_duplicate_levels([
             _level("Jowhar", date(2026, 5, 12), 4.88),
@@ -251,6 +318,36 @@ class TestInsertRiverData(unittest.TestCase):
     def test_null_level_can_still_be_inserted_for_a_new_date(self):
         insert_river_data([_level(STATION, date(2026, 5, 12), None)], self.config)
         self.assertEqual(self._stored(), [(STATION, date(2026, 5, 12), None)])
+
+    def test_reading_and_null_in_one_batch_stores_the_reading(self):
+        """
+        End to end for the PR review case: a batch carrying both a reading and a
+        NULL for one station-day must store the reading, not a placeholder.
+        """
+        written = insert_river_data(
+            [
+                _level(STATION, date(2026, 5, 12), 4.70),
+                _level(STATION, date(2026, 5, 12), None),
+            ],
+            self.config,
+        )
+        self.assertEqual(written, 1)
+        self.assertEqual(self._stored(), [(STATION, date(2026, 5, 12), 4.70)])
+
+    def test_null_in_a_later_batch_also_cannot_erase_the_stored_reading(self):
+        """The batch-level and database-level guards must agree."""
+        insert_river_data([_level(STATION, date(2026, 5, 12), 4.70)], self.config)
+        insert_river_data(
+            [
+                _level(STATION, date(2026, 5, 12), None),
+                _level(STATION, date(2026, 5, 13), None),
+            ],
+            self.config,
+        )
+        self.assertEqual(
+            self._stored(),
+            [(STATION, date(2026, 5, 12), 4.70), (STATION, date(2026, 5, 13), None)],
+        )
 
     def test_mixed_new_and_existing_dates_in_one_batch(self):
         insert_river_data([_level(STATION, date(2026, 5, 11), 4.88)], self.config)
