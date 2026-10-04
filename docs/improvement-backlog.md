@@ -356,7 +356,10 @@ structural blocker for running gap repair as part of the daily pipeline: without
 - [x] Every ingestion/backfill path uses conflict-safe bulk inserts or upserts; the per-row `SELECT` pre-check in
       `__filter_river_data_exists()` is removed.
       `insert_river_data()` is a single `ON CONFLICT (location_name, date) DO UPDATE`. Batches are collapsed to one row
-      per station-day first, because one statement cannot touch the same conflict target twice.
+      per station-day first, because one statement cannot touch the same conflict target twice; the collapse keeps the
+      latest *available* measurement, so a NULL cannot displace a reading seen earlier in the same batch (raised in PR
+      review; plain last-wins destroyed valid data before it reached the database and defeated the NULL guard in the
+      upsert).
       `scripts/backfill/fill_river_data_gaps.py` now fills a NULL placeholder in place instead of inserting a second row
       for the date, which the constraint would have rejected.
 - [x] A decision is recorded on whether a differing upstream value should update the stored row or be rejected, rather
